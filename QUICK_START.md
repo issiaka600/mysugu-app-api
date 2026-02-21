@@ -324,4 +324,4 @@ docker-compose up -d minio
 - ⭐ Système d'avis et notes
 - 🎁 Programme de fidélité
 - 📧 Service d'emailing
-- 🔐 OAuth2 (Google, Facebook login)
+- 🔐 OAuth2 (Google, Facebook login, etc)
