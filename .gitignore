@@ -18,8 +18,8 @@ target/
 *.iws
 *.iml
 *.ipr
-.git
-.github
+#.git
+#.github
 
 ### NetBeans ###
 /nbproject/private/
