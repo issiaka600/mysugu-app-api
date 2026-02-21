@@ -60,13 +60,15 @@ public class SecurityConfig {
                                 "/v3/api-docs.yaml",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
-                                "/actuator/health").permitAll()
+                                "/actuator/health"
+                        ).permitAll()
 
                         // Routes publiques en lecture seule
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/restaurants/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/plats/**").permitAll()
-                        
+                        .requestMatchers(HttpMethod.GET, "/api/files/**").permitAll()
+
                         // Routes admin uniquement
                         .requestMatchers("/api/users/admin/**").hasRole("ADMIN")
                         
