@@ -325,3 +325,5 @@ docker-compose up -d minio
 - 🎁 Programme de fidélité
 - 📧 Service d'emailing
 - 🔐 OAuth2 (Google, Facebook login)
+
+## A venir
