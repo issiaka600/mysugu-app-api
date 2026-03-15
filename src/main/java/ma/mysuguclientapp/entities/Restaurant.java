@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -58,7 +59,16 @@ public class Restaurant {
     
     @Column(name = "is_active")
     private Boolean isActive = true;
-    
+
+    @Column(name = "auto_close_enabled")
+    private Boolean autoCloseEnabled = false;
+
+    @Column(name = "heure_ouverture")
+    private LocalTime heureOuverture;
+
+    @Column(name = "heure_fermeture")
+    private LocalTime heureFermeture;
+
     @Column(name = "horaires_ouverture", length = 500)
     private String horairesOuverture; // Format JSON ou texte
     

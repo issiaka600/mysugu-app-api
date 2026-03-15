@@ -2,7 +2,11 @@ package ma.mysuguclientapp.services.implementations;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import ma.mysuguclientapp.dtos.*;
+import ma.mysuguclientapp.dtos.CategorieRestaurantDTO;
+import ma.mysuguclientapp.dtos.LocalisationDTO;
+import ma.mysuguclientapp.dtos.PromotionDTO;
+import ma.mysuguclientapp.dtos.RestaurantCreateDTO;
+import ma.mysuguclientapp.dtos.RestaurantDTO;
 import ma.mysuguclientapp.entities.CategorieRestaurant;
 import ma.mysuguclientapp.entities.Localisation;
 import ma.mysuguclientapp.entities.Restaurant;
@@ -21,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -40,24 +45,14 @@ public class RestaurantServiceImpl implements RestaurantService {
     public Page<RestaurantDTO> getAllRestaurants(Long categorieId, Double latitude,
                                                  Double longitude, Double maxDistance,
                                                  Pageable pageable) {
-        Page<Restaurant> restaurants;
-
-        if (categorieId != null) {
-            restaurants = restaurantRepository.findByCategorieIdAndIsActive(categorieId, true, pageable);
-        } else {
-            restaurants = restaurantRepository.findByIsActive(true, pageable);
-        }
+        Page<Restaurant> restaurants = categorieId != null
+                ? restaurantRepository.findByCategorieIdAndIsActive(categorieId, true, pageable)
+                : restaurantRepository.findByIsActive(true, pageable);
 
         List<RestaurantDTO> restaurantDTOs = restaurants.getContent().stream()
                 .map(restaurant -> convertToDTO(restaurant, latitude, longitude))
+                .filter(dto -> maxDistance == null || dto.getDistance() == null || dto.getDistance() <= maxDistance)
                 .collect(Collectors.toList());
-
-        // Filtrer par distance si spécifié
-        if (maxDistance != null && latitude != null && longitude != null) {
-            restaurantDTOs = restaurantDTOs.stream()
-                    .filter(dto -> dto.getDistance() != null && dto.getDistance() <= maxDistance)
-                    .collect(Collectors.toList());
-        }
 
         return new PageImpl<>(restaurantDTOs, pageable, restaurants.getTotalElements());
     }
@@ -73,8 +68,7 @@ public class RestaurantServiceImpl implements RestaurantService {
     @Override
     @Transactional(readOnly = true)
     public List<RestaurantDTO> searchRestaurants(String keyword) {
-        List<Restaurant> restaurants = restaurantRepository.searchByKeyword(keyword);
-        return restaurants.stream()
+        return restaurantRepository.searchByKeyword(keyword).stream()
                 .map(restaurant -> convertToDTO(restaurant, null, null))
                 .collect(Collectors.toList());
     }
@@ -82,9 +76,7 @@ public class RestaurantServiceImpl implements RestaurantService {
     @Override
     @Transactional(readOnly = true)
     public List<RestaurantDTO> getTopRatedRestaurants(int limit) {
-        List<Restaurant> restaurants = restaurantRepository.findByIsActiveOrderByAppreciationDesc(true);
-
-        return restaurants.stream()
+        return restaurantRepository.findByIsActiveOrderByAppreciationDesc(true).stream()
                 .limit(limit)
                 .map(restaurant -> convertToDTO(restaurant, null, null))
                 .collect(Collectors.toList());
@@ -93,9 +85,7 @@ public class RestaurantServiceImpl implements RestaurantService {
     @Override
     @Transactional(readOnly = true)
     public List<RestaurantDTO> getNearbyRestaurants(Double latitude, Double longitude, Double radiusKm) {
-        List<Restaurant> allRestaurants = restaurantRepository.findByIsActive(true);
-
-        return allRestaurants.stream()
+        return restaurantRepository.findByIsActive(true).stream()
                 .map(restaurant -> convertToDTO(restaurant, latitude, longitude))
                 .filter(dto -> dto.getDistance() != null && dto.getDistance() <= radiusKm)
                 .sorted(Comparator.comparing(RestaurantDTO::getDistance))
@@ -104,11 +94,9 @@ public class RestaurantServiceImpl implements RestaurantService {
 
     @Override
     public RestaurantDTO createRestaurant(RestaurantCreateDTO restaurantDTO, MultipartFile logo) {
-        // Vérifier la catégorie
         CategorieRestaurant categorie = categorieRepository.findById(restaurantDTO.getCategorieId())
                 .orElseThrow(() -> new ResourceNotFoundException("Catégorie non trouvée"));
 
-        // Vérifier le propriétaire
         User owner = userRepository.findById(restaurantDTO.getOwnerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Propriétaire non trouvé"));
 
@@ -116,7 +104,6 @@ public class RestaurantServiceImpl implements RestaurantService {
             throw new BadRequestException("L'utilisateur doit avoir le rôle RESTAURANT_OWNER");
         }
 
-        // Créer le restaurant
         Restaurant restaurant = new Restaurant();
         restaurant.setNom(restaurantDTO.getNom());
         restaurant.setDescription(restaurantDTO.getDescription());
@@ -126,23 +113,16 @@ public class RestaurantServiceImpl implements RestaurantService {
         restaurant.setHorairesOuverture(restaurantDTO.getHorairesOuverture());
         restaurant.setIsActive(true);
 
-        // Localisation
-        if (restaurantDTO.getLocalisation() != null) {
-            Localisation localisation = new Localisation();
-            localisation.setLatitude(restaurantDTO.getLocalisation().getLatitude());
-            localisation.setLongitude(restaurantDTO.getLocalisation().getLongitude());
-            localisation.setAdresse(restaurantDTO.getLocalisation().getAdresse());
-            localisation.setVille(restaurantDTO.getLocalisation().getVille());
-            localisation.setCodePostal(restaurantDTO.getLocalisation().getCodePostal());
-            localisation.setPays(restaurantDTO.getLocalisation().getPays());
-            restaurant.setLocalisation(localisation);
+        applyAutoCloseSettings(restaurant, restaurantDTO);
+        applyLocalisation(restaurant, restaurantDTO.getLocalisation());
+
+        if (Boolean.TRUE.equals(restaurantDTO.getRemoveLogo())) {
+            restaurant.setLogoUrl(null);
         }
 
-        // Upload logo
         if (logo != null && !logo.isEmpty()) {
             try {
-                String logoUrl = minioService.uploadFile(logo, "restaurants/logos");
-                restaurant.setLogoUrl(logoUrl);
+                restaurant.setLogoUrl(minioService.uploadFile(logo, "restaurants/logos"));
             } catch (Exception e) {
                 log.error("Erreur lors de l'upload du logo", e);
                 throw new BadRequestException("Erreur lors de l'upload du logo");
@@ -151,7 +131,6 @@ public class RestaurantServiceImpl implements RestaurantService {
 
         Restaurant savedRestaurant = restaurantRepository.save(restaurant);
         log.info("Restaurant créé: {}", savedRestaurant.getNom());
-
         return convertToDTO(savedRestaurant, null, null);
     }
 
@@ -160,44 +139,36 @@ public class RestaurantServiceImpl implements RestaurantService {
         Restaurant restaurant = restaurantRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Restaurant non trouvé"));
 
-        // Mettre à jour les champs
         restaurant.setNom(restaurantDTO.getNom());
         restaurant.setDescription(restaurantDTO.getDescription());
         restaurant.setTempsLivraisonMoyen(restaurantDTO.getTempsLivraisonMoyen());
         restaurant.setHorairesOuverture(restaurantDTO.getHorairesOuverture());
+        applyAutoCloseSettings(restaurant, restaurantDTO);
 
-        // Mettre à jour la catégorie si changée
         if (restaurantDTO.getCategorieId() != null) {
             CategorieRestaurant categorie = categorieRepository.findById(restaurantDTO.getCategorieId())
                     .orElseThrow(() -> new ResourceNotFoundException("Catégorie non trouvée"));
             restaurant.setCategorie(categorie);
         }
 
-        // Mettre à jour la localisation
-        if (restaurantDTO.getLocalisation() != null) {
-            Localisation localisation = restaurant.getLocalisation();
-            if (localisation == null) {
-                localisation = new Localisation();
+        applyLocalisation(restaurant, restaurantDTO.getLocalisation());
+
+        if (Boolean.TRUE.equals(restaurantDTO.getRemoveLogo()) && restaurant.getLogoUrl() != null) {
+            try {
+                minioService.deleteFile(restaurant.getLogoUrl());
+                restaurant.setLogoUrl(null);
+            } catch (Exception e) {
+                log.error("Erreur lors de la suppression du logo", e);
+                throw new BadRequestException("Erreur lors de la suppression du logo");
             }
-            localisation.setLatitude(restaurantDTO.getLocalisation().getLatitude());
-            localisation.setLongitude(restaurantDTO.getLocalisation().getLongitude());
-            localisation.setAdresse(restaurantDTO.getLocalisation().getAdresse());
-            localisation.setVille(restaurantDTO.getLocalisation().getVille());
-            localisation.setCodePostal(restaurantDTO.getLocalisation().getCodePostal());
-            localisation.setPays(restaurantDTO.getLocalisation().getPays());
-            restaurant.setLocalisation(localisation);
         }
 
-        // Upload nouveau logo si fourni
         if (logo != null && !logo.isEmpty()) {
             try {
-                // Supprimer l'ancien logo
                 if (restaurant.getLogoUrl() != null) {
                     minioService.deleteFile(restaurant.getLogoUrl());
                 }
-
-                String logoUrl = minioService.uploadFile(logo, "restaurants/logos");
-                restaurant.setLogoUrl(logoUrl);
+                restaurant.setLogoUrl(minioService.uploadFile(logo, "restaurants/logos"));
             } catch (Exception e) {
                 log.error("Erreur lors de l'upload du logo", e);
                 throw new BadRequestException("Erreur lors de l'upload du logo");
@@ -206,7 +177,6 @@ public class RestaurantServiceImpl implements RestaurantService {
 
         Restaurant updatedRestaurant = restaurantRepository.save(restaurant);
         log.info("Restaurant mis à jour: {}", updatedRestaurant.getNom());
-
         return convertToDTO(updatedRestaurant, null, null);
     }
 
@@ -215,7 +185,6 @@ public class RestaurantServiceImpl implements RestaurantService {
         Restaurant restaurant = restaurantRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Restaurant non trouvé"));
 
-        // Supprimer le logo de MinIO
         if (restaurant.getLogoUrl() != null) {
             try {
                 minioService.deleteFile(restaurant.getLogoUrl());
@@ -235,27 +204,60 @@ public class RestaurantServiceImpl implements RestaurantService {
 
         restaurant.setIsActive(!restaurant.getIsActive());
         Restaurant updatedRestaurant = restaurantRepository.save(restaurant);
-
         log.info("Statut du restaurant {} changé à: {}", restaurant.getNom(), restaurant.getIsActive());
 
         return convertToDTO(updatedRestaurant, null, null);
     }
 
-    // ========== MÉTHODES UTILITAIRES ==========
+    private void applyAutoCloseSettings(Restaurant restaurant, RestaurantCreateDTO restaurantDTO) {
+        boolean autoCloseEnabled = Boolean.TRUE.equals(restaurantDTO.getAutoCloseEnabled());
+        restaurant.setAutoCloseEnabled(autoCloseEnabled);
+        restaurant.setHeureOuverture(restaurantDTO.getHeureOuverture());
+        restaurant.setHeureFermeture(restaurantDTO.getHeureFermeture());
+
+        if (autoCloseEnabled && (restaurantDTO.getHeureOuverture() == null || restaurantDTO.getHeureFermeture() == null)) {
+            throw new BadRequestException("Les heures d'ouverture et de fermeture sont requises quand la fermeture automatique est activée");
+        }
+    }
+
+    private void applyLocalisation(Restaurant restaurant, LocalisationDTO localisationDTO) {
+        if (localisationDTO == null) {
+            return;
+        }
+
+        Localisation localisation = restaurant.getLocalisation();
+        if (localisation == null) {
+            localisation = new Localisation();
+        }
+
+        localisation.setLatitude(localisationDTO.getLatitude());
+        localisation.setLongitude(localisationDTO.getLongitude());
+        localisation.setAdresse(localisationDTO.getAdresse());
+        localisation.setVille(localisationDTO.getVille());
+        localisation.setCodePostal(localisationDTO.getCodePostal());
+        localisation.setPays(localisationDTO.getPays());
+        restaurant.setLocalisation(localisation);
+    }
 
     private RestaurantDTO convertToDTO(Restaurant restaurant, Double userLat, Double userLon) {
         RestaurantDTO dto = new RestaurantDTO();
         dto.setId(restaurant.getId());
         dto.setNom(restaurant.getNom());
         dto.setDescription(restaurant.getDescription());
-        dto.setLogoUrl(restaurant.getLogoUrl());
+        dto.setLogoObjectName(restaurant.getLogoUrl());
+        dto.setLogoUrl(minioService.buildPublicFileUrl(restaurant.getLogoUrl()));
         dto.setAppreciation(restaurant.getAppreciation());
         dto.setNombreAvis(restaurant.getNombreAvis());
         dto.setTempsLivraisonMoyen(restaurant.getTempsLivraisonMoyen());
-        dto.setIsActive(restaurant.getIsActive());
+        dto.setAutoCloseEnabled(restaurant.getAutoCloseEnabled());
+        dto.setHeureOuverture(restaurant.getHeureOuverture());
+        dto.setHeureFermeture(restaurant.getHeureFermeture());
+
+        boolean openNow = isRestaurantOpenNow(restaurant);
+        dto.setOpenNow(openNow);
+        dto.setIsActive(openNow);
         dto.setCreatedAt(restaurant.getCreatedAt());
 
-        // Localisation
         if (restaurant.getLocalisation() != null) {
             LocalisationDTO locDTO = new LocalisationDTO();
             locDTO.setLatitude(restaurant.getLocalisation().getLatitude());
@@ -266,18 +268,15 @@ public class RestaurantServiceImpl implements RestaurantService {
             locDTO.setPays(restaurant.getLocalisation().getPays());
             dto.setLocalisation(locDTO);
 
-            // Calculer la distance si l'utilisateur a fourni sa position
             if (userLat != null && userLon != null) {
-                double distance = calculateDistance(
+                dto.setDistance(calculateDistance(
                         userLat, userLon,
                         restaurant.getLocalisation().getLatitude(),
                         restaurant.getLocalisation().getLongitude()
-                );
-                dto.setDistance(distance);
+                ));
             }
         }
 
-        // Catégorie
         if (restaurant.getCategorie() != null) {
             CategorieRestaurantDTO catDTO = new CategorieRestaurantDTO();
             catDTO.setId(restaurant.getCategorie().getId());
@@ -287,7 +286,6 @@ public class RestaurantServiceImpl implements RestaurantService {
             dto.setCategorie(catDTO);
         }
 
-        // Promotion
         if (restaurant.getPromotion() != null && restaurant.getPromotion().getIsActive()) {
             PromotionDTO promoDTO = new PromotionDTO();
             promoDTO.setId(restaurant.getPromotion().getId());
@@ -302,12 +300,38 @@ public class RestaurantServiceImpl implements RestaurantService {
         return dto;
     }
 
+    private boolean isRestaurantOpenNow(Restaurant restaurant) {
+        if (!Boolean.TRUE.equals(restaurant.getIsActive())) {
+            return false;
+        }
+
+        if (!Boolean.TRUE.equals(restaurant.getAutoCloseEnabled())) {
+            return true;
+        }
+
+        LocalTime opening = restaurant.getHeureOuverture();
+        LocalTime closing = restaurant.getHeureFermeture();
+        if (opening == null || closing == null) {
+            return true;
+        }
+
+        LocalTime now = LocalTime.now();
+        if (opening.equals(closing)) {
+            return true;
+        }
+        if (opening.isBefore(closing)) {
+            return !now.isBefore(opening) && now.isBefore(closing);
+        }
+
+        return !now.isBefore(opening) || now.isBefore(closing);
+    }
+
     private double calculateDistance(Double lat1, Double lon1, Double lat2, Double lon2) {
         if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) {
             return Double.MAX_VALUE;
         }
 
-        final int R = 6371; // Rayon de la Terre en km
+        final int r = 6371;
         double latDistance = Math.toRadians(lat2 - lat1);
         double lonDistance = Math.toRadians(lon2 - lon1);
 
@@ -316,7 +340,6 @@ public class RestaurantServiceImpl implements RestaurantService {
                 * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
 
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-        return R * c;
+        return r * c;
     }
 }

@@ -1,7 +1,12 @@
 package ma.mysuguclientapp.services.implementations;
 
-import io.minio.*;
-import io.minio.http.Method;
+import io.minio.BucketExistsArgs;
+import io.minio.GetObjectArgs;
+import io.minio.MakeBucketArgs;
+import io.minio.MinioClient;
+import io.minio.PutObjectArgs;
+import io.minio.RemoveObjectArgs;
+import io.minio.StatObjectArgs;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import ma.mysuguclientapp.dtos.FileMetadata;
@@ -11,144 +16,98 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class MinioService {
 
+    private static final String FOLDER_RESTAURANTS = "restaurants";
+    private static final String FOLDER_PLATS = "plats";
+    private static final String FOLDER_AVATARS = "avatars";
+    private static final String FOLDER_CATEGORIES = "categories";
+    private static final String FOLDER_UPLOADS = "uploads";
+
     private final MinioClient minioClient;
 
     @Value("${minio.bucket-name}")
     private String bucketName;
 
-    @Value("${minio.image-bucket}")
-    private String imageBucket;
+    @Value("${app.public-base-url:}")
+    private String publicBaseUrl;
 
-    /**
-     * Initialiser les buckets nécessaires
-     */
     public void initBuckets() {
         try {
             createBucketIfNotExists(bucketName);
-            createBucketIfNotExists(imageBucket);
-
-            // Créer des buckets séparés pour une meilleure organisation
-            createBucketIfNotExists("restaurants");
-            createBucketIfNotExists("plats");
-            createBucketIfNotExists("avatars");
-            createBucketIfNotExists("categories");
-
-            log.info("Tous les buckets MinIO ont été initialisés avec succès");
+            log.info("Bucket MinIO initialisé avec succès: {}", bucketName);
         } catch (Exception e) {
-            log.error("Erreur lors de l'initialisation des buckets MinIO", e);
+            log.error("Erreur lors de l'initialisation du bucket MinIO", e);
         }
     }
 
-    /**
-     * Créer un bucket s'il n'existe pas
-     */
     private void createBucketIfNotExists(String bucket) throws Exception {
-        boolean found = minioClient.bucketExists(BucketExistsArgs.builder()
-                .bucket(bucket)
-                .build());
-
+        boolean found = minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucket).build());
         if (!found) {
-            minioClient.makeBucket(MakeBucketArgs.builder()
-                    .bucket(bucket)
-                    .build());
-
-            // Rendre le bucket public en lecture (optionnel)
-            // makeBucketPublic(bucket);
-
+            minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
             log.info("Bucket créé: {}", bucket);
-        } else {
-            log.debug("Bucket {} existe déjà", bucket);
         }
     }
 
-    /**
-     * Upload un fichier dans MinIO
-     */
     public String uploadFile(MultipartFile file, String folder) throws Exception {
+        String normalizedFolder = normalizeFolder(folder);
         String fileName = generateFileName(file.getOriginalFilename());
-        String objectName = folder + "/" + fileName;
-
-        // Déterminer le bucket approprié
-        String targetBucket = determineBucket(folder);
+        String objectName = normalizedFolder + "/" + fileName;
 
         try (InputStream inputStream = file.getInputStream()) {
             minioClient.putObject(
                     PutObjectArgs.builder()
-                            .bucket(targetBucket)
+                            .bucket(bucketName)
                             .object(objectName)
                             .stream(inputStream, file.getSize(), -1)
                             .contentType(file.getContentType())
                             .build()
             );
 
-            log.info("Fichier uploadé: {} dans le bucket {}", objectName, targetBucket);
+            log.info("Fichier uploadé: {} dans le bucket {}", objectName, bucketName);
             return objectName;
         }
     }
 
-    /**
-     * Obtenir l'URL de téléchargement d'un fichier (URL pré-signée)
-     */
-    public String getFileUrl(String objectName) throws Exception {
-        String bucket = determineBucket(objectName);
-
-        return minioClient.getPresignedObjectUrl(
-                GetPresignedObjectUrlArgs.builder()
-                        .method(Method.GET)
-                        .bucket(bucket)
-                        .object(objectName)
-                        .expiry(7, TimeUnit.DAYS)
-                        .build()
-        );
+    public String getFileUrl(String objectName) {
+        return buildPublicFileUrl(objectName);
     }
 
-    /**
-     * Supprimer un fichier
-     */
     public void deleteFile(String objectName) throws Exception {
-        String bucket = determineBucket(objectName);
+        String normalizedObjectName = normalizeObjectName(objectName);
 
         minioClient.removeObject(
                 RemoveObjectArgs.builder()
-                        .bucket(bucket)
-                        .object(objectName)
+                        .bucket(bucketName)
+                        .object(normalizedObjectName)
                         .build()
         );
-        log.info("Fichier supprimé: {} du bucket {}", objectName, bucket);
+        log.info("Fichier supprimé: {} du bucket {}", normalizedObjectName, bucketName);
     }
 
-    /**
-     * Télécharger un fichier
-     */
     public InputStream downloadFile(String objectName) throws Exception {
-        String bucket = determineBucket(objectName);
+        String normalizedObjectName = normalizeObjectName(objectName);
 
         return minioClient.getObject(
                 GetObjectArgs.builder()
-                        .bucket(bucket)
-                        .object(objectName)
+                        .bucket(bucketName)
+                        .object(normalizedObjectName)
                         .build()
         );
     }
 
-    /**
-     * Vérifier si un fichier existe
-     */
     public boolean fileExists(String objectName) {
         try {
-            String bucket = determineBucket(objectName);
+            String normalizedObjectName = normalizeObjectName(objectName);
 
             minioClient.statObject(
                     StatObjectArgs.builder()
-                            .bucket(bucket)
-                            .object(objectName)
+                            .bucket(bucketName)
+                            .object(normalizedObjectName)
                             .build()
             );
             return true;
@@ -157,62 +116,129 @@ public class MinioService {
         }
     }
 
-    /**
-     * Obtenir les métadonnées d'un fichier
-     */
     public FileMetadata getFileMetadata(String objectName) throws Exception {
-        String bucket = determineBucket(objectName);
+        String normalizedObjectName = normalizeObjectName(objectName);
 
         var stat = minioClient.statObject(
                 StatObjectArgs.builder()
-                        .bucket(bucket)
-                        .object(objectName)
+                        .bucket(bucketName)
+                        .object(normalizedObjectName)
                         .build()
         );
 
         FileMetadata metadata = new FileMetadata();
-        metadata.setObjectName(objectName);
-        metadata.setBucket(bucket);
+        metadata.setObjectName(normalizedObjectName);
+        metadata.setBucket(bucketName);
+        metadata.setFileName(extractFileName(normalizedObjectName));
         metadata.setSize(stat.size());
         metadata.setContentType(stat.contentType());
+        metadata.setUrl(buildPublicFileUrl(normalizedObjectName));
+        metadata.setDownloadUrl(buildPublicFileUrl(normalizedObjectName) + "?download=true");
         metadata.setLastModified(stat.lastModified().toLocalDateTime());
-
         return metadata;
     }
 
-    /**
-     * Générer un nom de fichier unique
-     */
+    public String buildPublicFileUrl(String objectName) {
+        String normalizedObjectName = normalizeObjectName(objectName);
+        if (normalizedObjectName == null || normalizedObjectName.isBlank()) {
+            return null;
+        }
+
+        String path = "/api/files/" + normalizedObjectName;
+        if (publicBaseUrl == null || publicBaseUrl.isBlank()) {
+            return path;
+        }
+
+        return publicBaseUrl.replaceAll("/+$", "") + path;
+    }
+
+    public String resolveBucket(String ignoredPath) {
+        return bucketName;
+    }
+
+    public String normalizeObjectName(String objectName) {
+        if (objectName == null || objectName.isBlank()) {
+            return objectName;
+        }
+
+        String normalized = objectName.replace("\\", "/").replaceAll("^/+", "").replaceAll("/+$", "");
+
+        normalized = stripBucketPrefix(normalized, bucketName);
+
+        if (normalized.startsWith(FOLDER_RESTAURANTS + "/")
+                || normalized.startsWith(FOLDER_PLATS + "/")
+                || normalized.startsWith(FOLDER_AVATARS + "/")
+                || normalized.startsWith(FOLDER_CATEGORIES + "/")
+                || normalized.startsWith(FOLDER_UPLOADS + "/")) {
+            return normalized;
+        }
+
+        return normalized;
+    }
+
+    private String stripBucketPrefix(String objectName, String bucket) {
+        if (bucket == null || bucket.isBlank()) {
+            return objectName;
+        }
+
+        String prefix = bucket + "/";
+        String lowerObjectName = objectName.toLowerCase();
+        String lowerPrefix = prefix.toLowerCase();
+
+        if (lowerObjectName.startsWith(lowerPrefix)) {
+            return objectName.substring(prefix.length());
+        }
+
+        return objectName;
+    }
+
+    private String normalizeFolder(String folder) {
+        if (folder == null || folder.isBlank()) {
+            return FOLDER_UPLOADS;
+        }
+
+        String normalized = folder.replace("\\", "/").replaceAll("^/+", "").replaceAll("/+$", "");
+        if (normalized.startsWith("restaurants/")) {
+            return normalized;
+        }
+        if (normalized.equals("restaurants")) {
+            return FOLDER_RESTAURANTS;
+        }
+        if (normalized.startsWith("plats/")) {
+            return normalized;
+        }
+        if (normalized.equals("plats")) {
+            return FOLDER_PLATS;
+        }
+        if (normalized.startsWith("avatars/")) {
+            return normalized;
+        }
+        if (normalized.equals("avatars")) {
+            return FOLDER_AVATARS;
+        }
+        if (normalized.startsWith("categories/")) {
+            return normalized;
+        }
+        if (normalized.equals("categories")) {
+            return FOLDER_CATEGORIES;
+        }
+        if (normalized.startsWith("uploads/")) {
+            return normalized;
+        }
+
+        return FOLDER_UPLOADS + "/" + normalized;
+    }
+
+    private String extractFileName(String path) {
+        int lastSlash = path.lastIndexOf('/');
+        return lastSlash >= 0 ? path.substring(lastSlash + 1) : path;
+    }
+
     private String generateFileName(String originalFilename) {
         String extension = "";
         if (originalFilename != null && originalFilename.contains(".")) {
             extension = originalFilename.substring(originalFilename.lastIndexOf("."));
         }
-        return UUID.randomUUID().toString() + extension;
-    }
-
-    /**
-     * Déterminer le bucket approprié basé sur le dossier
-     */
-    private String determineBucket(String path) {
-        if (path == null) {
-            return imageBucket;
-        }
-
-        String lowerPath = path.toLowerCase();
-
-        // Buckets spécifiques
-        if (lowerPath.startsWith("restaurants/") || lowerPath.contains("restaurant")) {
-            return "restaurants";
-        } else if (lowerPath.startsWith("plats/") || lowerPath.contains("plat")) {
-            return "plats";
-        } else if (lowerPath.startsWith("avatars/") || lowerPath.contains("avatar")) {
-            return "avatars";
-        } else if (lowerPath.startsWith("categories/") || lowerPath.contains("categor")) {
-            return "categories";
-        }
-
-        // Bucket par défaut
-        return imageBucket;
+        return UUID.randomUUID() + extension;
     }
 }

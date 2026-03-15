@@ -12,4 +12,5 @@ public class CommandeCreateDTO {
     private LocalisationDTO adresseLivraison;
     private String commentaire;
     private String methodePaiement;
+    private String modeReception;
 }

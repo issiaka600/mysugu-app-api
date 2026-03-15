@@ -1,5 +1,6 @@
 package ma.mysuguclientapp.services.interfaces;
 
+import ma.mysuguclientapp.dtos.PlatAvailabilityUpdateDTO;
 import ma.mysuguclientapp.dtos.PlatCreateDTO;
 import ma.mysuguclientapp.dtos.PlatDTO;
 import org.springframework.data.domain.Page;
@@ -23,5 +24,5 @@ public interface PlatService {
 
     void deletePlat(Long id);
 
-    PlatDTO toggleAvailability(Long id);
+    PlatDTO updateAvailability(Long id, PlatAvailabilityUpdateDTO availabilityDTO);
 }

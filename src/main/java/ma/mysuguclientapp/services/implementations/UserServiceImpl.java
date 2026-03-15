@@ -3,7 +3,15 @@ package ma.mysuguclientapp.services.implementations;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import ma.mysuguclientapp.config.security.JwtTokenProvider;
-import ma.mysuguclientapp.dtos.*;
+import ma.mysuguclientapp.dtos.GoogleAuthRequestDTO;
+import ma.mysuguclientapp.dtos.GoogleTokenInfoDTO;
+import ma.mysuguclientapp.dtos.LocalisationDTO;
+import ma.mysuguclientapp.dtos.LocationUpdateDTO;
+import ma.mysuguclientapp.dtos.LoginDTO;
+import ma.mysuguclientapp.dtos.LoginResponseDTO;
+import ma.mysuguclientapp.dtos.RegisterDTO;
+import ma.mysuguclientapp.dtos.UserDTO;
+import ma.mysuguclientapp.dtos.UserUpdateDTO;
 import ma.mysuguclientapp.entities.Localisation;
 import ma.mysuguclientapp.entities.User;
 import ma.mysuguclientapp.enumerations.UserRole;
@@ -18,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -26,78 +35,71 @@ import java.util.stream.Collectors;
 @Transactional
 public class UserServiceImpl implements UserService {
     private static final String USER_NOT_FOUND_MESSAGE = "Utilisateur non trouvé";
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final MinioService minioService;
+    private final GoogleAuthService googleAuthService;
 
     @Override
     public UserDTO register(RegisterDTO registerDTO) {
-        // Vérifier si l'email existe déjà
         if (userRepository.findByEmail(registerDTO.getEmail()).isPresent()) {
             throw new BadRequestException("Un utilisateur avec cet email existe déjà");
         }
 
-        // Créer l'utilisateur
         User user = new User();
         user.setEmail(registerDTO.getEmail());
         user.setPassword(passwordEncoder.encode(registerDTO.getPassword()));
         user.setNom(registerDTO.getNom());
         user.setPrenom(registerDTO.getPrenom());
         user.setTelephone(registerDTO.getTelephone());
-
-        try {
-            user.setRole(UserRole.valueOf(registerDTO.getRole()));
-        } catch (IllegalArgumentException e) {
-            throw new BadRequestException("Rôle invalide: " + registerDTO.getRole());
-        }
-
+        user.setRole(parseRole(registerDTO.getRole(), false));
         user.setIsActive(true);
 
         User savedUser = userRepository.save(user);
         log.info("Utilisateur créé avec succès: {}", savedUser.getEmail());
-
         return convertToDTO(savedUser);
     }
 
     @Override
     public LoginResponseDTO login(LoginDTO loginDTO) {
-        // Trouver l'utilisateur par email
         User user = userRepository.findByEmail(loginDTO.getEmail())
                 .orElseThrow(() -> new UnauthorizedException("Email ou mot de passe incorrect"));
 
-        // Vérifier le mot de passe
         if (!passwordEncoder.matches(loginDTO.getPassword(), user.getPassword())) {
             throw new UnauthorizedException("Email ou mot de passe incorrect");
         }
-
-        // Vérifier si l'utilisateur est actif
         if (!user.getIsActive()) {
             throw new UnauthorizedException("Compte désactivé");
         }
 
-        // Générer le token JWT
-        String token = jwtTokenProvider.generateToken(user);
-        log.info("Connexion réussie pour: {}", user.getEmail());
+        return buildLoginResponse(user);
+    }
 
-        // Créer la réponse
-        LoginResponseDTO response = new LoginResponseDTO();
-        response.setToken(token);
-        response.setUser(convertToDTO(user));
+    @Override
+    public LoginResponseDTO loginWithGoogle(GoogleAuthRequestDTO googleAuthRequestDTO) {
+        GoogleTokenInfoDTO tokenInfo = googleAuthService.verifyIdToken(googleAuthRequestDTO.getIdToken());
 
-        return response;
+        User user = userRepository.findByEmail(tokenInfo.getEmail())
+                .map(existingUser -> updateUserFromGoogle(existingUser, tokenInfo, googleAuthRequestDTO))
+                .orElseGet(() -> createGoogleUser(tokenInfo, googleAuthRequestDTO));
+
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new UnauthorizedException("Compte désactivé");
+        }
+
+        user = userRepository.save(user);
+        log.info("Connexion Google réussie pour: {}", user.getEmail());
+        return buildLoginResponse(user);
     }
 
     @Override
     @Transactional(readOnly = true)
     public UserDTO getProfile(String token) {
-        // Extraire le token Bearer
         String jwt = extractToken(token);
-
-        // Obtenir l'email depuis le token
         String email = jwtTokenProvider.getEmailFromToken(jwt);
 
-        // Trouver l'utilisateur
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND_MESSAGE));
 
@@ -106,14 +108,12 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserDTO updateProfile(String token, UserUpdateDTO updateDTO, MultipartFile avatar) {
-        // Obtenir l'utilisateur connecté
         String jwt = extractToken(token);
         String email = jwtTokenProvider.getEmailFromToken(jwt);
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND_MESSAGE));
 
-        // Mettre à jour les informations
         if (updateDTO.getNom() != null) {
             user.setNom(updateDTO.getNom());
         }
@@ -123,55 +123,40 @@ public class UserServiceImpl implements UserService {
         if (updateDTO.getTelephone() != null) {
             user.setTelephone(updateDTO.getTelephone());
         }
-
-        // Mettre à jour la localisation
         if (updateDTO.getLocalisation() != null) {
-
-            Localisation localisation = Localisation.builder()
+            user.setLocalisation(Localisation.builder()
                     .latitude(updateDTO.getLocalisation().getLatitude())
                     .longitude(updateDTO.getLocalisation().getLongitude())
                     .adresse(updateDTO.getLocalisation().getAdresse())
                     .ville(updateDTO.getLocalisation().getVille())
                     .codePostal(updateDTO.getLocalisation().getCodePostal())
                     .pays(updateDTO.getLocalisation().getPays())
-                    .build();
-            user.setLocalisation(localisation);
-
+                    .build());
         }
 
-        // Upload avatar si fourni
         if (avatar != null && !avatar.isEmpty()) {
             try {
-                // Supprimer l'ancien avatar si existe
                 if (user.getAvatar() != null) {
                     minioService.deleteFile(user.getAvatar());
                 }
-
-                // Upload le nouveau
-                String avatarUrl = minioService.uploadFile(avatar, "avatars");
-                user.setAvatar(avatarUrl);
+                user.setAvatar(minioService.uploadFile(avatar, "avatars"));
             } catch (Exception e) {
                 log.error("Erreur lors de l'upload de l'avatar", e);
                 throw new BadRequestException("Erreur lors de l'upload de l'avatar");
             }
         }
 
-        User updatedUser = userRepository.save(user);
-        log.info("Profil mis à jour pour: {}", user.getEmail());
-
-        return convertToDTO(updatedUser);
+        return convertToDTO(userRepository.save(user));
     }
 
     @Override
     public UserDTO updateLocation(String token, LocationUpdateDTO locationDTO) {
-        // Obtenir l'utilisateur connecté
         String jwt = extractToken(token);
         String email = jwtTokenProvider.getEmailFromToken(jwt);
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND_MESSAGE));
 
-        // Mettre à jour ou créer la localisation
         Localisation localisation = user.getLocalisation();
         if (localisation == null) {
             localisation = new Localisation();
@@ -185,11 +170,7 @@ public class UserServiceImpl implements UserService {
         localisation.setCodePostal(locationDTO.getCodePostal());
 
         user.setLocalisation(localisation);
-
-        User updatedUser = userRepository.save(user);
-        log.info("Localisation mise à jour pour: {}", user.getEmail());
-
-        return convertToDTO(updatedUser);
+        return convertToDTO(userRepository.save(user));
     }
 
     @Override
@@ -203,20 +184,16 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public List<UserDTO> getAvailableLivreurs(Double latitude, Double longitude, Double radiusKm) {
-        // Récupérer tous les livreurs actifs
-        List<User> livreurs = userRepository.findByRoleAndIsActive(UserRole.LIVREUR, true);
-
-        // Filtrer par distance
-        return livreurs.stream()
+        return userRepository.findByRoleAndIsActive(UserRole.LIVREUR, true).stream()
                 .filter(livreur -> {
-                    if (livreur.getLocalisation() == null) return false;
-
+                    if (livreur.getLocalisation() == null) {
+                        return false;
+                    }
                     double distance = calculateDistance(
                             latitude, longitude,
                             livreur.getLocalisation().getLatitude(),
                             livreur.getLocalisation().getLongitude()
                     );
-
                     return distance <= radiusKm;
                 })
                 .map(this::convertToDTO)
@@ -229,14 +206,82 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé avec l'ID: " + id));
 
         user.setIsActive(!user.getIsActive());
-        User updatedUser = userRepository.save(user);
-
-        log.info("Statut de l'utilisateur {} changé à: {}", user.getEmail(), user.getIsActive());
-
-        return convertToDTO(updatedUser);
+        return convertToDTO(userRepository.save(user));
     }
 
-    // ========== MÉTHODES UTILITAIRES ==========
+    private User createGoogleUser(GoogleTokenInfoDTO tokenInfo, GoogleAuthRequestDTO googleAuthRequestDTO) {
+        User user = new User();
+        user.setEmail(tokenInfo.getEmail());
+        user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+        user.setNom(resolveLastName(tokenInfo));
+        user.setPrenom(resolveFirstName(tokenInfo));
+        user.setTelephone(googleAuthRequestDTO.getTelephone());
+        user.setAvatar(tokenInfo.getPicture());
+        user.setRole(parseRole(googleAuthRequestDTO.getRole(), true));
+        user.setIsActive(true);
+        return user;
+    }
+
+    private User updateUserFromGoogle(User user, GoogleTokenInfoDTO tokenInfo, GoogleAuthRequestDTO googleAuthRequestDTO) {
+        if ((user.getPrenom() == null || user.getPrenom().isBlank()) && resolveFirstName(tokenInfo) != null) {
+            user.setPrenom(resolveFirstName(tokenInfo));
+        }
+        if ((user.getNom() == null || user.getNom().isBlank()) && resolveLastName(tokenInfo) != null) {
+            user.setNom(resolveLastName(tokenInfo));
+        }
+        if ((user.getAvatar() == null || user.getAvatar().isBlank()) && tokenInfo.getPicture() != null) {
+            user.setAvatar(tokenInfo.getPicture());
+        }
+        if ((user.getTelephone() == null || user.getTelephone().isBlank())
+                && googleAuthRequestDTO.getTelephone() != null && !googleAuthRequestDTO.getTelephone().isBlank()) {
+            user.setTelephone(googleAuthRequestDTO.getTelephone());
+        }
+        return user;
+    }
+
+    private LoginResponseDTO buildLoginResponse(User user) {
+        String token = jwtTokenProvider.generateToken(user);
+        LoginResponseDTO response = new LoginResponseDTO();
+        response.setToken(token);
+        response.setUser(convertToDTO(user));
+        return response;
+    }
+
+    private UserRole parseRole(String role, boolean defaultClient) {
+        if (role == null || role.isBlank()) {
+            if (defaultClient) {
+                return UserRole.CLIENT;
+            }
+            throw new BadRequestException("Rôle invalide: " + role);
+        }
+
+        try {
+            return UserRole.valueOf(role.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("Rôle invalide: " + role);
+        }
+    }
+
+    private String resolveFirstName(GoogleTokenInfoDTO tokenInfo) {
+        if (tokenInfo.getGivenName() != null && !tokenInfo.getGivenName().isBlank()) {
+            return tokenInfo.getGivenName();
+        }
+        if (tokenInfo.getName() != null && tokenInfo.getName().contains(" ")) {
+            return tokenInfo.getName().split(" ")[0];
+        }
+        return tokenInfo.getName();
+    }
+
+    private String resolveLastName(GoogleTokenInfoDTO tokenInfo) {
+        if (tokenInfo.getFamilyName() != null && !tokenInfo.getFamilyName().isBlank()) {
+            return tokenInfo.getFamilyName();
+        }
+        if (tokenInfo.getName() != null && tokenInfo.getName().contains(" ")) {
+            String[] parts = tokenInfo.getName().split(" ", 2);
+            return parts.length > 1 ? parts[1] : parts[0];
+        }
+        return tokenInfo.getEmail();
+    }
 
     private String extractToken(String bearerToken) {
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
@@ -257,39 +302,31 @@ public class UserServiceImpl implements UserService {
         dto.setIsActive(user.getIsActive());
 
         if (user.getLocalisation() != null) {
-            LocalisationDTO localisationDTO = LocalisationDTO.builder()
+            dto.setLocalisation(LocalisationDTO.builder()
                     .latitude(user.getLocalisation().getLatitude())
                     .longitude(user.getLocalisation().getLongitude())
                     .adresse(user.getLocalisation().getAdresse())
                     .ville(user.getLocalisation().getVille())
                     .codePostal(user.getLocalisation().getCodePostal())
                     .pays(user.getLocalisation().getPays())
-                    .build();
-            dto.setLocalisation(localisationDTO);
+                    .build());
         }
 
         return dto;
     }
 
-    /**
-     * Calcul de distance avec formule Haversine (en km)
-     */
     private double calculateDistance(Double lat1, Double lon1, Double lat2, Double lon2) {
         if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) {
             return Double.MAX_VALUE;
         }
 
-        final int R = 6371; // Rayon de la Terre en km
-
+        final int r = 6371;
         double latDistance = Math.toRadians(lat2 - lat1);
         double lonDistance = Math.toRadians(lon2 - lon1);
-
         double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
                 + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
                 * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
-
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-        return R * c;
+        return r * c;
     }
 }
