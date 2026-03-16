@@ -1,506 +1,528 @@
-# 📚 Documentation API - Food Delivery Application
+# Documentation API
 
 ## Base URL
-```
-http://localhost:8080/api
-```
 
----
+`http://localhost:8083`
 
-## 🔐 AUTHENTICATION
+## Authentification
 
-### Register
-```http
-POST /api/users/register
-Content-Type: application/json
+- Type: `Bearer JWT`
+- Header: `Authorization: Bearer <token>`
+- Les routes publiques sont definies dans `SecurityConfig`.
 
+Routes publiques principales:
+
+- `POST /auth/register`
+- `POST /auth/login`
+- `POST /auth/google`
+- `GET /api/categories/**`
+- `GET /api/restaurants/**`
+- `GET /api/plats/**`
+- `GET /api/files/**`
+- `GET /swagger-ui.html`
+- `GET /v3/api-docs`
+
+## Formats et conventions
+
+- JSON pour la plupart des endpoints
+- `multipart/form-data` pour les creations et mises a jour avec fichiers
+- Pagination Spring sur les listes paginees: `page`, `size`, `sort`
+- Devise metier: `MAD` / `DH`
+
+## 1. Authentification et utilisateurs
+
+### POST `/auth/register`
+
+Cree un utilisateur.
+
+Corps:
+
+```json
 {
-  "email": "user@example.com",
-  "password": "password123",
-  "nom": "Diop",
-  "prenom": "Amadou",
-  "telephone": "+221771234567",
+  "email": "client@mysugu.ma",
+  "password": "motdepasse",
+  "nom": "Traore",
+  "prenom": "Issiaka",
+  "telephone": "0600000000",
   "role": "CLIENT"
 }
 ```
 
-### Login
-```http
-POST /api/users/login
-Content-Type: application/json
+Reponse: `201 Created`, `UserDTO`
 
-{
-  "email": "user@example.com",
-  "password": "password123"
-}
+### POST `/auth/login`
 
-Response:
+Authentifie un utilisateur par email/mot de passe.
+
+Corps:
+
+```json
 {
-  "token": "eyJhbGciOiJIUzI1NiIs...",
-  "user": { ... }
+  "email": "client@mysugu.ma",
+  "password": "motdepasse"
 }
 ```
 
-### Get Profile
-```http
-GET /api/users/profile
-Authorization: Bearer {token}
-```
+Reponse: `200 OK`, `LoginResponseDTO`
 
-### Update Profile
-```http
-PUT /api/users/profile
-Authorization: Bearer {token}
-Content-Type: multipart/form-data
+### POST `/auth/google`
 
-nom=Diop&prenom=Amadou&telephone=+221771234567&avatar=[FILE]
-```
+Authentifie via Google. Si le compte existe, il est reutilise. Sinon il est cree puis connecte.
 
-### Update Location
-```http
-PATCH /api/users/location
-Authorization: Bearer {token}
-Content-Type: application/json
+Corps:
 
+```json
 {
-  "latitude": 14.6928,
-  "longitude": -17.4467,
-  "adresse": "Plateau, Dakar"
+  "idToken": "GOOGLE_ID_TOKEN",
+  "role": "CLIENT",
+  "telephone": "0600000000"
 }
 ```
 
----
+Reponse: `200 OK`, `LoginResponseDTO`
 
-## 🏪 CATÉGORIES DE RESTAURANTS
+### GET `/users/profile`
 
-### Get All Categories
-```http
-GET /api/categories
+Retourne le profil du token courant.
+
+### PUT `/users/profile`
+
+Met a jour le profil en `multipart/form-data`.
+
+Champs:
+
+- `nom`
+- `prenom`
+- `telephone`
+- `localisation.latitude`
+- `localisation.longitude`
+- `localisation.adresse`
+- `localisation.ville`
+- `localisation.codePostal`
+- `localisation.pays`
+- `avatar` fichier optionnel
+
+### PATCH `/users/location`
+
+Met a jour uniquement la localisation.
+
+### GET `/livreurs/disponibles`
+
+Parametres:
+
+- `latitude`
+- `longitude`
+- `radiusKm` optionnel, defaut `10.0`
+
+## 2. Categories
+
+### GET `/api/categories`
+
+Liste toutes les categories.
+
+### GET `/api/categories/{id}`
+
+Retourne une categorie par identifiant.
+
+### POST `/api/categories`
+
+Role requis: `ADMIN`
+
+`multipart/form-data`:
+
+- `nom`
+- `description`
+- `image` fichier optionnel
+
+### PUT `/api/categories/{id}`
+
+Role requis: `ADMIN`
+
+`multipart/form-data`:
+
+- `nom`
+- `description`
+- `image` fichier optionnel
+
+### DELETE `/api/categories/{id}`
+
+Role requis: `ADMIN`
+
+### GET `/api/categories/{id}/restaurants`
+
+Liste les restaurants actifs de la categorie.
+
+## 3. Restaurants
+
+### GET `/api/restaurants`
+
+Retourne une page de restaurants actifs.
+
+Filtres:
+
+- `categorieId`
+- `latitude`
+- `longitude`
+- `maxDistance`
+- pagination `page`, `size`, `sort`
+
+### GET `/api/restaurants/{id}`
+
+Retourne un restaurant.
+
+### GET `/api/restaurants/search`
+
+Parametre: `keyword`
+
+### GET `/api/restaurants/top-rated`
+
+Parametre: `limit`, defaut `10`
+
+### GET `/api/restaurants/nearby`
+
+Parametres:
+
+- `latitude`
+- `longitude`
+- `radiusKm`, defaut `5.0`
+
+### POST `/api/restaurants`
+
+Roles requis: `RESTAURANT_OWNER`, `ADMIN`
+
+`multipart/form-data`:
+
+- `nom`
+- `description`
+- `categorieId`
+- `ownerId`
+- `localisation.latitude`
+- `localisation.longitude`
+- `localisation.adresse`
+- `localisation.ville`
+- `localisation.codePostal`
+- `localisation.pays`
+- `horairesOuverture`
+- `tempsLivraisonMoyen`
+- `autoCloseEnabled`
+- `heureOuverture`
+- `heureFermeture`
+- `removeLogo`
+- `logo` fichier optionnel
+
+### PUT `/api/restaurants/{id}`
+
+Meme format que la creation.
+
+### PATCH `/api/restaurants/{id}/activate`
+
+Active ou desactive un restaurant.
+
+### DELETE `/api/restaurants/{id}`
+
+Supprime le restaurant et son logo si present.
+
+## 4. Plats
+
+### GET `/api/plats`
+
+Retourne une page de plats.
+
+Filtres:
+
+- `restaurantId`
+- `categorie`
+- `available`
+- pagination `page`, `size`, `sort`
+
+### GET `/api/plats/{id}`
+
+Retourne un plat.
+
+### GET `/api/plats/restaurant/{restaurantId}`
+
+Retourne les plats disponibles d'un restaurant.
+
+### GET `/api/plats/search`
+
+Parametre: `keyword`
+
+### POST `/api/plats`
+
+Roles requis: `RESTAURANT_OWNER`, `ADMIN`
+
+`multipart/form-data`:
+
+- `nom`
+- `description`
+- `prix`
+- `ingredients`
+- `categoriePlat`
+- `restaurantId`
+- `tempsPreparation`
+- `availabilityMode`
+- `indisponibleJusqua`
+- `removeImage`
+- `image` fichier optionnel
+
+### PUT `/api/plats/{id}`
+
+Meme format que la creation.
+
+### PATCH `/api/plats/{id}/image`
+
+Met a jour uniquement l'image du plat.
+
+`multipart/form-data`:
+
+- `image` fichier requis
+
+### PATCH `/api/plats/{id}/availability`
+
+Corps optionnel:
+
+```json
+{
+  "availabilityMode": "INDISPONIBLE_TEMPORAIRE"
+}
 ```
 
-### Get Category by ID
-```http
-GET /api/categories/{id}
-```
+Si le corps est absent, l'endpoint bascule entre disponible et indisponible definitive.
 
-### Create Category
-```http
-POST /api/categories
-Content-Type: multipart/form-data
+### DELETE `/api/plats/{id}`
 
-nom=Subsahariens&description=Cuisine subsaharienne&image=[FILE]
-```
+Supprime le plat et son image.
 
-### Update Category
-```http
-PUT /api/categories/{id}
-Content-Type: multipart/form-data
+## 5. Commandes
 
-nom=Subsahariens&description=Nouvelle description&image=[FILE]
-```
+### GET `/api/commandes`
 
-### Delete Category
-```http
-DELETE /api/categories/{id}
-```
+Filtres:
 
-### Get Restaurants by Category
-```http
-GET /api/categories/{id}/restaurants
-```
+- `clientId`
+- `restaurantId`
+- `statut`
+- pagination `page`, `size`, `sort`
 
----
+### GET `/api/commandes/{id}`
 
-## 🍽️ RESTAURANTS
+Retourne une commande.
 
-### Get All Restaurants (with filters)
-```http
-GET /api/restaurants?categorieId=1&latitude=14.6928&longitude=-17.4467&maxDistance=5&page=0&size=10
-```
+### GET `/api/commandes/numero/{numeroCommande}`
 
-### Get Restaurant by ID
-```http
-GET /api/restaurants/{id}
-```
+Recherche par numero de commande.
 
-### Search Restaurants
-```http
-GET /api/restaurants/search?keyword=pizza
-```
+### GET `/api/commandes/client/{clientId}`
 
-### Top Rated Restaurants
-```http
-GET /api/restaurants/top-rated?limit=10
-```
+Accessible a `CLIENT`, `ADMIN`.
 
-### Nearby Restaurants
-```http
-GET /api/restaurants/nearby?latitude=14.6928&longitude=-17.4467&radiusKm=5
-```
+### GET `/api/commandes/restaurant/{restaurantId}`
 
-### Create Restaurant
-```http
-POST /api/restaurants
-Content-Type: multipart/form-data
+Accessible a `RESTAURANT_OWNER`, `ADMIN`.
 
-nom=Chez Fatou&description=Restaurant sénégalais&categorieId=1&ownerId=2&logo=[FILE]
-&localisation.latitude=14.6928&localisation.longitude=-17.4467
-&localisation.adresse=Plateau, Dakar&tempsLivraisonMoyen=30
-```
+### GET `/api/commandes/livreur/{livreurId}`
 
-### Update Restaurant
-```http
-PUT /api/restaurants/{id}
-Content-Type: multipart/form-data
+Accessible a `LIVREUR`, `ADMIN`.
 
-[Same as create]
-```
+### GET `/api/commandes/en-cours`
 
-### Delete Restaurant
-```http
-DELETE /api/restaurants/{id}
-```
+Retourne les commandes dans les statuts actifs.
 
-### Toggle Restaurant Status
-```http
-PATCH /api/restaurants/{id}/activate
-```
+### POST `/api/commandes`
 
-### Get Restaurant's Plats
-```http
-GET /api/restaurants/{id}/plats
-```
+Accessible a `CLIENT`, `ADMIN`.
 
----
+Exemple:
 
-## 🍕 PLATS
-
-### Get All Plats (with filters)
-```http
-GET /api/plats?restaurantId=1&categorie=PLAT_PRINCIPAL&available=true&page=0&size=10
-```
-
-### Get Plat by ID
-```http
-GET /api/plats/{id}
-```
-
-### Get Plats by Restaurant
-```http
-GET /api/plats/restaurant/{restaurantId}
-```
-
-### Search Plats
-```http
-GET /api/plats/search?keyword=thiéboudienne
-```
-
-### Create Plat
-```http
-POST /api/plats
-Content-Type: multipart/form-data
-
-nom=Thiéboudienne&description=Plat national&prix=5000&restaurantId=1
-&categoriePlat=PLAT_PRINCIPAL&ingredients=riz&ingredients=poisson
-&ingredients=légumes&tempsPreparation=45&image=[FILE]
-```
-
-### Update Plat
-```http
-PUT /api/plats/{id}
-Content-Type: multipart/form-data
-
-[Same as create]
-```
-
-### Delete Plat
-```http
-DELETE /api/plats/{id}
-```
-
-### Toggle Plat Availability
-```http
-PATCH /api/plats/{id}/availability
-```
-
----
-
-## 📦 COMMANDES
-
-### Get All Commandes (with filters)
-```http
-GET /api/commandes?clientId=1&restaurantId=2&statut=EN_COURS&page=0&size=10
-```
-
-### Get Commande by ID
-```http
-GET /api/commandes/{id}
-```
-
-### Get Commande by Number
-```http
-GET /api/commandes/numero/{numeroCommande}
-```
-
-### Get Client's Commandes
-```http
-GET /api/commandes/client/{clientId}
-```
-
-### Get Restaurant's Commandes
-```http
-GET /api/commandes/restaurant/{restaurantId}
-```
-
-### Get Livreur's Commandes
-```http
-GET /api/commandes/livreur/{livreurId}
-```
-
-### Get Active Commandes
-```http
-GET /api/commandes/en-cours
-```
-
-### Create Commande
-```http
-POST /api/commandes
-Content-Type: application/json
-
+```json
 {
   "clientId": 1,
-  "restaurantId": 2,
+  "restaurantId": 3,
   "lignes": [
     {
-      "platId": 5,
+      "platId": 7,
       "quantite": 2,
       "remarque": "Sans piment"
-    },
-    {
-      "platId": 8,
-      "quantite": 1
     }
   ],
   "adresseLivraison": {
-    "latitude": 14.6928,
-    "longitude": -17.4467,
-    "adresse": "Plateau, Avenue Pompidou",
-    "ville": "Dakar",
-    "codePostal": "10000",
-    "pays": "Sénégal"
+    "latitude": 33.5731,
+    "longitude": -7.5898,
+    "adresse": "Boulevard Zerktouni",
+    "ville": "Casablanca",
+    "codePostal": "20000",
+    "pays": "Maroc"
   },
-  "commentaire": "Livraison urgente",
-  "methodePaiement": "MOBILE_MONEY"
+  "commentaire": "Appeler en arrivant",
+  "methodePaiement": "ESPECES",
+  "modeReception": "LIVRAISON"
 }
 ```
 
-### Update Commande Status
-```http
-PATCH /api/commandes/{id}/status
-Content-Type: application/json
+Regles metier notables:
 
-{
-  "statut": "EN_PREPARATION"
-}
-```
+- le restaurant doit etre ouvert
+- tous les plats doivent appartenir au meme restaurant
+- un plat indisponible ne peut pas etre commande
+- `modeReception=LIVRAISON` exige une adresse
+- les frais de livraison sont a `0` pour `RETRAIT_SUR_PLACE`
 
-### Assign Livreur
-```http
-PATCH /api/commandes/{id}/assign-livreur/{livreurId}
-```
+### PATCH `/api/commandes/{id}/status`
 
-### Cancel Commande
-```http
-DELETE /api/commandes/{id}
-```
+Corps:
 
-### Track Commande
-```http
-GET /api/commandes/{id}/tracking
-```
-
----
-
-## 🚚 LIVREURS
-
-### Get Available Livreurs
-```http
-GET /api/users/livreurs/disponibles?latitude=14.6928&longitude=-17.4467&radiusKm=10
-```
-
----
-
-## 📊 ENUMERATIONS
-
-### UserRole
-- `CLIENT`
-- `LIVREUR`
-- `RESTAURANT_OWNER`
-- `ADMIN`
-
-### StatutCommande
-- `EN_ATTENTE` - Commande créée
-- `CONFIRMEE` - Confirmée par le restaurant
-- `EN_PREPARATION` - En préparation
-- `EN_COURS` - En livraison
-- `LIVREE` - Livrée
-- `ANNULEE` - Annulée
-- `NON_FINALISEE` - Panier non finalisé
-
-### MethodePaiement
-- `CARTE_BANCAIRE`
-- `ESPECES`
-- `MOBILE_MONEY`
-- `PAYPAL`
-
-### StatutPaiement
-- `EN_ATTENTE`
-- `PAYE`
-- `REMBOURSE`
-- `ECHOUE`
-
-### CategoriePlat
-- `ENTREE`
-- `PLAT_PRINCIPAL`
-- `DESSERT`
-- `BOISSON`
-- `ACCOMPAGNEMENT`
-
----
-
-## 🔒 SÉCURITÉ
-
-Toutes les routes (sauf `/register` et `/login`) nécessitent un token JWT:
-
-```http
-Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
-```
-
----
-
-## 📝 PAGINATION
-
-La plupart des endpoints supportent la pagination:
-
-```http
-GET /api/restaurants?page=0&size=10&sort=nom,asc
-```
-
-Paramètres:
-- `page`: Numéro de page (commence à 0)
-- `size`: Nombre d'éléments par page
-- `sort`: Tri (format: `champ,direction`)
-
----
-
-## 🖼️ UPLOAD DE FICHIERS
-
-Les fichiers sont stockés dans MinIO. Formats acceptés:
-- Images: JPG, PNG, WEBP (max 10MB)
-
-Buckets MinIO:
-- `food-delivery-files`: Fichiers généraux
-- `restaurant-images`: Images des restaurants et plats
-
----
-
-## 🌍 LOCALISATION
-
-Format des coordonnées:
 ```json
 {
-  "latitude": 14.6928,
-  "longitude": -17.4467,
-  "adresse": "Plateau, Avenue Pompidou",
-  "ville": "Dakar",
-  "codePostal": "10000",
-  "pays": "Sénégal"
+  "statut": "PRETE",
+  "raisonAnnulation": null
 }
 ```
 
----
+Transitions principales:
 
-## 🚀 DÉMARRAGE RAPIDE
+- `EN_ATTENTE -> CONFIRMEE | ANNULEE`
+- `CONFIRMEE -> EN_PREPARATION | PRETE | ANNULEE`
+- `EN_PREPARATION -> PRETE | ANNULEE`
+- `PRETE -> EN_COURS | LIVREE | ANNULEE` selon le mode
+- `EN_COURS -> LIVREE`
 
-1. **Démarrer Docker**
-```bash
-docker-compose up -d
+### PATCH `/api/commandes/{id}/assign-livreur/{livreurId}`
+
+Assigne un livreur.
+
+### DELETE `/api/commandes/{id}`
+
+Annule la commande si son etat le permet.
+
+### GET `/api/commandes/{id}/tracking`
+
+Retourne un objet de suivi contenant:
+
+- `numeroCommande`
+- `statut`
+- `trackingStatut`
+- `modeReception`
+- `tempsEstime`
+- `raisonAnnulation`
+- `restaurant`
+- `client`
+- `livreur` si assigne
+- `destination`
+
+## 6. Fichiers
+
+Bucket logique unique: `mysugu`
+
+Dossiers utilises:
+
+- `restaurants`
+- `plats`
+- `categories`
+- `avatars`
+- `uploads`
+
+### POST `/api/files/upload`
+
+Authentifie.
+
+`multipart/form-data`:
+
+- `file`
+- `folder` optionnel, defaut `uploads`
+
+Exemples de `folder`:
+
+- `plats`
+- `restaurants/logos`
+- `categories`
+- `avatars`
+
+### GET `/api/files?objectName=plats/mon-image.jpg`
+
+Retourne le fichier.
+
+Parametre optionnel:
+
+- `download=true` pour forcer le telechargement
+
+### GET `/api/files/{objectName}`
+
+Equivalent pour les appels directs navigateur/app.
+
+### GET `/api/files/metadata?objectName=plats/mon-image.jpg`
+
+Retourne les metadonnees et l'URL publique stable.
+
+### GET `/api/files/url?objectName=plats/mon-image.jpg`
+
+Retourne:
+
+- `url`
+- `downloadUrl`
+- `presignedUrl` alignee sur l'URL stable applicative
+- `expiresIn=0`
+
+### GET `/api/files/legacy/{bucket}/**`
+
+Endpoint de compatibilite pour anciens chemins.
+
+## Objets retour frequents
+
+### `LoginResponseDTO`
+
+```json
+{
+  "token": "jwt",
+  "user": {
+    "id": 1,
+    "email": "client@mysugu.ma",
+    "nom": "Traore",
+    "prenom": "Issiaka",
+    "telephone": "0600000000",
+    "role": "CLIENT",
+    "avatar": "avatars/uuid.jpg",
+    "isActive": true
+  }
+}
 ```
 
-2. **Accéder à MinIO Console**
-```
-http://localhost:9001
-Login: minioadmin / minioadmin123
-```
+### `RestaurantDTO`
 
-3. **Tester l'API**
-```bash
-curl http://localhost:8080/api/categories
-```
+Champs utiles:
 
----
+- `logoObjectName`
+- `logoUrl`
+- `openNow`
+- `autoCloseEnabled`
+- `heureOuverture`
+- `heureFermeture`
+- `distance`
 
-## 📦 DÉPENDANCES MAVEN
+### `PlatDTO`
 
-```xml
-<dependencies>
-    <!-- Spring Boot -->
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-web</artifactId>
-    </dependency>
-    
-    <!-- JPA / Hibernate -->
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-data-jpa</artifactId>
-    </dependency>
-    
-    <!-- PostgreSQL -->
-    <dependency>
-        <groupId>org.postgresql</groupId>
-        <artifactId>postgresql</artifactId>
-    </dependency>
-    
-    <!-- MinIO -->
-    <dependency>
-        <groupId>io.minio</groupId>
-        <artifactId>minio</artifactId>
-        <version>8.5.7</version>
-    </dependency>
-    
-    <!-- Validation -->
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-validation</artifactId>
-    </dependency>
-    
-    <!-- Security (JWT) -->
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-security</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>io.jsonwebtoken</groupId>
-        <artifactId>jjwt-api</artifactId>
-        <version>0.11.5</version>
-    </dependency>
-    <dependency>
-        <groupId>io.jsonwebtoken</groupId>
-        <artifactId>jjwt-impl</artifactId>
-        <version>0.11.5</version>
-    </dependency>
-    <dependency>
-        <groupId>io.jsonwebtoken</groupId>
-        <artifactId>jjwt-jackson</artifactId>
-        <version>0.11.5</version>
-    </dependency>
-    
-    <!-- Lombok -->
-    <dependency>
-        <groupId>org.projectlombok</groupId>
-        <artifactId>lombok</artifactId>
-        <optional>true</optional>
-    </dependency>
-</dependencies>
-```
+Champs utiles:
+
+- `prix`
+- `currency`
+- `currencySymbol`
+- `imageObjectName`
+- `imageUrl`
+- `availabilityMode`
+- `indisponibleJusqua`
+
+### `CommandeDTO`
+
+Champs utiles:
+
+- `trackingStatut`
+- `modeReception`
+- `raisonAnnulation`
+- `currency`
+- `currencySymbol`
+
+## Swagger
+
+- UI: `GET /swagger-ui.html`
+- JSON: `GET /v3/api-docs`
+
+Le bouton `Authorize` attend un JWT au format `Bearer <token>`.

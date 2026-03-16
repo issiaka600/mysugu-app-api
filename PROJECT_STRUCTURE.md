@@ -1,182 +1,156 @@
-# 📁 Structure du Projet Spring Boot
+# Structure du projet
 
-```
-food-delivery-backend/
-│
-├── src/
-│   ├── main/
-│   │   ├── java/
-│   │   │   └── com/
-│   │   │       └── fooddelivery/
-│   │   │           ├── FoodDeliveryApplication.java
-│   │   │           │
-│   │   │           ├── config/
-│   │   │           │   ├── MinioConfig.java
-│   │   │           │   ├── SecurityConfig.java
-│   │   │           │   ├── JwtConfig.java
-│   │   │           │   └── WebConfig.java
-│   │   │           │
-│   │   │           ├── controller/
-│   │   │           │   ├── UserController.java
-│   │   │           │   ├── RestaurantController.java
-│   │   │           │   ├── PlatController.java
-│   │   │           │   ├── CommandeController.java
-│   │   │           │   └── CategorieRestaurantController.java
-│   │   │           │
-│   │   │           ├── dto/
-│   │   │           │   ├── UserDTO.java
-│   │   │           │   ├── RegisterDTO.java
-│   │   │           │   ├── LoginDTO.java
-│   │   │           │   ├── LoginResponseDTO.java
-│   │   │           │   ├── RestaurantDTO.java
-│   │   │           │   ├── RestaurantCreateDTO.java
-│   │   │           │   ├── PlatDTO.java
-│   │   │           │   ├── PlatCreateDTO.java
-│   │   │           │   ├── CommandeDTO.java
-│   │   │           │   ├── CommandeCreateDTO.java
-│   │   │           │   ├── LigneCommandeDTO.java
-│   │   │           │   ├── CategorieRestaurantDTO.java
-│   │   │           │   ├── PromotionDTO.java
-│   │   │           │   └── LocalisationDTO.java
-│   │   │           │
-│   │   │           ├── model/
-│   │   │           │   ├── User.java
-│   │   │           │   ├── UserRole.java (enum)
-│   │   │           │   ├── Restaurant.java
-│   │   │           │   ├── CategorieRestaurant.java
-│   │   │           │   ├── Plat.java
-│   │   │           │   ├── CategoriePlat.java (enum)
-│   │   │           │   ├── Commande.java
-│   │   │           │   ├── LigneCommande.java
-│   │   │           │   ├── StatutCommande.java (enum)
-│   │   │           │   ├── Promotion.java
-│   │   │           │   ├── Localisation.java (Embeddable)
-│   │   │           │   ├── MethodePaiement.java (enum)
-│   │   │           │   └── StatutPaiement.java (enum)
-│   │   │           │
-│   │   │           ├── repository/
-│   │   │           │   ├── UserRepository.java
-│   │   │           │   ├── RestaurantRepository.java
-│   │   │           │   ├── PlatRepository.java
-│   │   │           │   ├── CommandeRepository.java
-│   │   │           │   ├── LigneCommandeRepository.java
-│   │   │           │   ├── CategorieRestaurantRepository.java
-│   │   │           │   └── PromotionRepository.java
-│   │   │           │
-│   │   │           ├── service/
-│   │   │           │   ├── UserService.java
-│   │   │           │   ├── UserServiceImpl.java
-│   │   │           │   ├── RestaurantService.java
-│   │   │           │   ├── RestaurantServiceImpl.java
-│   │   │           │   ├── PlatService.java
-│   │   │           │   ├── PlatServiceImpl.java
-│   │   │           │   ├── CommandeService.java
-│   │   │           │   ├── CommandeServiceImpl.java
-│   │   │           │   ├── CategorieRestaurantService.java
-│   │   │           │   ├── CategorieRestaurantServiceImpl.java
-│   │   │           │   ├── MinioService.java
-│   │   │           │   ├── JwtService.java
-│   │   │           │   └── LocationService.java
-│   │   │           │
-│   │   │           ├── security/
-│   │   │           │   ├── JwtAuthenticationFilter.java
-│   │   │           │   ├── JwtTokenProvider.java
-│   │   │           │   └── CustomUserDetailsService.java
-│   │   │           │
-│   │   │           ├── exception/
-│   │   │           │   ├── ResourceNotFoundException.java
-│   │   │           │   ├── BadRequestException.java
-│   │   │           │   ├── UnauthorizedException.java
-│   │   │           │   └── GlobalExceptionHandler.java
-│   │   │           │
-│   │   │           └── util/
-│   │   │               ├── DistanceCalculator.java
-│   │   │               ├── CommandeNumberGenerator.java
-│   │   │               └── Constants.java
-│   │   │
-│   │   └── resources/
-│   │       ├── application.yml
-│   │       ├── application-dev.yml
-│   │       ├── application-prod.yml
-│   │       └── data.sql (optional - données initiales)
-│   │
-│   └── test/
-│       └── java/
-│           └── com/
-│               └── fooddelivery/
-│                   ├── controller/
-│                   ├── service/
-│                   └── repository/
-│
-├── docker-compose.yml
-├── pom.xml
-├── .gitignore
-└── README.md
+## Arborescence fonctionnelle
+
+```text
+src/main/java/ma/mysuguclientapp
+|-- config
+|   |-- JacksonConfig.java
+|   |-- MinioConfig.java
+|   |-- MinioInitializer.java
+|   |-- OpenApiConfig.java
+|   |-- WebConfig.java
+|   `-- security
+|       |-- CustomUserDetailsService.java
+|       |-- JwtAuthenticationFilter.java
+|       |-- JwtTokenProvider.java
+|       `-- SecurityConfig.java
+|-- controllers
+|   |-- CategorieRestaurantController.java
+|   |-- CommandeController.java
+|   |-- FileControllerSimple.java
+|   |-- PlatController.java
+|   |-- RestaurantController.java
+|   `-- UserController.java
+|-- dtos
+|   |-- ... DTOs d'entree/sortie REST
+|-- entities
+|   |-- BaseEntity.java
+|   |-- CategorieRestaurant.java
+|   |-- Commande.java
+|   |-- LigneCommande.java
+|   |-- Localisation.java
+|   |-- Plat.java
+|   |-- Promotion.java
+|   |-- Restaurant.java
+|   `-- User.java
+|-- enumerations
+|   |-- CategoriePlat.java
+|   |-- MethodePaiement.java
+|   |-- ModeDisponibilitePlat.java
+|   |-- ModeReceptionCommande.java
+|   |-- StatutCommande.java
+|   |-- StatutPaiement.java
+|   `-- UserRole.java
+|-- repositories
+|   `-- repositories Spring Data JPA
+|-- services
+|   |-- interfaces
+|   `-- implementations
+|-- exceptions
+`-- util
 ```
 
-## 📋 Fichiers Clés
+## Role des packages
 
-### pom.xml
-Gère les dépendances Maven (Spring Boot, PostgreSQL, MinIO, JWT, etc.)
+## `config`
 
-### application.yml
-Configuration principale (base de données, MinIO, JWT)
+Contient la configuration transverse:
 
-### docker-compose.yml
-Configuration Docker pour PostgreSQL et MinIO
+- Swagger/OpenAPI
+- MinIO
+- Jackson
+- CORS
+- securite JWT
 
-### FoodDeliveryApplication.java
-Point d'entrée de l'application Spring Boot
+## `controllers`
 
-## 🗂️ Packages Principaux
+Expose les routes HTTP.
 
-### config/
-Configuration Spring (Security, MinIO, CORS, etc.)
+Controllers actuels:
 
-### controller/
-Endpoints REST API
+- `UserController`
+- `CategorieRestaurantController`
+- `RestaurantController`
+- `PlatController`
+- `CommandeController`
+- `FileControllerSimple`
 
-### dto/
-Data Transfer Objects pour les requêtes/réponses API
+## `dtos`
 
-### model/
-Entités JPA (mappées aux tables PostgreSQL)
+Contient les contrats REST. On y trouve notamment:
 
-### repository/
-Interfaces JPA Repository
+- DTOs d'authentification: `LoginDTO`, `RegisterDTO`, `LoginResponseDTO`, `GoogleAuthRequestDTO`
+- DTOs metier: `RestaurantDTO`, `PlatDTO`, `CommandeDTO`, `CategorieRestaurantDTO`, `UserDTO`
+- DTOs de creation/mise a jour: `RestaurantCreateDTO`, `PlatCreateDTO`, `CommandeCreateDTO`, `CommandeUpdateStatusDTO`
+- DTOs de fichiers: `FileUploadResponse`, `FileMetadata`, `FileUrlResponse`
 
-### service/
-Logique métier
+## `entities`
 
-### security/
-Gestion de l'authentification JWT
+Modele JPA persistant.
 
-### exception/
-Gestion centralisée des erreurs
+Entites cles:
 
-### util/
-Classes utilitaires (calcul de distance, génération de numéros, etc.)
+- `User`
+- `Restaurant`
+- `Plat`
+- `Commande`
+- `LigneCommande`
+- `CategorieRestaurant`
+- `Promotion`
+- `Localisation`
 
-## 🔧 Configuration
+## `repositories`
 
-### Variables d'environnement recommandées:
-```env
-# Database
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=food_delivery
-DB_USER=fooduser
-DB_PASSWORD=foodpass123
+Acces base de donnees via Spring Data JPA.
 
-# MinIO
-MINIO_ENDPOINT=http://localhost:9000
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=minioadmin123
+Exemples:
 
-# JWT
-JWT_SECRET=your-secret-key-here
-JWT_EXPIRATION=86400000
+- `UserRepository`
+- `RestaurantRepository`
+- `PlatRepository`
+- `CommandeRepository`
+- `LigneCommandeRepository`
+- `CategoriesRestaurantRepository`
 
-# Server
-SERVER_PORT=8080
-```
+## `services.interfaces`
+
+Contrats exposes aux controllers.
+
+## `services.implementations`
+
+Contient la logique metier.
+
+Classes importantes:
+
+- `UserServiceImpl`
+- `GoogleAuthService`
+- `RestaurantServiceImpl`
+- `PlatServiceImpl`
+- `CommandeServiceImpl`
+- `CategorieRestaurantServiceImpl`
+- `MinioService`
+
+## `exceptions`
+
+Exceptions metier et techniques renvoyees par l'API.
+
+Exemples:
+
+- `BadRequestException`
+- `ResourceNotFoundException`
+- `UnauthorizedException`
+
+## `util`
+
+Utilitaires transverses:
+
+- constantes metier
+- generation des numeros de commande
+
+## Points d'entree documentaires
+
+- [README](./README.md)
+- [Architecture](./ARCHITECTURE.md)
+- [Documentation API](./API_DOCUMENTATION.md)
+- [Schema de base de donnees](./DATABASE_SCHEMA.md)
