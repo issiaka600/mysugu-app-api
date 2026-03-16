@@ -86,7 +86,7 @@ public class RestaurantController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<RestaurantDTO> createRestaurant(
             @Valid @ModelAttribute RestaurantCreateDTO restaurantDTO,
-            @RequestParam(required = false) MultipartFile logo) {
+            @RequestParam(value = "logo", required = false) MultipartFile logo) {
 
         RestaurantDTO created = restaurantService.createRestaurant(restaurantDTO, logo);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
@@ -99,7 +99,7 @@ public class RestaurantController {
     public ResponseEntity<RestaurantDTO> updateRestaurant(
             @PathVariable Long id,
             @Valid @ModelAttribute RestaurantCreateDTO restaurantDTO,
-            @RequestParam(required = false) MultipartFile logo) {
+            @RequestParam(value = "logo", required = false) MultipartFile logo) {
         
         RestaurantDTO updated = restaurantService.updateRestaurant(id, restaurantDTO, logo);
         return ResponseEntity.ok(updated);

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import ma.mysuguclientapp.enumerations.ModeReceptionCommande;
 import ma.mysuguclientapp.enumerations.MethodePaiement;
 import ma.mysuguclientapp.enumerations.StatutCommande;
 import ma.mysuguclientapp.enumerations.StatutPaiement;
@@ -58,7 +59,11 @@ public class Commande {
         @AttributeOverride(name = "pays", column = @Column(name = "livraison_pays"))
     })
     private Localisation adresseLivraison;
-    
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "mode_reception")
+    private ModeReceptionCommande modeReception = ModeReceptionCommande.LIVRAISON;
+
     @Column(nullable = false)
     private BigDecimal montantTotal;
     
@@ -69,6 +74,9 @@ public class Commande {
     
     @Column(length = 500)
     private String commentaire;
+
+    @Column(name = "raison_annulation", length = 1000)
+    private String raisonAnnulation;
     
     @Enumerated(EnumType.STRING)
     private MethodePaiement methodePaiement; // CARTE, ESPECES, MOBILE_MONEY
@@ -86,4 +94,12 @@ public class Commande {
     
     @Column(name = "livree_at")
     private LocalDateTime livreeAt;
+
+    @PrePersist
+    @PreUpdate
+    public void applyDefaults() {
+        if (modeReception == null) {
+            modeReception = ModeReceptionCommande.LIVRAISON;
+        }
+    }
 }

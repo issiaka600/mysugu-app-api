@@ -2,6 +2,8 @@ package ma.mysuguclientapp.dtos;
 
 import lombok.Data;
 
+import java.time.LocalTime;
+
 @Data
 public class RestaurantCreateDTO {
     private String nom;
@@ -11,4 +13,8 @@ public class RestaurantCreateDTO {
     private LocalisationDTO localisation;
     private String horairesOuverture;
     private Integer tempsLivraisonMoyen;
+    private Boolean autoCloseEnabled;
+    private LocalTime heureOuverture;
+    private LocalTime heureFermeture;
+    private Boolean removeLogo;
 }

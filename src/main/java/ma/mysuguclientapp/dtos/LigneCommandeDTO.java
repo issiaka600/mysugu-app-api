@@ -11,5 +11,7 @@ public class LigneCommandeDTO {
     private Integer quantite;
     private BigDecimal prixUnitaire;
     private BigDecimal montantTotal;
+    private String currency = "MAD";
+    private String currencySymbol = "DH";
     private String remarque;
 }

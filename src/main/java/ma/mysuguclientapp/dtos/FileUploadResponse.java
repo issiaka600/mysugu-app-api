@@ -2,10 +2,8 @@ package ma.mysuguclientapp.dtos;
 
 import lombok.Data;
 
-import java.time.LocalDateTime;
-
 @Data
-public class FileMetadata {
+public class FileUploadResponse {
     private String objectName;
     private String bucket;
     private String fileName;
@@ -13,5 +11,6 @@ public class FileMetadata {
     private String contentType;
     private String url;
     private String downloadUrl;
-    private LocalDateTime lastModified;
+    private String presignedUrl;
+    private int expiresIn;
 }

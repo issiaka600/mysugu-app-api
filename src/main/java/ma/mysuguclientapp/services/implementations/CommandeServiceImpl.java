@@ -2,26 +2,52 @@ package ma.mysuguclientapp.services.implementations;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import ma.mysuguclientapp.dtos.*;
-import ma.mysuguclientapp.entities.*;
+import ma.mysuguclientapp.dtos.CommandeCreateDTO;
+import ma.mysuguclientapp.dtos.CommandeDTO;
+import ma.mysuguclientapp.dtos.CommandeUpdateStatusDTO;
+import ma.mysuguclientapp.dtos.LigneCommandeCreateDTO;
+import ma.mysuguclientapp.dtos.LigneCommandeDTO;
+import ma.mysuguclientapp.dtos.LocalisationDTO;
+import ma.mysuguclientapp.dtos.PlatDTO;
+import ma.mysuguclientapp.dtos.RestaurantDTO;
+import ma.mysuguclientapp.dtos.UserDTO;
+import ma.mysuguclientapp.entities.Commande;
+import ma.mysuguclientapp.entities.LigneCommande;
+import ma.mysuguclientapp.entities.Localisation;
+import ma.mysuguclientapp.entities.Plat;
+import ma.mysuguclientapp.entities.Restaurant;
+import ma.mysuguclientapp.entities.User;
+import ma.mysuguclientapp.enumerations.ModeDisponibilitePlat;
+import ma.mysuguclientapp.enumerations.ModeReceptionCommande;
 import ma.mysuguclientapp.enumerations.MethodePaiement;
 import ma.mysuguclientapp.enumerations.StatutCommande;
 import ma.mysuguclientapp.enumerations.StatutPaiement;
 import ma.mysuguclientapp.enumerations.UserRole;
 import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
-import ma.mysuguclientapp.repositories.*;
+import ma.mysuguclientapp.repositories.CommandeRepository;
+import ma.mysuguclientapp.repositories.LigneCommandeRepository;
+import ma.mysuguclientapp.repositories.PlatRepository;
+import ma.mysuguclientapp.repositories.RestaurantRepository;
+import ma.mysuguclientapp.repositories.UserRepository;
 import ma.mysuguclientapp.services.interfaces.CommandeService;
 import ma.mysuguclientapp.util.CommandeNumberGenerator;
+import ma.mysuguclientapp.util.Constants;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -60,44 +86,39 @@ public class CommandeServiceImpl implements CommandeService {
     @Override
     @Transactional(readOnly = true)
     public CommandeDTO getCommandeById(Long id) {
-        Commande commande = commandeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Commande non trouvée avec l'ID: " + id));
-        return convertToDTO(commande);
+        return convertToDTO(findCommande(id));
     }
 
     @Override
     @Transactional(readOnly = true)
     public CommandeDTO getCommandeByNumero(String numeroCommande) {
         Commande commande = commandeRepository.findByNumeroCommande(numeroCommande)
-                .orElseThrow(() -> new ResourceNotFoundException("Commande non trouvée: " + numeroCommande));
+                .orElseThrow(() -> new ResourceNotFoundException("Commande non trouvee: " + numeroCommande));
         return convertToDTO(commande);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<CommandeDTO> getCommandesByClient(Long clientId) {
-        List<Commande> commandes = commandeRepository.findByClientIdOrderByCreatedAtDesc(clientId);
-        return commandes.stream()
+        return commandeRepository.findByClientIdOrderByCreatedAtDesc(clientId).stream()
                 .map(this::convertToDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<CommandeDTO> getCommandesByRestaurant(Long restaurantId) {
-        List<Commande> commandes = commandeRepository.findByRestaurantIdOrderByCreatedAtDesc(restaurantId);
-        return commandes.stream()
+        return commandeRepository.findByRestaurantIdOrderByCreatedAtDesc(restaurantId).stream()
                 .map(this::convertToDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<CommandeDTO> getCommandesByLivreur(Long livreurId) {
-        List<Commande> commandes = commandeRepository.findByLivreurIdOrderByCreatedAtDesc(livreurId);
-        return commandes.stream()
+        return commandeRepository.findByLivreurIdOrderByCreatedAtDesc(livreurId).stream()
                 .map(this::convertToDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -107,71 +128,56 @@ public class CommandeServiceImpl implements CommandeService {
                 StatutCommande.EN_ATTENTE,
                 StatutCommande.CONFIRMEE,
                 StatutCommande.EN_PREPARATION,
+                StatutCommande.PRETE,
                 StatutCommande.EN_COURS
         );
 
-        List<Commande> commandes = commandeRepository.findByStatutInOrderByCreatedAtDesc(statutsEnCours);
-        return commandes.stream()
+        return commandeRepository.findByStatutInOrderByCreatedAtDesc(statutsEnCours).stream()
                 .map(this::convertToDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public CommandeDTO createCommande(CommandeCreateDTO commandeDTO) {
-        // Vérifier le client
         User client = userRepository.findById(commandeDTO.getClientId())
-                .orElseThrow(() -> new ResourceNotFoundException("Client non trouvé"));
+                .orElseThrow(() -> new ResourceNotFoundException("Client non trouve"));
 
-        // Vérifier le restaurant
         Restaurant restaurant = restaurantRepository.findById(commandeDTO.getRestaurantId())
-                .orElseThrow(() -> new ResourceNotFoundException("Restaurant non trouvé"));
+                .orElseThrow(() -> new ResourceNotFoundException("Restaurant non trouve"));
 
-        if (!restaurant.getIsActive()) {
-            throw new BadRequestException("Ce restaurant est actuellement fermé");
+        if (!isRestaurantOpenNow(restaurant)) {
+            throw new BadRequestException("Ce restaurant est actuellement ferme");
         }
 
-        // Créer la commande
+        ModeReceptionCommande modeReception = parseModeReception(commandeDTO.getModeReception());
+        if (modeReception == ModeReceptionCommande.LIVRAISON && commandeDTO.getAdresseLivraison() == null) {
+            throw new BadRequestException("Une adresse de livraison est requise pour une commande en livraison");
+        }
+
         Commande commande = new Commande();
         commande.setNumeroCommande(CommandeNumberGenerator.generate());
         commande.setClient(client);
         commande.setRestaurant(restaurant);
         commande.setStatut(StatutCommande.EN_ATTENTE);
         commande.setCommentaire(commandeDTO.getCommentaire());
+        commande.setModeReception(modeReception);
+        commande.setStatutPaiement(StatutPaiement.EN_ATTENTE);
+        commande.setMethodePaiement(parseMethodePaiement(commandeDTO.getMethodePaiement()));
+        commande.setAdresseLivraison(toLocalisation(commandeDTO.getAdresseLivraison()));
 
-        // Méthode de paiement
-        try {
-            commande.setMethodePaiement(MethodePaiement.valueOf(commandeDTO.getMethodePaiement()));
-            commande.setStatutPaiement(StatutPaiement.EN_ATTENTE);
-        } catch (IllegalArgumentException e) {
-            throw new BadRequestException("Méthode de paiement invalide");
-        }
-
-        // Adresse de livraison
-        if (commandeDTO.getAdresseLivraison() != null) {
-            Localisation adresse = new Localisation();
-            adresse.setLatitude(commandeDTO.getAdresseLivraison().getLatitude());
-            adresse.setLongitude(commandeDTO.getAdresseLivraison().getLongitude());
-            adresse.setAdresse(commandeDTO.getAdresseLivraison().getAdresse());
-            adresse.setVille(commandeDTO.getAdresseLivraison().getVille());
-            adresse.setCodePostal(commandeDTO.getAdresseLivraison().getCodePostal());
-            adresse.setPays(commandeDTO.getAdresseLivraison().getPays());
-            commande.setAdresseLivraison(adresse);
-        }
-
-        // Calculer le montant total et créer les lignes de commande
         BigDecimal montantTotal = BigDecimal.ZERO;
         List<LigneCommande> lignes = new ArrayList<>();
 
         for (LigneCommandeCreateDTO ligneDTO : commandeDTO.getLignes()) {
             Plat plat = platRepository.findById(ligneDTO.getPlatId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Plat non trouvé: " + ligneDTO.getPlatId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Plat non trouve: " + ligneDTO.getPlatId()));
 
-            if (!plat.getIsAvailable()) {
-                throw new BadRequestException("Le plat " + plat.getNom() + " n'est pas disponible");
-            }
-
+            plat = refreshPlatAvailabilityIfNeeded(plat);
             if (!plat.getRestaurant().getId().equals(restaurant.getId())) {
-                throw new BadRequestException("Tous les plats doivent provenir du même restaurant");
+                throw new BadRequestException("Tous les plats doivent provenir du meme restaurant");
+            }
+            if (!Boolean.TRUE.equals(plat.getIsAvailable())) {
+                throw new BadRequestException("Le plat " + plat.getNom() + " n'est pas disponible");
             }
 
             LigneCommande ligne = new LigneCommande();
@@ -181,203 +187,311 @@ public class CommandeServiceImpl implements CommandeService {
             ligne.setMontantTotal(plat.getPrix().multiply(BigDecimal.valueOf(ligneDTO.getQuantite())));
             ligne.setRemarque(ligneDTO.getRemarque());
             ligne.setCommande(commande);
-
             lignes.add(ligne);
             montantTotal = montantTotal.add(ligne.getMontantTotal());
         }
 
-        // Calculer frais de livraison (exemple simple)
-        BigDecimal fraisLivraison = calculateFraisLivraison(
-                restaurant.getLocalisation(),
-                commande.getAdresseLivraison()
-        );
+        BigDecimal fraisLivraison = modeReception == ModeReceptionCommande.LIVRAISON
+                ? calculateFraisLivraison(restaurant.getLocalisation(), commande.getAdresseLivraison())
+                : BigDecimal.ZERO;
+
         commande.setFraisLivraison(fraisLivraison);
-        montantTotal = montantTotal.add(fraisLivraison);
-
-        commande.setMontantTotal(montantTotal);
+        commande.setMontantTotal(montantTotal.add(fraisLivraison));
         commande.setLignesCommande(lignes);
-
-        // Estimer le temps de livraison
-        Integer tempsEstime = restaurant.getTempsLivraisonMoyen();
-        commande.setTempsLivraisonEstime(tempsEstime);
+        commande.setTempsLivraisonEstime(resolveTempsEstime(restaurant, lignes, modeReception));
 
         Commande savedCommande = commandeRepository.save(commande);
-        log.info("Commande créée: {} pour un montant de {}", savedCommande.getNumeroCommande(), montantTotal);
+        ligneCommandeRepository.saveAll(lignes);
+        log.info("Commande creee: {} pour un montant de {}", savedCommande.getNumeroCommande(), savedCommande.getMontantTotal());
 
         return convertToDTO(savedCommande);
     }
 
     @Override
     public CommandeDTO updateCommandeStatus(Long id, CommandeUpdateStatusDTO statusDTO) {
-        Commande commande = commandeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Commande non trouvée"));
+        Commande commande = findCommande(id);
+        StatutCommande nouveauStatut = parseStatut(statusDTO.getStatut());
 
-        StatutCommande nouveauStatut;
-        try {
-            nouveauStatut = StatutCommande.valueOf(statusDTO.getStatut());
-        } catch (IllegalArgumentException e) {
-            throw new BadRequestException("Statut invalide: " + statusDTO.getStatut());
-        }
-
-        // Valider la transition de statut
-        validateStatusTransition(commande.getStatut(), nouveauStatut);
-
+        validateStatusTransition(commande, nouveauStatut);
         commande.setStatut(nouveauStatut);
 
-        // Si la commande est livrée, enregistrer la date
+        if (nouveauStatut == StatutCommande.ANNULEE) {
+            commande.setRaisonAnnulation(statusDTO.getRaisonAnnulation());
+            commande.setStatutPaiement(StatutPaiement.REMBOURSE);
+        } else if (statusDTO.getRaisonAnnulation() != null && !statusDTO.getRaisonAnnulation().isBlank()) {
+            commande.setRaisonAnnulation(statusDTO.getRaisonAnnulation());
+        }
+
         if (nouveauStatut == StatutCommande.LIVREE) {
             commande.setLivreeAt(LocalDateTime.now());
             commande.setStatutPaiement(StatutPaiement.PAYE);
         }
 
         Commande updatedCommande = commandeRepository.save(commande);
-        log.info("Statut de la commande {} mis à jour: {}", commande.getNumeroCommande(), nouveauStatut);
-
+        log.info("Statut de la commande {} mis a jour: {}", commande.getNumeroCommande(), nouveauStatut);
         return convertToDTO(updatedCommande);
     }
 
     @Override
     public CommandeDTO assignLivreur(Long commandeId, Long livreurId) {
-        Commande commande = commandeRepository.findById(commandeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Commande non trouvée"));
-
+        Commande commande = findCommande(commandeId);
         User livreur = userRepository.findById(livreurId)
-                .orElseThrow(() -> new ResourceNotFoundException("Livreur non trouvé"));
+                .orElseThrow(() -> new ResourceNotFoundException("Livreur non trouve"));
 
         if (livreur.getRole() != UserRole.LIVREUR) {
-            throw new BadRequestException("L'utilisateur doit avoir le rôle LIVREUR");
+            throw new BadRequestException("L'utilisateur doit avoir le role LIVREUR");
+        }
+        if (resolveModeReception(commande) != ModeReceptionCommande.LIVRAISON) {
+            throw new BadRequestException("Un livreur ne peut etre assigne qu'aux commandes en livraison");
         }
 
         commande.setLivreur(livreur);
-
-        // Si la commande est en préparation, passer en cours
-        if (commande.getStatut() == StatutCommande.EN_PREPARATION) {
+        if (commande.getStatut() == StatutCommande.PRETE || commande.getStatut() == StatutCommande.EN_PREPARATION) {
             commande.setStatut(StatutCommande.EN_COURS);
         }
 
         Commande updatedCommande = commandeRepository.save(commande);
-        log.info("Livreur {} assigné à la commande {}", livreur.getNom(), commande.getNumeroCommande());
-
+        log.info("Livreur {} assigne a la commande {}", livreur.getNom(), commande.getNumeroCommande());
         return convertToDTO(updatedCommande);
     }
 
     @Override
     public CommandeDTO cancelCommande(Long id) {
-        Commande commande = commandeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Commande non trouvée"));
+        Commande commande = findCommande(id);
 
-        // Vérifier si la commande peut être annulée
         if (commande.getStatut() == StatutCommande.LIVREE) {
-            throw new BadRequestException("Impossible d'annuler une commande déjà livrée");
+            throw new BadRequestException("Impossible d'annuler une commande deja livree");
         }
-
         if (commande.getStatut() == StatutCommande.EN_COURS) {
             throw new BadRequestException("Impossible d'annuler une commande en cours de livraison");
         }
 
         commande.setStatut(StatutCommande.ANNULEE);
         commande.setStatutPaiement(StatutPaiement.REMBOURSE);
+        if (commande.getRaisonAnnulation() == null || commande.getRaisonAnnulation().isBlank()) {
+            commande.setRaisonAnnulation("Commande annulee");
+        }
 
         Commande cancelledCommande = commandeRepository.save(commande);
-        log.info("Commande {} annulée", commande.getNumeroCommande());
-
+        log.info("Commande {} annulee", commande.getNumeroCommande());
         return convertToDTO(cancelledCommande);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Map<String, Object> getCommandeTracking(Long id) {
-        Commande commande = commandeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Commande non trouvée"));
+        Commande commande = findCommande(id);
 
         Map<String, Object> tracking = new HashMap<>();
         tracking.put("numeroCommande", commande.getNumeroCommande());
         tracking.put("statut", commande.getStatut().name());
-        tracking.put("restaurant", commande.getRestaurant().getNom());
+        tracking.put("trackingStatut", mapTrackingStatus(commande));
+        tracking.put("modeReception", resolveModeReception(commande).name());
         tracking.put("tempsEstime", commande.getTempsLivraisonEstime());
+        tracking.put("createdAt", commande.getCreatedAt());
+        tracking.put("raisonAnnulation", commande.getRaisonAnnulation());
+
+        Map<String, Object> restaurantInfo = new HashMap<>();
+        restaurantInfo.put("id", commande.getRestaurant().getId());
+        restaurantInfo.put("nom", commande.getRestaurant().getNom());
+        restaurantInfo.put("localisation", toLocationMap(commande.getRestaurant().getLocalisation()));
+        tracking.put("restaurant", restaurantInfo);
+
+        Map<String, Object> clientInfo = new HashMap<>();
+        clientInfo.put("id", commande.getClient().getId());
+        clientInfo.put("nom", commande.getClient().getNom());
+        clientInfo.put("prenom", commande.getClient().getPrenom());
+        clientInfo.put("telephone", commande.getClient().getTelephone());
+        clientInfo.put("localisation", toLocationMap(commande.getClient().getLocalisation()));
+        tracking.put("client", clientInfo);
 
         if (commande.getLivreur() != null) {
             Map<String, Object> livreurInfo = new HashMap<>();
+            livreurInfo.put("id", commande.getLivreur().getId());
             livreurInfo.put("nom", commande.getLivreur().getNom());
             livreurInfo.put("prenom", commande.getLivreur().getPrenom());
             livreurInfo.put("telephone", commande.getLivreur().getTelephone());
-
-            if (commande.getLivreur().getLocalisation() != null) {
-                livreurInfo.put("latitude", commande.getLivreur().getLocalisation().getLatitude());
-                livreurInfo.put("longitude", commande.getLivreur().getLocalisation().getLongitude());
-            }
-
+            livreurInfo.put("localisation", toLocationMap(commande.getLivreur().getLocalisation()));
             tracking.put("livreur", livreurInfo);
         }
 
-        if (commande.getAdresseLivraison() != null) {
-            Map<String, Object> adresse = new HashMap<>();
-            adresse.put("latitude", commande.getAdresseLivraison().getLatitude());
-            adresse.put("longitude", commande.getAdresseLivraison().getLongitude());
-            adresse.put("adresse", commande.getAdresseLivraison().getAdresse());
-            tracking.put("destination", adresse);
-        }
-
-        tracking.put("createdAt", commande.getCreatedAt());
-
+        tracking.put("destination", toLocationMap(commande.getAdresseLivraison()));
         return tracking;
     }
 
-    // ========== MÉTHODES UTILITAIRES ==========
+    private Commande findCommande(Long id) {
+        return commandeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Commande non trouvee"));
+    }
 
-    private void validateStatusTransition(StatutCommande currentStatut, StatutCommande newStatut) {
-        // Logique de validation des transitions de statut
+    private void validateStatusTransition(Commande commande, StatutCommande newStatut) {
+        if (commande.getStatut() == newStatut) {
+            return;
+        }
+
         Map<StatutCommande, List<StatutCommande>> validTransitions = new HashMap<>();
+        validTransitions.put(StatutCommande.EN_ATTENTE, Arrays.asList(StatutCommande.CONFIRMEE, StatutCommande.ANNULEE));
+        validTransitions.put(StatutCommande.CONFIRMEE, Arrays.asList(StatutCommande.EN_PREPARATION, StatutCommande.PRETE, StatutCommande.ANNULEE));
+        validTransitions.put(StatutCommande.EN_PREPARATION, Arrays.asList(StatutCommande.PRETE, StatutCommande.ANNULEE));
+        validTransitions.put(StatutCommande.PRETE, resolveModeReception(commande) == ModeReceptionCommande.RETRAIT_SUR_PLACE
+                ? Arrays.asList(StatutCommande.LIVREE, StatutCommande.ANNULEE)
+                : Arrays.asList(StatutCommande.EN_COURS, StatutCommande.ANNULEE));
+        validTransitions.put(StatutCommande.EN_COURS, List.of(StatutCommande.LIVREE));
 
-        validTransitions.put(StatutCommande.EN_ATTENTE,
-                Arrays.asList(StatutCommande.CONFIRMEE, StatutCommande.ANNULEE));
-        validTransitions.put(StatutCommande.CONFIRMEE,
-                Arrays.asList(StatutCommande.EN_PREPARATION, StatutCommande.ANNULEE));
-        validTransitions.put(StatutCommande.EN_PREPARATION,
-                Arrays.asList(StatutCommande.EN_COURS, StatutCommande.ANNULEE));
-        validTransitions.put(StatutCommande.EN_COURS,
-                Arrays.asList(StatutCommande.LIVREE));
-
-        List<StatutCommande> allowedTransitions = validTransitions.get(currentStatut);
+        List<StatutCommande> allowedTransitions = validTransitions.get(commande.getStatut());
         if (allowedTransitions == null || !allowedTransitions.contains(newStatut)) {
             throw new BadRequestException(
-                    String.format("Transition de statut invalide: %s -> %s", currentStatut, newStatut));
+                    String.format("Transition de statut invalide: %s -> %s", commande.getStatut(), newStatut));
         }
+    }
+
+    private String mapTrackingStatus(Commande commande) {
+        return switch (commande.getStatut()) {
+            case EN_ATTENTE, CONFIRMEE -> "COMMANDE_CONFIRMEE";
+            case EN_PREPARATION, PRETE -> resolveModeReception(commande) == ModeReceptionCommande.RETRAIT_SUR_PLACE
+                    ? "COMMANDE_PRETE_A_RECUPERER"
+                    : "EN_COURS_DE_PREPARATION";
+            case EN_COURS -> "EN_COURS_DE_LIVRAISON";
+            case LIVREE -> resolveModeReception(commande) == ModeReceptionCommande.RETRAIT_SUR_PLACE
+                    ? "COMMANDE_RECUPEREE"
+                    : "COMMANDE_LIVREE";
+            case ANNULEE -> "ANNULEE";
+            case NON_FINALISEE -> "NON_FINALISEE";
+        };
+    }
+
+    private Map<String, Object> toLocationMap(Localisation localisation) {
+        Map<String, Object> map = new HashMap<>();
+        if (localisation != null) {
+            map.put("latitude", localisation.getLatitude());
+            map.put("longitude", localisation.getLongitude());
+            map.put("adresse", localisation.getAdresse());
+            map.put("ville", localisation.getVille());
+            map.put("codePostal", localisation.getCodePostal());
+            map.put("pays", localisation.getPays());
+        }
+        return map;
+    }
+
+    private Localisation toLocalisation(LocalisationDTO dto) {
+        if (dto == null) {
+            return null;
+        }
+
+        return Localisation.builder()
+                .latitude(dto.getLatitude())
+                .longitude(dto.getLongitude())
+                .adresse(dto.getAdresse())
+                .ville(dto.getVille())
+                .codePostal(dto.getCodePostal())
+                .pays(dto.getPays())
+                .build();
     }
 
     private BigDecimal calculateFraisLivraison(Localisation from, Localisation to) {
         if (from == null || to == null) {
-            return BigDecimal.valueOf(2000); // Frais par défaut
+            return BigDecimal.valueOf(Constants.BASE_DELIVERY_FEE_MAD);
         }
 
-        double distance = calculateDistance(
-                from.getLatitude(), from.getLongitude(),
-                to.getLatitude(), to.getLongitude()
-        );
+        double distance = calculateDistance(from.getLatitude(), from.getLongitude(), to.getLatitude(), to.getLongitude());
+        return BigDecimal.valueOf(Constants.BASE_DELIVERY_FEE_MAD + (distance * Constants.DELIVERY_FEE_PER_KM_MAD))
+                .setScale(0, RoundingMode.UP);
+    }
 
-        // 500 FCFA de base + 200 FCFA par km
-        BigDecimal frais = BigDecimal.valueOf(500)
-                .add(BigDecimal.valueOf(distance * 200));
+    private int resolveTempsEstime(Restaurant restaurant, List<LigneCommande> lignes, ModeReceptionCommande modeReception) {
+        int tempsPreparation = lignes.stream()
+                .map(LigneCommande::getPlat)
+                .map(Plat::getTempsPreparation)
+                .filter(Objects::nonNull)
+                .max(Integer::compareTo)
+                .orElse(20);
 
-        return frais.setScale(0, BigDecimal.ROUND_UP);
+        if (modeReception == ModeReceptionCommande.RETRAIT_SUR_PLACE) {
+            return tempsPreparation;
+        }
+        return (restaurant.getTempsLivraisonMoyen() != null ? restaurant.getTempsLivraisonMoyen() : 20) + tempsPreparation;
     }
 
     private double calculateDistance(Double lat1, Double lon1, Double lat2, Double lon2) {
         if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) {
-            return 5.0; // Distance par défaut
+            return 5.0;
         }
 
-        final int R = 6371;
+        final int r = 6371;
         double latDistance = Math.toRadians(lat2 - lat1);
         double lonDistance = Math.toRadians(lon2 - lon1);
-
         double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
                 + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
                 * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
-
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return r * c;
+    }
 
-        return R * c;
+    private Plat refreshPlatAvailabilityIfNeeded(Plat plat) {
+        if (plat.getAvailabilityMode() == ModeDisponibilitePlat.INDISPONIBLE_TEMPORAIRE
+                && plat.getIndisponibleJusqua() != null
+                && plat.getIndisponibleJusqua().isBefore(LocalDateTime.now())) {
+            plat.setAvailabilityMode(ModeDisponibilitePlat.DISPONIBLE);
+            plat.setIndisponibleJusqua(null);
+            plat.setIsAvailable(true);
+            return platRepository.save(plat);
+        }
+        return plat;
+    }
+
+    private boolean isRestaurantOpenNow(Restaurant restaurant) {
+        if (!Boolean.TRUE.equals(restaurant.getIsActive())) {
+            return false;
+        }
+        if (!Boolean.TRUE.equals(restaurant.getAutoCloseEnabled())) {
+            return true;
+        }
+
+        LocalTime opening = restaurant.getHeureOuverture();
+        LocalTime closing = restaurant.getHeureFermeture();
+        if (opening == null || closing == null || opening.equals(closing)) {
+            return true;
+        }
+
+        LocalTime now = LocalTime.now();
+        if (opening.isBefore(closing)) {
+            return !now.isBefore(opening) && now.isBefore(closing);
+        }
+        return !now.isBefore(opening) || now.isBefore(closing);
+    }
+
+    private MethodePaiement parseMethodePaiement(String value) {
+        try {
+            return MethodePaiement.valueOf(value);
+        } catch (Exception e) {
+            throw new BadRequestException("Methode de paiement invalide");
+        }
+    }
+
+    private StatutCommande parseStatut(String value) {
+        try {
+            return StatutCommande.valueOf(value);
+        } catch (Exception e) {
+            throw new BadRequestException("Statut invalide: " + value);
+        }
+    }
+
+    private ModeReceptionCommande parseModeReception(String value) {
+        if (value == null || value.isBlank()) {
+            return ModeReceptionCommande.LIVRAISON;
+        }
+
+        try {
+            return ModeReceptionCommande.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("Mode de reception invalide: " + value);
+        }
+    }
+
+    private ModeReceptionCommande resolveModeReception(Commande commande) {
+        return commande.getModeReception() != null
+                ? commande.getModeReception()
+                : ModeReceptionCommande.LIVRAISON;
     }
 
     private CommandeDTO convertToDTO(Commande commande) {
@@ -385,10 +499,13 @@ public class CommandeServiceImpl implements CommandeService {
         dto.setId(commande.getId());
         dto.setNumeroCommande(commande.getNumeroCommande());
         dto.setStatut(commande.getStatut().name());
+        dto.setTrackingStatut(mapTrackingStatus(commande));
         dto.setMontantTotal(commande.getMontantTotal());
         dto.setFraisLivraison(commande.getFraisLivraison());
         dto.setTempsLivraisonEstime(commande.getTempsLivraisonEstime());
         dto.setCommentaire(commande.getCommentaire());
+        dto.setRaisonAnnulation(commande.getRaisonAnnulation());
+        dto.setModeReception(resolveModeReception(commande).name());
         dto.setCreatedAt(commande.getCreatedAt());
         dto.setLivreeAt(commande.getLivreeAt());
 
@@ -399,53 +516,58 @@ public class CommandeServiceImpl implements CommandeService {
             dto.setStatutPaiement(commande.getStatutPaiement().name());
         }
 
-        // Client (simplifié)
         if (commande.getClient() != null) {
             UserDTO clientDTO = new UserDTO();
             clientDTO.setId(commande.getClient().getId());
             clientDTO.setNom(commande.getClient().getNom());
             clientDTO.setPrenom(commande.getClient().getPrenom());
             clientDTO.setTelephone(commande.getClient().getTelephone());
+            clientDTO.setLocalisation(toLocalisationDTO(commande.getClient().getLocalisation()));
             dto.setClient(clientDTO);
         }
 
-        // Restaurant (simplifié)
         if (commande.getRestaurant() != null) {
             RestaurantDTO restDTO = new RestaurantDTO();
             restDTO.setId(commande.getRestaurant().getId());
             restDTO.setNom(commande.getRestaurant().getNom());
             restDTO.setLogoUrl(commande.getRestaurant().getLogoUrl());
+            restDTO.setLocalisation(toLocalisationDTO(commande.getRestaurant().getLocalisation()));
             dto.setRestaurant(restDTO);
         }
 
-        // Livreur
         if (commande.getLivreur() != null) {
             UserDTO livreurDTO = new UserDTO();
             livreurDTO.setId(commande.getLivreur().getId());
             livreurDTO.setNom(commande.getLivreur().getNom());
             livreurDTO.setPrenom(commande.getLivreur().getPrenom());
             livreurDTO.setTelephone(commande.getLivreur().getTelephone());
+            livreurDTO.setLocalisation(toLocalisationDTO(commande.getLivreur().getLocalisation()));
             dto.setLivreur(livreurDTO);
         }
 
-        // Adresse de livraison
-        if (commande.getAdresseLivraison() != null) {
-            LocalisationDTO locDTO = new LocalisationDTO();
-            locDTO.setLatitude(commande.getAdresseLivraison().getLatitude());
-            locDTO.setLongitude(commande.getAdresseLivraison().getLongitude());
-            locDTO.setAdresse(commande.getAdresseLivraison().getAdresse());
-            locDTO.setVille(commande.getAdresseLivraison().getVille());
-            dto.setAdresseLivraison(locDTO);
-        }
+        dto.setAdresseLivraison(toLocalisationDTO(commande.getAdresseLivraison()));
 
-        // Lignes de commande
         if (commande.getLignesCommande() != null) {
-            List<LigneCommandeDTO> lignesDTO = commande.getLignesCommande().stream()
+            dto.setLignesCommande(commande.getLignesCommande().stream()
                     .map(this::convertLigneToDTO)
-                    .collect(Collectors.toList());
-            dto.setLignesCommande(lignesDTO);
+                    .toList());
         }
 
+        return dto;
+    }
+
+    private LocalisationDTO toLocalisationDTO(Localisation localisation) {
+        if (localisation == null) {
+            return null;
+        }
+
+        LocalisationDTO dto = new LocalisationDTO();
+        dto.setLatitude(localisation.getLatitude());
+        dto.setLongitude(localisation.getLongitude());
+        dto.setAdresse(localisation.getAdresse());
+        dto.setVille(localisation.getVille());
+        dto.setCodePostal(localisation.getCodePostal());
+        dto.setPays(localisation.getPays());
         return dto;
     }
 

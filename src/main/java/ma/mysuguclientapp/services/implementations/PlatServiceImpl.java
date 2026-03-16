@@ -2,22 +2,26 @@ package ma.mysuguclientapp.services.implementations;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import ma.mysuguclientapp.dtos.PlatAvailabilityUpdateDTO;
 import ma.mysuguclientapp.dtos.PlatCreateDTO;
 import ma.mysuguclientapp.dtos.PlatDTO;
 import ma.mysuguclientapp.entities.Plat;
 import ma.mysuguclientapp.entities.Restaurant;
 import ma.mysuguclientapp.enumerations.CategoriePlat;
+import ma.mysuguclientapp.enumerations.ModeDisponibilitePlat;
 import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
 import ma.mysuguclientapp.repositories.PlatRepository;
 import ma.mysuguclientapp.repositories.RestaurantRepository;
 import ma.mysuguclientapp.services.interfaces.PlatService;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -33,21 +37,26 @@ public class PlatServiceImpl implements PlatService {
     @Override
     @Transactional(readOnly = true)
     public Page<PlatDTO> getAllPlats(Long restaurantId, String categorie, Boolean available, Pageable pageable) {
-        Page<Plat> plats;
+        CategoriePlat categoriePlat = parseCategorie(categorie);
+        List<Plat> plats;
 
-        if (restaurantId != null && categorie != null && available != null) {
-            CategoriePlat cat = CategoriePlat.valueOf(categorie);
-            plats = platRepository.findByRestaurantIdAndCategoriePlatAndIsAvailable(
-                    restaurantId, cat, available, pageable);
+        if (restaurantId != null && categoriePlat != null) {
+            plats = platRepository.findByRestaurantIdAndCategoriePlat(restaurantId, categoriePlat);
         } else if (restaurantId != null) {
-            plats = platRepository.findByRestaurantId(restaurantId, pageable);
-        } else if (available != null) {
-            plats = platRepository.findByIsAvailable(available, pageable);
+            plats = platRepository.findByRestaurantId(restaurantId);
+        } else if (categoriePlat != null) {
+            plats = platRepository.findByCategoriePlat(categoriePlat);
         } else {
-            plats = platRepository.findAll(pageable);
+            plats = platRepository.findAll();
         }
 
-        return plats.map(this::convertToDTO);
+        List<PlatDTO> filtered = plats.stream()
+                .map(this::refreshAvailabilityIfNeeded)
+                .filter(plat -> available == null || plat.getIsAvailable().equals(available))
+                .map(this::convertToDTO)
+                .toList();
+
+        return toPage(filtered, pageable);
     }
 
     @Override
@@ -55,61 +64,58 @@ public class PlatServiceImpl implements PlatService {
     public PlatDTO getPlatById(Long id) {
         Plat plat = platRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Plat non trouvé avec l'ID: " + id));
-        return convertToDTO(plat);
+        return convertToDTO(refreshAvailabilityIfNeeded(plat));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<PlatDTO> getPlatsByRestaurant(Long restaurantId) {
-        List<Plat> plats = platRepository.findByRestaurantIdAndIsAvailable(restaurantId, true);
-        return plats.stream()
+        return platRepository.findByRestaurantId(restaurantId).stream()
+                .map(this::refreshAvailabilityIfNeeded)
+                .filter(Plat::getIsAvailable)
                 .map(this::convertToDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<PlatDTO> searchPlats(String keyword) {
-        List<Plat> plats = platRepository.searchByKeyword(keyword);
-        return plats.stream()
+        return platRepository.searchByKeyword(keyword).stream()
+                .map(this::refreshAvailabilityIfNeeded)
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
     @Override
     public PlatDTO createPlat(PlatCreateDTO platDTO, MultipartFile image) {
-        // Vérifier le restaurant
+        log.info("PLAT CREATE DTO : {}", platDTO);
         Restaurant restaurant = restaurantRepository.findById(platDTO.getRestaurantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Restaurant non trouvé"));
 
-        // Créer le plat
         Plat plat = new Plat();
         plat.setNom(platDTO.getNom());
         plat.setDescription(platDTO.getDescription());
         plat.setPrix(platDTO.getPrix());
         plat.setRestaurant(restaurant);
         plat.setTempsPreparation(platDTO.getTempsPreparation());
-        plat.setIsAvailable(true);
 
-        // Catégorie
         if (platDTO.getCategoriePlat() != null) {
-            try {
-                plat.setCategoriePlat(CategoriePlat.valueOf(platDTO.getCategoriePlat()));
-            } catch (IllegalArgumentException e) {
-                throw new BadRequestException("Catégorie de plat invalide: " + platDTO.getCategoriePlat());
-            }
+            plat.setCategoriePlat(parseCategorie(platDTO.getCategoriePlat()));
         }
 
-        // Ingrédients
         if (platDTO.getIngredients() != null) {
             plat.setIngredients(platDTO.getIngredients());
         }
 
-        // Upload image
+        if (Boolean.TRUE.equals(platDTO.getRemoveImage())) {
+            plat.setImageUrl(null);
+        }
+
+        applyAvailabilityMode(plat, parseAvailabilityMode(platDTO.getAvailabilityMode()), platDTO.getIndisponibleJusqua());
+
         if (image != null && !image.isEmpty()) {
             try {
-                String imageUrl = minioService.uploadFile(image, "plats");
-                plat.setImageUrl(imageUrl);
+                plat.setImageUrl(minioService.uploadFile(image, "plats"));
             } catch (Exception e) {
                 log.error("Erreur lors de l'upload de l'image", e);
                 throw new BadRequestException("Erreur lors de l'upload de l'image");
@@ -118,7 +124,6 @@ public class PlatServiceImpl implements PlatService {
 
         Plat savedPlat = platRepository.save(plat);
         log.info("Plat créé: {}", savedPlat.getNom());
-
         return convertToDTO(savedPlat);
     }
 
@@ -127,40 +132,40 @@ public class PlatServiceImpl implements PlatService {
         Plat plat = platRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Plat non trouvé"));
 
-        // Mettre à jour les champs
-        if (platDTO != null){
+        if (platDTO != null) {
             plat.setNom(platDTO.getNom());
             plat.setDescription(platDTO.getDescription());
             plat.setPrix(platDTO.getPrix());
             plat.setTempsPreparation(platDTO.getTempsPreparation());
 
-            // Catégorie
             if (platDTO.getCategoriePlat() != null) {
-                try {
-                    plat.setCategoriePlat(CategoriePlat.valueOf(platDTO.getCategoriePlat()));
-                } catch (IllegalArgumentException e) {
-                    throw new BadRequestException("Catégorie de plat invalide");
-                }
+                plat.setCategoriePlat(parseCategorie(platDTO.getCategoriePlat()));
             }
-
-            // Ingrédients
             if (platDTO.getIngredients() != null) {
                 plat.setIngredients(platDTO.getIngredients());
             }
 
+            if (Boolean.TRUE.equals(platDTO.getRemoveImage()) && plat.getImageUrl() != null) {
+                try {
+                    minioService.deleteFile(plat.getImageUrl());
+                    plat.setImageUrl(null);
+                } catch (Exception e) {
+                    log.error("Erreur lors de la suppression de l'image", e);
+                    throw new BadRequestException("Erreur lors de la suppression de l'image");
+                }
+            }
+
+            if (platDTO.getAvailabilityMode() != null || platDTO.getIndisponibleJusqua() != null) {
+                applyAvailabilityMode(plat, parseAvailabilityMode(platDTO.getAvailabilityMode()), platDTO.getIndisponibleJusqua());
+            }
         }
 
-
-        // Upload nouvelle image si fournie
         if (image != null && !image.isEmpty()) {
             try {
-                // Supprimer l'ancienne image
                 if (plat.getImageUrl() != null) {
                     minioService.deleteFile(plat.getImageUrl());
                 }
-
-                String imageUrl = minioService.uploadFile(image, "plats");
-                plat.setImageUrl(imageUrl);
+                plat.setImageUrl(minioService.uploadFile(image, "plats"));
             } catch (Exception e) {
                 log.error("Erreur lors de l'upload de l'image", e);
                 throw new BadRequestException("Erreur lors de l'upload de l'image");
@@ -169,7 +174,6 @@ public class PlatServiceImpl implements PlatService {
 
         Plat updatedPlat = platRepository.save(plat);
         log.info("Plat mis à jour: {}", updatedPlat.getNom());
-
         return convertToDTO(updatedPlat);
     }
 
@@ -178,7 +182,6 @@ public class PlatServiceImpl implements PlatService {
         Plat plat = platRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Plat non trouvé"));
 
-        // Supprimer l'image de MinIO
         if (plat.getImageUrl() != null) {
             try {
                 minioService.deleteFile(plat.getImageUrl());
@@ -192,19 +195,85 @@ public class PlatServiceImpl implements PlatService {
     }
 
     @Override
-    public PlatDTO toggleAvailability(Long id) {
+    public PlatDTO updateAvailability(Long id, PlatAvailabilityUpdateDTO availabilityDTO) {
         Plat plat = platRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Plat non trouvé"));
 
-        plat.setIsAvailable(!plat.getIsAvailable());
+        if (availabilityDTO == null || availabilityDTO.getAvailabilityMode() == null || availabilityDTO.getAvailabilityMode().isBlank()) {
+            ModeDisponibilitePlat targetMode = plat.getIsAvailable()
+                    ? ModeDisponibilitePlat.INDISPONIBLE_DEFINITIVE
+                    : ModeDisponibilitePlat.DISPONIBLE;
+            applyAvailabilityMode(plat, targetMode, null);
+        } else {
+            applyAvailabilityMode(plat, parseAvailabilityMode(availabilityDTO.getAvailabilityMode()), null);
+        }
+
         Plat updatedPlat = platRepository.save(plat);
-
-        log.info("Disponibilité du plat {} changée à: {}", plat.getNom(), plat.getIsAvailable());
-
+        log.info("Disponibilité du plat {} changée à: {}", plat.getNom(), plat.getAvailabilityMode());
         return convertToDTO(updatedPlat);
     }
 
-    // ========== MÉTHODES UTILITAIRES ==========
+    private void applyAvailabilityMode(Plat plat, ModeDisponibilitePlat mode, LocalDateTime indisponibleJusqua) {
+        ModeDisponibilitePlat resolvedMode = mode == null ? ModeDisponibilitePlat.DISPONIBLE : mode;
+        plat.setAvailabilityMode(resolvedMode);
+
+        switch (resolvedMode) {
+            case DISPONIBLE -> {
+                plat.setIsAvailable(true);
+                plat.setIndisponibleJusqua(null);
+            }
+            case INDISPONIBLE_TEMPORAIRE -> {
+                plat.setIsAvailable(false);
+                plat.setIndisponibleJusqua(indisponibleJusqua != null ? indisponibleJusqua : LocalDateTime.now().plusHours(24));
+            }
+            case INDISPONIBLE_DEFINITIVE -> {
+                plat.setIsAvailable(false);
+                plat.setIndisponibleJusqua(null);
+            }
+        }
+    }
+
+    private Plat refreshAvailabilityIfNeeded(Plat plat) {
+        if (plat.getAvailabilityMode() == ModeDisponibilitePlat.INDISPONIBLE_TEMPORAIRE
+                && plat.getIndisponibleJusqua() != null
+                && plat.getIndisponibleJusqua().isBefore(LocalDateTime.now())) {
+            plat.setAvailabilityMode(ModeDisponibilitePlat.DISPONIBLE);
+            plat.setIndisponibleJusqua(null);
+            plat.setIsAvailable(true);
+            return platRepository.save(plat);
+        }
+        return plat;
+    }
+
+    private ModeDisponibilitePlat parseAvailabilityMode(String value) {
+        if (value == null || value.isBlank()) {
+            return ModeDisponibilitePlat.DISPONIBLE;
+        }
+
+        try {
+            return ModeDisponibilitePlat.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("Mode de disponibilité invalide: " + value);
+        }
+    }
+
+    private CategoriePlat parseCategorie(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        try {
+            return CategoriePlat.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("Catégorie de plat invalide: " + value);
+        }
+    }
+
+    private Page<PlatDTO> toPage(List<PlatDTO> plats, Pageable pageable) {
+        int start = Math.min((int) pageable.getOffset(), plats.size());
+        int end = Math.min(start + pageable.getPageSize(), plats.size());
+        return new PageImpl<>(plats.subList(start, end), pageable, plats.size());
+    }
 
     private PlatDTO convertToDTO(Plat plat) {
         PlatDTO dto = new PlatDTO();
@@ -212,15 +281,19 @@ public class PlatServiceImpl implements PlatService {
         dto.setNom(plat.getNom());
         dto.setDescription(plat.getDescription());
         dto.setPrix(plat.getPrix());
-        dto.setImageUrl(plat.getImageUrl());
+        dto.setImageObjectName(plat.getImageUrl());
+        dto.setImageUrl(minioService.buildPublicFileUrl(plat.getImageUrl()));
         dto.setIngredients(plat.getIngredients());
         dto.setIsAvailable(plat.getIsAvailable());
         dto.setTempsPreparation(plat.getTempsPreparation());
+        dto.setIndisponibleJusqua(plat.getIndisponibleJusqua());
 
+        if (plat.getAvailabilityMode() != null) {
+            dto.setAvailabilityMode(plat.getAvailabilityMode().name());
+        }
         if (plat.getCategoriePlat() != null) {
             dto.setCategoriePlat(plat.getCategoriePlat().name());
         }
-
         if (plat.getRestaurant() != null) {
             dto.setRestaurantId(plat.getRestaurant().getId());
             dto.setRestaurantNom(plat.getRestaurant().getNom());

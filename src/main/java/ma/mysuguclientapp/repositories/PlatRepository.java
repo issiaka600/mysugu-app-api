@@ -12,8 +12,11 @@ import java.util.List;
 
 public interface PlatRepository extends JpaRepository<Plat, Long> {
     Page<Plat> findByRestaurantId(Long restaurantId, Pageable pageable);
+    List<Plat> findByRestaurantId(Long restaurantId);
+    List<Plat> findByRestaurantIdAndCategoriePlat(Long restaurantId, CategoriePlat categoriePlat);
     List<Plat> findByRestaurantIdAndIsAvailable(Long restaurantId, Boolean isAvailable);
     Page<Plat> findByIsAvailable(Boolean isAvailable, Pageable pageable);
+    List<Plat> findByCategoriePlat(CategoriePlat categoriePlat);
     Page<Plat> findByRestaurantIdAndCategoriePlatAndIsAvailable(
             Long restaurantId, CategoriePlat categoriePlat, Boolean isAvailable, Pageable pageable);
 

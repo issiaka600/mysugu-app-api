@@ -68,6 +68,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/restaurants/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/plats/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/files/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/files/upload").authenticated()
 
                         // Routes admin uniquement
                         .requestMatchers("/api/users/admin/**").hasRole("ADMIN")
@@ -75,10 +76,12 @@ public class SecurityConfig {
                         // Routes propriétaires de restaurant
                         .requestMatchers(HttpMethod.POST, "/api/restaurants").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/restaurants/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/restaurants/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/restaurants/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
                         
                         .requestMatchers(HttpMethod.POST, "/api/plats").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/plats/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/plats/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/plats/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
                         
                         // Routes catégories (admin)
