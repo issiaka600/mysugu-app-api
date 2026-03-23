@@ -2,9 +2,11 @@ package ma.mysuguclientapp.entities;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -12,6 +14,7 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class Promotion {
     
     @Id
@@ -34,4 +37,19 @@ public class Promotion {
     
     @OneToOne(mappedBy = "promotion")
     private Restaurant restaurant;
+
+    @Column(unique = true, length = 50)
+    private String code;
+
+    @Column(name = "montant_min_commande")
+    private BigDecimal montantMinCommande;
+
+    @Column(name = "usage_max")
+    private Integer usageMax;
+
+    @Column(name = "usage_count")
+    private Integer usageCount = 0;
+
+    @Column(name = "est_flash")
+    private Boolean estFlash = false;
 }

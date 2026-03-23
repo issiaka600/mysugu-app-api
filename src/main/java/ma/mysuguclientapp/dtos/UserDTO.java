@@ -1,6 +1,7 @@
 package ma.mysuguclientapp.dtos;
 
 import lombok.Data;
+import java.time.LocalDateTime;
 
 @Data
 public class UserDTO {
@@ -13,4 +14,6 @@ public class UserDTO {
     private String avatar;
     private LocalisationDTO localisation;
     private Boolean isActive;
+    private Boolean livreurDisponible;
+    private LocalDateTime createdAt;
 }

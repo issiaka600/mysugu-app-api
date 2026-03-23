@@ -63,32 +63,52 @@ public class SecurityConfig {
                                 "/actuator/health"
                         ).permitAll()
 
+                        // WebSocket endpoint
+                        .requestMatchers("/ws/**").permitAll()
+
                         // Routes publiques en lecture seule
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/restaurants/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/plats/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/files/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/promotions/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/menus/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/zones-livraison/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/files/upload").authenticated()
 
+                        // Auth enhanced (email verification, forgot password — public)
+                        .requestMatchers("/api/auth/verify-email", "/api/auth/forgot-password",
+                                "/api/auth/reset-password", "/api/auth/refresh").permitAll()
+
                         // Routes admin uniquement
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/users/admin/**").hasRole("ADMIN")
-                        
+                        .requestMatchers("/api/statistiques/**").hasRole("ADMIN")
+                        .requestMatchers("/api/codes-promo/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/promotions").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/promotions/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/promotions/**").hasRole("ADMIN")
+
                         // Routes propriétaires de restaurant
                         .requestMatchers(HttpMethod.POST, "/api/restaurants").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/restaurants/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/restaurants/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/restaurants/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
-                        
+
                         .requestMatchers(HttpMethod.POST, "/api/plats").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/plats/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/plats/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/plats/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
-                        
+
+                        .requestMatchers("/api/menus/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
+                        .requestMatchers("/api/zones-livraison/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
+                        .requestMatchers("/api/restaurant-dashboard/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
+
                         // Routes catégories (admin)
                         .requestMatchers(HttpMethod.POST, "/api/categories").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/categories/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/categories/**").hasRole("ADMIN")
-                        
+
                         // Routes commandes
                         .requestMatchers(HttpMethod.POST, "/api/commandes").hasAnyRole("CLIENT", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/commandes/client/**").hasAnyRole("CLIENT", "ADMIN")
@@ -96,7 +116,51 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/commandes/livreur/**").hasAnyRole("LIVREUR", "ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/commandes/{commandeId}/status").hasAnyRole("RESTAURANT_OWNER", "LIVREUR", "ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/commandes/{commandeId}/assign-livreur/**").hasAnyRole("ADMIN", "RESTAURANT_OWNER")
-                        
+
+                        // Panier (client)
+                        .requestMatchers("/api/panier/**").hasRole("CLIENT")
+
+                        // Wallet (client + admin)
+                        .requestMatchers("/api/wallet/**").hasAnyRole("CLIENT", "ADMIN")
+
+                        // Fidelité (client + admin)
+                        .requestMatchers("/api/fidelite/**").hasAnyRole("CLIENT", "ADMIN")
+
+                        // Avis (client soumettre, public lire)
+                        .requestMatchers(HttpMethod.POST, "/api/avis").hasRole("CLIENT")
+                        .requestMatchers(HttpMethod.GET, "/api/avis/**").permitAll()
+                        .requestMatchers("/api/avis/*/moderer").hasRole("ADMIN")
+
+                        // Favoris (client)
+                        .requestMatchers("/api/favoris/**").hasRole("CLIENT")
+
+                        // Notifications (authenticated)
+                        .requestMatchers("/api/notifications/**").authenticated()
+
+                        // Livreur gains
+                        .requestMatchers("/api/livreurs/gains/**").hasAnyRole("LIVREUR", "ADMIN")
+
+                        // Codes promo validation (client)
+                        .requestMatchers("/api/codes-promo/valider").hasAnyRole("CLIENT", "ADMIN")
+
+                        // Caisse livreur
+                        .requestMatchers("/api/caisse/ma-position").hasRole("LIVREUR")
+                        .requestMatchers("/api/caisse/mon-historique").hasRole("LIVREUR")
+                        .requestMatchers("/api/caisse/info-commande/**").hasRole("LIVREUR")
+                        .requestMatchers(HttpMethod.POST, "/api/caisse/paiement-restaurant/**").hasRole("LIVREUR")
+                        .requestMatchers("/api/caisse/bord-admin").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/caisse/avance/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/caisse/reconcilier").hasRole("ADMIN")
+                        .requestMatchers("/api/caisse/parametres").hasRole("ADMIN")
+                        .requestMatchers("/api/caisse/*/position").hasRole("ADMIN")
+                        .requestMatchers("/api/caisse/*/historique").hasRole("ADMIN")
+                        .requestMatchers("/api/caisse/*/plafond").hasRole("ADMIN")
+
+                        // Facturation restaurant
+                        .requestMatchers("/api/facturation-restaurant/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/facturation-restaurant/*/payer").hasRole("ADMIN")
+                        .requestMatchers("/api/facturation-restaurant/*/dettes/**").hasRole("ADMIN")
+
                         // Toutes les autres routes nécessitent une authentification
                         .anyRequest().authenticated()
                 )
@@ -127,7 +191,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000", "http://localhost:4200", "*"));
+        configuration.setAllowedOrigins(Arrays.asList(
+                "http://localhost:3000", "http://localhost:4200",
+                "http://localhost:5173", "http://localhost:5174", "*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(false);

@@ -59,6 +59,7 @@ public class CommandeServiceImpl implements CommandeService {
     private final RestaurantRepository restaurantRepository;
     private final PlatRepository platRepository;
     private final LigneCommandeRepository ligneCommandeRepository;
+    private final CaisseServiceImpl caisseService;
 
     @Override
     @Transactional(readOnly = true)
@@ -228,6 +229,14 @@ public class CommandeServiceImpl implements CommandeService {
         }
 
         Commande updatedCommande = commandeRepository.save(commande);
+
+        if (nouveauStatut == StatutCommande.LIVREE && updatedCommande.getMethodePaiement() == MethodePaiement.ESPECES) {
+            try {
+                caisseService.enregistrerCollecteClient(updatedCommande);
+            } catch (Exception e) {
+                log.warn("Erreur lors de l'enregistrement de la collecte caisse pour commande {}: {}", commande.getNumeroCommande(), e.getMessage());
+            }
+        }
         log.info("Statut de la commande {} mis a jour: {}", commande.getNumeroCommande(), nouveauStatut);
         return convertToDTO(updatedCommande);
     }

@@ -94,14 +94,19 @@ public class RestaurantServiceImpl implements RestaurantService {
 
     @Override
     public RestaurantDTO createRestaurant(RestaurantCreateDTO restaurantDTO, MultipartFile logo) {
-        CategorieRestaurant categorie = categorieRepository.findById(restaurantDTO.getCategorieId())
-                .orElseThrow(() -> new ResourceNotFoundException("Catégorie non trouvée"));
+        CategorieRestaurant categorie = null;
+        if (restaurantDTO.getCategorieId() != null) {
+            categorie = categorieRepository.findById(restaurantDTO.getCategorieId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Catégorie non trouvée"));
+        }
 
-        User owner = userRepository.findById(restaurantDTO.getOwnerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Propriétaire non trouvé"));
-
-        if (owner.getRole() != UserRole.RESTAURANT_OWNER && owner.getRole() != UserRole.ADMIN) {
-            throw new BadRequestException("L'utilisateur doit avoir le rôle RESTAURANT_OWNER");
+        User owner = null;
+        if (restaurantDTO.getOwnerId() != null) {
+            owner = userRepository.findById(restaurantDTO.getOwnerId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Propriétaire non trouvé"));
+            if (owner.getRole() != UserRole.RESTAURANT_OWNER && owner.getRole() != UserRole.ADMIN) {
+                throw new BadRequestException("L'utilisateur doit avoir le rôle RESTAURANT_OWNER");
+            }
         }
 
         Restaurant restaurant = new Restaurant();

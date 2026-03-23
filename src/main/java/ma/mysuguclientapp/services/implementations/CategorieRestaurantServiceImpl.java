@@ -150,7 +150,7 @@ public class CategorieRestaurantServiceImpl implements CategorieRestaurantServic
         dto.setId(categorie.getId());
         dto.setNom(categorie.getNom());
         dto.setDescription(categorie.getDescription());
-        dto.setImageUrl(categorie.getImageUrl());
+        dto.setImageUrl(minioService.buildPublicFileUrl(categorie.getImageUrl()));
 
         if (categorie.getRestaurants() != null) {
             dto.setNombreRestaurants(categorie.getRestaurants().size());

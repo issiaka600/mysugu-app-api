@@ -102,6 +102,22 @@ public class JwtTokenProvider {
     }
 
     /**
+     * Obtenir la date d'expiration du token
+     */
+    public Date getExpirationFromToken(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .getExpiration();
+    }
+
+    public long getJwtExpirationMs() {
+        return jwtExpirationMs;
+    }
+
+    /**
      * Obtenir la clé de signature
      */
     private SecretKey getSigningKey() {
