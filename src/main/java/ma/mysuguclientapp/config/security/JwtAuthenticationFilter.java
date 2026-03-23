@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import ma.mysuguclientapp.repositories.TokenBlacklistRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -17,7 +18,10 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Collections;
+import java.util.HexFormat;
 
 @Component
 @RequiredArgsConstructor
@@ -26,6 +30,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider tokenProvider;
     private final UserRepository userRepository;
+    private final TokenBlacklistRepository tokenBlacklistRepository;
 
     @Override
     protected void doFilterInternal(@NotNull HttpServletRequest request,
@@ -34,7 +39,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String jwt = getJwtFromRequest(request);
 
-            if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
+            if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt) && !isBlacklisted(jwt)) {
                 String email = tokenProvider.getEmailFromToken(jwt);
                 String role = tokenProvider.getRoleFromToken(jwt);
 
@@ -62,6 +67,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isBlacklisted(String jwt) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(jwt.getBytes(StandardCharsets.UTF_8));
+            String tokenHash = HexFormat.of().formatHex(hash);
+            return tokenBlacklistRepository.existsByTokenHash(tokenHash);
+        } catch (Exception e) {
+            log.error("Erreur lors de la vérification du blacklist", e);
+            return false;
+        }
     }
 
     /**

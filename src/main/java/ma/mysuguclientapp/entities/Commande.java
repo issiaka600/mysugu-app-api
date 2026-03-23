@@ -95,6 +95,15 @@ public class Commande {
     @Column(name = "livree_at")
     private LocalDateTime livreeAt;
 
+    @Column(name = "scheduled_at")
+    private LocalDateTime scheduledAt;
+
+    @Column(name = "is_reorder")
+    private Boolean isReorder = false;
+
+    @Column(name = "reorder_from_id")
+    private Long reorderFromId;
+
     @PrePersist
     @PreUpdate
     public void applyDefaults() {

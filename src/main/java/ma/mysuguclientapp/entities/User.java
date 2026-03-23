@@ -46,11 +46,26 @@ public class User {
     
     @Column(name = "is_active")
     private Boolean isActive = true;
-    
+
+    @Column(name = "email_verified")
+    private Boolean emailVerified = false;
+
+    @Column(name = "consent_rgpd")
+    private Boolean consentRgpd = false;
+
+    @Column(name = "is_deleted")
+    private Boolean isDeleted = false;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "livreur_disponible")
+    private Boolean livreurDisponible = false;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
-    
+
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
