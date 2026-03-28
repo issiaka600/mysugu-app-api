@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>MySugu — Test Notifications Push</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f5f5f5; padding: 24px; color: #222; max-width: 800px; margin: 0 auto; }
+    h1 { font-size: 1.4rem; margin-bottom: 4px; }
+    .subtitle { color: #666; font-size: 0.9rem; margin-bottom: 24px; }
+    .card { background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    .card h2 { font-size: 1rem; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .badge { font-size: 0.7rem; background: #e3f2fd; color: #1565c0; border-radius: 12px; padding: 2px 8px; }
+    .badge-ok { background: #dcfce7; color: #166534; }
+    label { display: block; font-size: 0.82rem; color: #555; margin-bottom: 4px; margin-top: 10px; }
+    input, textarea, select { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; }
+    textarea { min-height: 60px; resize: vertical; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .row > * { flex: 1; min-width: 200px; }
+    button { margin-top: 12px; padding: 9px 18px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 500; }
+    .btn-primary  { background: #f97316; color: #fff; }
+    .btn-primary:hover  { background: #ea6900; }
+    .btn-secondary { background: #e5e7eb; color: #374151; }
+    .btn-secondary:hover { background: #d1d5db; }
+    .token-box { font-family: monospace; font-size: 0.78rem; background: #f0f0f0; padding: 10px; border-radius: 6px; word-break: break-all; margin-top: 10px; min-height: 48px; color: #444; }
+    .log { font-family: monospace; font-size: 0.8rem; background: #1e1e1e; color: #d4d4d4; padding: 14px; border-radius: 6px; margin-top: 10px; max-height: 240px; overflow-y: auto; }
+    .log .ok   { color: #4ec9b0; }
+    .log .err  { color: #f48771; }
+    .log .info { color: #9cdcfe; }
+    .step { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; background: #f97316; color: #fff; border-radius: 50%; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; }
+    .notif-list { list-style: none; }
+    .notif-list li { background: #f0fdf4; border-left: 3px solid #22c55e; padding: 8px 12px; border-radius: 4px; margin-top: 8px; font-size: 0.85rem; }
+    .notif-list li strong { display: block; }
+    .hint { font-size: 0.8rem; color: #f97316; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 6px; padding: 8px 12px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+<h1>🔔 MySugu — Test Notifications Push</h1>
+<p class="subtitle">Validation end-to-end des campagnes FCM. Ouvrir dans Chrome ou Edge.</p>
+
+<!-- ── ÉTAPE 1 : Config Firebase ───────────────────────────────── -->
+<div class="card">
+  <h2><span class="step">1</span> Configuration Firebase <span class="badge badge-ok">Pré-remplie ✓</span></h2>
+  <div class="row">
+    <div>
+      <label>API Key</label>
+      <input id="apiKey" value="AIzaSyCW_hCE-prQ8ZGLiPfJfsuM6OFNyFQQ1iU" />
+    </div>
+    <div>
+      <label>Project ID</label>
+      <input id="projectId" value="mysugu-app" />
+    </div>
+  </div>
+  <div class="row">
+    <div>
+      <label>Auth Domain</label>
+      <input id="authDomain" value="mysugu-app.firebaseapp.com" />
+    </div>
+    <div>
+      <label>Storage Bucket</label>
+      <input id="storageBucket" value="mysugu-app.firebasestorage.app" />
+    </div>
+  </div>
+  <div class="row">
+    <div>
+      <label>Messaging Sender ID</label>
+      <input id="senderId" value="673962321887" />
+    </div>
+    <div>
+      <label>App ID</label>
+      <input id="appId" value="1:673962321887:web:23135fdf1f17901dba466a" />
+    </div>
+  </div>
+  <div class="hint">
+    ⚠️ <strong>Clé VAPID obligatoire</strong> — Firebase Console →
+    <strong>Paramètres du projet</strong> → onglet <strong>Cloud Messaging</strong> →
+    section <strong>Web Push certificates</strong> → cliquez <em>Générer une paire de clés</em> si vide →
+    copiez la <strong>clé publique</strong> (commence par <code>B...</code>).
+  </div>
+  <label>Clé VAPID (Web Push certificate)</label>
+  <input id="vapidKey" placeholder="BGxxxxxxxxxxxxxxxxxxxxxxxx..." />
+  <button class="btn-primary" onclick="initFirebase()">Initialiser Firebase</button>
+</div>
+
+<!-- ── ÉTAPE 2 : Obtenir le token FCM ─────────────────────────── -->
+<div class="card">
+  <h2><span class="step">2</span> Obtenir le token FCM</h2>
+  <p style="font-size:.85rem;color:#555">Le navigateur va demander l'autorisation d'afficher des notifications. Cliquez <strong>Autoriser</strong>.</p>
+  <button class="btn-primary" onclick="getToken()">Demander la permission &amp; obtenir le token FCM</button>
+  <div class="token-box" id="tokenBox">— le token FCM apparaîtra ici —</div>
+  <button class="btn-secondary" style="margin-top:8px" onclick="copyToken()">📋 Copier le token</button>
+</div>
+
+<!-- ── ÉTAPE 3 : Connexion ─────────────────────────────────────── -->
+<div class="card">
+  <h2><span class="step">3</span> Connexion admin</h2>
+  <label>URL Backend</label>
+  <input id="backendUrl" value="http://localhost:8083" />
+  <div class="row">
+    <div>
+      <label>Email admin</label>
+      <input id="loginEmail" placeholder="admin@mysugu.ma" />
+    </div>
+    <div>
+      <label>Mot de passe</label>
+      <input id="loginPassword" type="password" placeholder="••••••••" />
+    </div>
+  </div>
+  <button class="btn-primary" onclick="login()">Se connecter</button>
+  <div class="row">
+    <div>
+      <label style="margin-top:12px">Token JWT <span style="color:#22c55e">(auto)</span></label>
+      <input id="jwtToken" placeholder="rempli automatiquement..." readonly style="background:#f9fafb;color:#666" />
+    </div>
+    <div>
+      <label style="margin-top:12px">User ID <span style="color:#22c55e">(auto)</span></label>
+      <input id="userId" placeholder="auto" type="number" />
+    </div>
+  </div>
+</div>
+
+<!-- ── ÉTAPE 4 : Enregistrer le token FCM ─────────────────────── -->
+<div class="card">
+  <h2><span class="step">4</span> Enregistrer le token FCM</h2>
+  <p style="font-size:.85rem;color:#555">Associe ce token à votre compte pour recevoir les push ciblés.</p>
+  <button class="btn-primary" onclick="registerToken()">Enregistrer le token FCM auprès du backend</button>
+</div>
+
+<!-- ── ÉTAPE 5 : Envoyer une campagne ─────────────────────────── -->
+<div class="card">
+  <h2><span class="step">5</span> Envoyer une campagne de notification</h2>
+  <div class="row">
+    <div>
+      <label>Titre</label>
+      <input id="campTitre" value="🎉 Offre spéciale MySugu !" />
+    </div>
+    <div>
+      <label>Type</label>
+      <select id="campType">
+        <option value="PROMOTION">PROMOTION</option>
+        <option value="SYSTEME">SYSTEME</option>
+      </select>
+    </div>
+  </div>
+  <label>Message</label>
+  <textarea id="campMessage">Profitez de -20% sur toutes vos commandes ce weekend ! Code : WEEKEND20 🍕</textarea>
+  <label>Rôle cible</label>
+  <select id="campRole" style="margin-top:4px">
+    <option value="ADMIN">ADMIN (tester sur moi d'abord)</option>
+    <option value="CLIENT">CLIENT</option>
+    <option value="LIVREUR">LIVREUR</option>
+    <option value="RESTAURANT_OWNER">RESTAURANT_OWNER</option>
+    <option value="ALL">ALL (tous les utilisateurs)</option>
+  </select>
+  <button class="btn-primary" onclick="sendCampagne()">🚀 Envoyer la campagne</button>
+</div>
+
+<!-- ── Journal ─────────────────────────────────────────────────── -->
+<div class="card">
+  <h2>📋 Journal</h2>
+  <div class="log" id="log"><span class="info">En attente d'actions...</span></div>
+</div>
+
+<!-- ── Notifications reçues ───────────────────────────────────── -->
+<div class="card">
+  <h2>🔔 Notifications reçues (onglet actif)</h2>
+  <p style="font-size:.82rem;color:#555;margin-bottom:8px">
+    Les notifications reçues quand cet onglet est actif s'affichent ici.
+    Quand l'onglet est en arrière-plan, elles apparaissent dans les notifications système de votre OS.
+  </p>
+  <ul class="notif-list" id="notifList">
+    <li style="background:#f9fafb;border-left-color:#9ca3af;color:#6b7280">Aucune notification reçue pour l'instant.</li>
+  </ul>
+</div>
+
+<!-- Firebase SDK compat v10 -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
+
+<script>
+  let messaging = null;
+  let fcmToken  = null;
+
+  function log(msg, type = 'info') {
+    const el   = document.getElementById('log');
+    const line = document.createElement('div');
+    line.className   = type;
+    line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function getBackendUrl() {
+    return document.getElementById('backendUrl').value.replace(/\/$/, '');
+  }
+
+  // ── Étape 1 : Initialiser Firebase ──────────────────────────────
+  function initFirebase() {
+    const config = {
+      apiKey:            document.getElementById('apiKey').value.trim(),
+      authDomain:        document.getElementById('authDomain').value.trim(),
+      projectId:         document.getElementById('projectId').value.trim(),
+      storageBucket:     document.getElementById('storageBucket').value.trim(),
+      messagingSenderId: document.getElementById('senderId').value.trim(),
+      appId:             document.getElementById('appId').value.trim(),
+    };
+
+    if (!config.apiKey || !config.projectId || !config.messagingSenderId || !config.appId) {
+      log('Champs de config Firebase manquants.', 'err');
+      return;
+    }
+
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(config);
+      messaging = firebase.messaging();
+
+      // Notifications reçues quand l'onglet est actif
+      messaging.onMessage(payload => {
+        const title = payload.notification?.title || '(sans titre)';
+        const body  = payload.notification?.body  || '';
+        log(`✅ Notification reçue (premier plan) : "${title}"`, 'ok');
+
+        // Affichage dans la page
+        const list = document.getElementById('notifList');
+        if (list.children[0]?.style.color === 'rgb(107, 114, 128)') list.innerHTML = '';
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${title}</strong>${body}`
+          + `<br><small style="color:#6b7280">${new Date().toLocaleString()}</small>`;
+        list.prepend(li);
+
+        // Notification système OS même onglet actif
+        navigator.serviceWorker.ready.then(reg => {
+          reg.showNotification(title, { body, icon: '/favicon.ico' });
+        }).catch(() => {});
+      });
+
+      log('Firebase initialisé avec succès ✓', 'ok');
+    } catch (e) {
+      log('Erreur Firebase : ' + e.message, 'err');
+    }
+  }
+
+  // ── Étape 2 : Obtenir le token FCM ──────────────────────────────
+  async function getToken() {
+    if (!messaging) { log('Initialisez Firebase d\'abord (étape 1).', 'err'); return; }
+    const vapidKey = document.getElementById('vapidKey').value.trim();
+    if (!vapidKey)  { log('Clé VAPID manquante.', 'err'); return; }
+
+    try {
+      log('Enregistrement du service worker…', 'info');
+      const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+      await navigator.serviceWorker.ready;
+      log('Service worker actif.', 'info');
+
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        log('Permission refusée. Autorisez les notifications dans les paramètres du navigateur.', 'err');
+        return;
+      }
+
+      fcmToken = await messaging.getToken({ vapidKey, serviceWorkerRegistration: reg });
+      document.getElementById('tokenBox').textContent = fcmToken;
+      log('Token FCM obtenu ✓ (copiez-le si besoin)', 'ok');
+    } catch (e) {
+      log('Erreur getToken : ' + e.message, 'err');
+    }
+  }
+
+  function copyToken() {
+    if (!fcmToken) { log('Pas de token à copier.', 'err'); return; }
+    navigator.clipboard.writeText(fcmToken);
+    log('Token copié dans le presse-papiers.', 'info');
+  }
+
+  // ── Étape 3 : Connexion ─────────────────────────────────────────
+  async function login() {
+    const email    = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    if (!email || !password) { log('Email et mot de passe requis.', 'err'); return; }
+
+    try {
+      const res  = await fetch(`${getBackendUrl()}/auth/login`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (!res.ok) { log('Connexion échouée : ' + (data.message || res.status), 'err'); return; }
+
+      // LoginResponseDTO → { token, user: { id, ... } }
+      const jwt = data.token || data.accessToken || data.jwt;
+      if (!jwt) { log('Réponse inattendue : ' + JSON.stringify(data), 'err'); return; }
+
+      document.getElementById('jwtToken').value = jwt;
+
+      const uid = data.user?.id || data.userId || data.id;
+      if (uid) document.getElementById('userId').value = uid;
+
+      log(`Connexion réussie ✓  userId=${uid || '?'}`, 'ok');
+    } catch (e) {
+      log('Erreur réseau : ' + e.message, 'err');
+    }
+  }
+
+  // ── Étape 4 : Enregistrer le token FCM ──────────────────────────
+  async function registerToken() {
+    const jwt    = document.getElementById('jwtToken').value.trim();
+    const userId = parseInt(document.getElementById('userId').value.trim(), 10);
+    if (!jwt)      { log('JWT manquant — connectez-vous d\'abord (étape 3).', 'err'); return; }
+    if (!fcmToken) { log('Token FCM manquant — étape 2.', 'err'); return; }
+    if (!userId)   { log('User ID manquant — entrez-le manuellement si non rempli.', 'err'); return; }
+
+    try {
+      const res = await fetch(`${getBackendUrl()}/api/device-tokens/register`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` },
+        body:    JSON.stringify({ userId, token: fcmToken, platform: 'WEB' })
+      });
+      if (res.ok) {
+        log('Token FCM enregistré auprès du backend ✓', 'ok');
+      } else {
+        const err = await res.json().catch(() => ({}));
+        log('Erreur enregistrement : ' + (err.message || res.status), 'err');
+      }
+    } catch (e) {
+      log('Erreur réseau : ' + e.message, 'err');
+    }
+  }
+
+  // ── Étape 5 : Envoyer la campagne ───────────────────────────────
+  async function sendCampagne() {
+    const jwt = document.getElementById('jwtToken').value.trim();
+    if (!jwt) { log('JWT manquant — connectez-vous en tant qu\'admin (étape 3).', 'err'); return; }
+
+    const body = {
+      titre:     document.getElementById('campTitre').value,
+      message:   document.getElementById('campMessage').value,
+      type:      document.getElementById('campType').value,
+      cibleRole: document.getElementById('campRole').value,
+    };
+
+    log(`Envoi de la campagne "${body.titre}" → rôle ${body.cibleRole}…`, 'info');
+
+    try {
+      const res  = await fetch(`${getBackendUrl()}/api/admin/notifications/campagne`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` },
+        body:    JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        log(`✅ Campagne envoyée — ${data.destinatairesCount} destinataires, `
+          + `${data.notificationsCreees} notifs créées, ${data.pushEnvoyees} push tentés.`, 'ok');
+        log('👉 Si cet onglet est actif, la notification doit apparaître ci-dessous.', 'info');
+        log('👉 En arrière-plan / onglet fermé → notification système de l\'OS.', 'info');
+      } else {
+        log('Erreur campagne : ' + (data.message || JSON.stringify(data)), 'err');
+      }
+    } catch (e) {
+      log('Erreur réseau : ' + e.message, 'err');
+    }
+  }
+</script>
+</body>
+</html>

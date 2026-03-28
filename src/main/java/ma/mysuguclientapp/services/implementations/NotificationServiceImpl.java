@@ -3,14 +3,19 @@ package ma.mysuguclientapp.services.implementations;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import ma.mysuguclientapp.config.security.JwtTokenProvider;
+import ma.mysuguclientapp.dtos.CampagneNotificationRequestDTO;
+import ma.mysuguclientapp.dtos.CampagneNotificationResultDTO;
 import ma.mysuguclientapp.dtos.NotificationDTO;
 import ma.mysuguclientapp.entities.Notification;
 import ma.mysuguclientapp.entities.User;
 import ma.mysuguclientapp.enumerations.TypeNotification;
+import ma.mysuguclientapp.enumerations.UserRole;
+import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
 import ma.mysuguclientapp.exceptions.UnauthorizedException;
 import ma.mysuguclientapp.repositories.NotificationRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
+import ma.mysuguclientapp.services.interfaces.FcmService;
 import ma.mysuguclientapp.services.interfaces.NotificationService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,6 +36,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    private final FcmService fcmService;
 
     @Override
     @Transactional(readOnly = true)
@@ -93,6 +100,10 @@ public class NotificationServiceImpl implements NotificationService {
                     .build();
             notificationRepository.save(notif);
             log.info("Notification '{}' envoyée à l'utilisateur {}", type, userId);
+
+            // Envoi de la notification push FCM
+            Map<String, String> data = buildFcmData(type, entityId, entityType);
+            fcmService.sendToUser(userId, titre, message, data);
         });
     }
 
@@ -107,6 +118,76 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public void envoyerNotificationSysteme(Long userId, String titre, String message) {
         envoyerNotification(userId, titre, message, TypeNotification.SYSTEME, null, null);
+    }
+
+    @Override
+    public CampagneNotificationResultDTO envoyerCampagne(CampagneNotificationRequestDTO request) {
+        TypeNotification type = parseTypeCampagne(request.getType());
+        List<User> destinataires = resolverDestinataires(request.getCibleRole());
+
+        if (destinataires.isEmpty()) {
+            log.warn("Campagne '{}' : aucun destinataire actif trouvé pour le rôle '{}'",
+                    request.getTitre(), request.getCibleRole());
+            return CampagneNotificationResultDTO.builder()
+                    .destinatairesCount(0).notificationsCreees(0).pushEnvoyees(0)
+                    .envoyeeAt(LocalDateTime.now()).build();
+        }
+
+        // Sauvegarde in-app pour chaque destinataire
+        List<Notification> notifs = destinataires.stream()
+                .map(user -> Notification.builder()
+                        .destinataire(user)
+                        .titre(request.getTitre())
+                        .message(request.getMessage())
+                        .type(type)
+                        .entityId(request.getEntityId())
+                        .entityType(request.getEntityType())
+                        .lue(false)
+                        .build())
+                .toList();
+        notificationRepository.saveAll(notifs);
+
+        // Push FCM en batch
+        List<Long> userIds = destinataires.stream().map(User::getId).toList();
+        Map<String, String> data = buildFcmData(type, request.getEntityId(), request.getEntityType());
+        fcmService.sendToUsers(userIds, request.getTitre(), request.getMessage(), data);
+
+        log.info("Campagne '{}' envoyée à {} destinataires (rôle: {})",
+                request.getTitre(), destinataires.size(), request.getCibleRole());
+
+        return CampagneNotificationResultDTO.builder()
+                .destinatairesCount(destinataires.size())
+                .notificationsCreees(notifs.size())
+                .pushEnvoyees(userIds.size())
+                .envoyeeAt(LocalDateTime.now())
+                .build();
+    }
+
+    private TypeNotification parseTypeCampagne(String type) {
+        if (type == null) return TypeNotification.PROMOTION;
+        return switch (type.toUpperCase()) {
+            case "SYSTEME" -> TypeNotification.SYSTEME;
+            case "PROMOTION" -> TypeNotification.PROMOTION;
+            default -> throw new BadRequestException(
+                    "Type de campagne invalide : '" + type + "'. Valeurs acceptées : PROMOTION, SYSTEME");
+        };
+    }
+
+    private List<User> resolverDestinataires(String cibleRole) {
+        if (cibleRole == null || cibleRole.isBlank() || "ALL".equalsIgnoreCase(cibleRole)) {
+            // Tous les utilisateurs actifs (toutes rôles confondus)
+            return userRepository.findAll().stream()
+                    .filter(u -> Boolean.TRUE.equals(u.getIsActive()))
+                    .toList();
+        }
+        UserRole role;
+        try {
+            role = UserRole.valueOf(cibleRole.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException(
+                    "Rôle cible invalide : '" + cibleRole + "'. Valeurs acceptées : CLIENT, LIVREUR, RESTAURANT_OWNER, ADMIN, ALL");
+        }
+        return userRepository.findByRoleAndIsActive(role, true);
     }
 
     private String buildTitreCommande(TypeNotification type) {
@@ -130,9 +211,17 @@ public class NotificationServiceImpl implements NotificationService {
             case COMMANDE_EN_COURS -> "Votre commande " + num + " est en cours de livraison.";
             case COMMANDE_LIVREE -> "Votre commande " + num + " a été livrée. Bon appétit !";
             case COMMANDE_ANNULEE -> "Votre commande " + num + " a été annulée.";
-            case LIVREUR_ASSIGNE -> "Un livreur a été assigné à votre commande " + num + ".";
+            case LIVREUR_ASSIGNE -> "Une nouvelle livraison vous a été assignée : commande " + num + ".";
             default -> "Mise à jour de votre commande " + num + ".";
         };
+    }
+
+    private Map<String, String> buildFcmData(TypeNotification type, Long entityId, String entityType) {
+        Map<String, String> data = new java.util.HashMap<>();
+        data.put("type", type.name());
+        if (entityId != null) data.put("entityId", entityId.toString());
+        if (entityType != null) data.put("entityType", entityType);
+        return data;
     }
 
     private User getUserFromToken(String bearerToken) {

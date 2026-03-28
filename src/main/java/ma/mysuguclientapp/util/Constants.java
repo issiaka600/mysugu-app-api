@@ -18,6 +18,14 @@ public final class Constants {
 
     public static final double DEFAULT_DELIVERY_RADIUS_KM = 10.0;
     public static final double DEFAULT_AVERAGE_SPEED_KMH = 30.0;
+
+    /** Rayon max (km) dans lequel chercher un livreur pour l'auto-assignation */
+    public static final double AUTO_ASSIGN_RADIUS_KM = 15.0;
+    /** Poids distance vs note dans le score composite (60% distance, 40% note) */
+    public static final double AUTO_ASSIGN_WEIGHT_DISTANCE = 0.6;
+    public static final double AUTO_ASSIGN_WEIGHT_NOTE = 0.4;
+    /** Note par défaut (sur 5) utilisée quand un livreur n'a encore aucun avis */
+    public static final double AUTO_ASSIGN_DEFAULT_NOTE = 3.0;
     public static final int BASE_DELIVERY_TIME_MINUTES = 10;
     public static final int BASE_DELIVERY_FEE_MAD = 10;
     public static final int DELIVERY_FEE_PER_KM_MAD = 4;

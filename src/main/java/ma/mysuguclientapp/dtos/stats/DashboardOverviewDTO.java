@@ -18,5 +18,7 @@ public class DashboardOverviewDTO {
     private Long nouveauxUsersMois;
     private Long commandesEnCours;
     private Long restaurantsActifs;
-    private Long livreursActifs;
+    private Long livreursActifs;       // tous les livreurs avec isActive=true
+    private Long livreursDisponibles;  // livreurs actifs ET livreurDisponible=true (prêts à livrer)
+    private Long livreursEnLivraison;  // livreurs actuellement sur une commande EN_COURS
 }

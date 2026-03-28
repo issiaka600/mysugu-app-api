@@ -22,15 +22,18 @@ import ma.mysuguclientapp.enumerations.ModeReceptionCommande;
 import ma.mysuguclientapp.enumerations.MethodePaiement;
 import ma.mysuguclientapp.enumerations.StatutCommande;
 import ma.mysuguclientapp.enumerations.StatutPaiement;
+import ma.mysuguclientapp.enumerations.TypeNotification;
 import ma.mysuguclientapp.enumerations.UserRole;
 import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
+import ma.mysuguclientapp.repositories.AvisRepository;
 import ma.mysuguclientapp.repositories.CommandeRepository;
 import ma.mysuguclientapp.repositories.LigneCommandeRepository;
 import ma.mysuguclientapp.repositories.PlatRepository;
 import ma.mysuguclientapp.repositories.RestaurantRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
 import ma.mysuguclientapp.services.interfaces.CommandeService;
+import ma.mysuguclientapp.services.interfaces.NotificationService;
 import ma.mysuguclientapp.util.CommandeNumberGenerator;
 import ma.mysuguclientapp.util.Constants;
 import org.springframework.data.domain.Page;
@@ -44,10 +47,12 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -60,6 +65,8 @@ public class CommandeServiceImpl implements CommandeService {
     private final PlatRepository platRepository;
     private final LigneCommandeRepository ligneCommandeRepository;
     private final CaisseServiceImpl caisseService;
+    private final NotificationService notificationService;
+    private final AvisRepository avisRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -219,6 +226,11 @@ public class CommandeServiceImpl implements CommandeService {
         if (nouveauStatut == StatutCommande.ANNULEE) {
             commande.setRaisonAnnulation(statusDTO.getRaisonAnnulation());
             commande.setStatutPaiement(StatutPaiement.REMBOURSE);
+            // Libérer le livreur si déjà assigné
+            if (commande.getLivreur() != null) {
+                commande.getLivreur().setLivreurDisponible(true);
+                userRepository.save(commande.getLivreur());
+            }
         } else if (statusDTO.getRaisonAnnulation() != null && !statusDTO.getRaisonAnnulation().isBlank()) {
             commande.setRaisonAnnulation(statusDTO.getRaisonAnnulation());
         }
@@ -226,6 +238,13 @@ public class CommandeServiceImpl implements CommandeService {
         if (nouveauStatut == StatutCommande.LIVREE) {
             commande.setLivreeAt(LocalDateTime.now());
             commande.setStatutPaiement(StatutPaiement.PAYE);
+            // Le livreur redevient disponible après livraison
+            if (commande.getLivreur() != null) {
+                commande.getLivreur().setLivreurDisponible(true);
+                userRepository.save(commande.getLivreur());
+                log.info("Livreur {} remis disponible après livraison de la commande {}",
+                        commande.getLivreur().getEmail(), commande.getNumeroCommande());
+            }
         }
 
         Commande updatedCommande = commandeRepository.save(commande);
@@ -237,6 +256,11 @@ public class CommandeServiceImpl implements CommandeService {
                 log.warn("Erreur lors de l'enregistrement de la collecte caisse pour commande {}: {}", commande.getNumeroCommande(), e.getMessage());
             }
         }
+
+        if (nouveauStatut == StatutCommande.CONFIRMEE) {
+            envoyerNotificationsConfirmation(updatedCommande);
+        }
+
         log.info("Statut de la commande {} mis a jour: {}", commande.getNumeroCommande(), nouveauStatut);
         return convertToDTO(updatedCommande);
     }
@@ -254,13 +278,52 @@ public class CommandeServiceImpl implements CommandeService {
             throw new BadRequestException("Un livreur ne peut etre assigne qu'aux commandes en livraison");
         }
 
+        // Si un autre livreur était déjà assigné, le remettre disponible
+        User ancienLivreur = commande.getLivreur();
+        if (ancienLivreur != null && !ancienLivreur.getId().equals(livreur.getId())) {
+            ancienLivreur.setLivreurDisponible(true);
+            userRepository.save(ancienLivreur);
+            log.info("Ancien livreur {} libéré suite à ré-assignation de la commande {}",
+                    ancienLivreur.getEmail(), commande.getNumeroCommande());
+        }
+
         commande.setLivreur(livreur);
+        livreur.setLivreurDisponible(false);
+        userRepository.save(livreur);
+
         if (commande.getStatut() == StatutCommande.PRETE || commande.getStatut() == StatutCommande.EN_PREPARATION) {
             commande.setStatut(StatutCommande.EN_COURS);
         }
 
         Commande updatedCommande = commandeRepository.save(commande);
         log.info("Livreur {} assigne a la commande {}", livreur.getNom(), commande.getNumeroCommande());
+
+        // Notifier le livreur qu'une livraison lui est assignée
+        notificationService.envoyerNotificationCommande(
+                livreur.getId(),
+                updatedCommande.getNumeroCommande(),
+                TypeNotification.LIVREUR_ASSIGNE,
+                updatedCommande.getId()
+        );
+
+        // Notifier le client qu'un livreur a été assigné à sa commande
+        notificationService.envoyerNotificationCommande(
+                updatedCommande.getClient().getId(),
+                updatedCommande.getNumeroCommande(),
+                TypeNotification.COMMANDE_EN_COURS,
+                updatedCommande.getId()
+        );
+
+        // Notifier le restaurant que la livraison est en cours
+        if (updatedCommande.getRestaurant().getOwner() != null) {
+            notificationService.envoyerNotificationCommande(
+                    updatedCommande.getRestaurant().getOwner().getId(),
+                    updatedCommande.getNumeroCommande(),
+                    TypeNotification.LIVREUR_ASSIGNE,
+                    updatedCommande.getId()
+            );
+        }
+
         return convertToDTO(updatedCommande);
     }
 
@@ -273,6 +336,12 @@ public class CommandeServiceImpl implements CommandeService {
         }
         if (commande.getStatut() == StatutCommande.EN_COURS) {
             throw new BadRequestException("Impossible d'annuler une commande en cours de livraison");
+        }
+
+        // Libérer le livreur si assigné
+        if (commande.getLivreur() != null) {
+            commande.getLivreur().setLivreurDisponible(true);
+            userRepository.save(commande.getLivreur());
         }
 
         commande.setStatut(StatutCommande.ANNULEE);
@@ -326,6 +395,151 @@ public class CommandeServiceImpl implements CommandeService {
 
         tracking.put("destination", toLocationMap(commande.getAdresseLivraison()));
         return tracking;
+    }
+
+    /**
+     * Confirmation de commande :
+     * 1. Tente d'auto-assigner le meilleur livreur disponible (si mode LIVRAISON)
+     * 2. Envoie les notifications push appropriées selon le résultat
+     */
+    private void envoyerNotificationsConfirmation(Commande commande) {
+        String numero = commande.getNumeroCommande();
+        Long commandeId = commande.getId();
+        boolean estLivraison = resolveModeReception(commande) == ModeReceptionCommande.LIVRAISON;
+
+        // 1. Notifier le client (toujours)
+        notificationService.envoyerNotificationCommande(
+                commande.getClient().getId(), numero,
+                TypeNotification.COMMANDE_CONFIRMEE, commandeId);
+
+        // 2. Notifier le restaurant (toujours)
+        if (commande.getRestaurant().getOwner() != null) {
+            notificationService.envoyerNotification(
+                    commande.getRestaurant().getOwner().getId(),
+                    "Commande confirmée",
+                    "La commande " + numero + " est confirmée. Veuillez la préparer.",
+                    TypeNotification.COMMANDE_CONFIRMEE, commandeId, "COMMANDE");
+        }
+
+        // 3. Auto-assignation si mode LIVRAISON
+        if (estLivraison) {
+            Optional<User> meilleurLivreur = trouverMeilleurLivreur(commande.getRestaurant());
+
+            if (meilleurLivreur.isPresent()) {
+                User livreur = meilleurLivreur.get();
+                commande.setLivreur(livreur);
+                livreur.setLivreurDisponible(false);
+                userRepository.save(livreur);
+                commandeRepository.save(commande);
+                log.info("Commande {} auto-assignée au livreur {} (score optimal)",
+                        numero, livreur.getEmail());
+
+                // Notifier le livreur assigné
+                notificationService.envoyerNotification(
+                        livreur.getId(),
+                        "Nouvelle livraison assignée",
+                        "La commande " + numero + " vous a été assignée automatiquement. Préparez-vous !",
+                        TypeNotification.LIVREUR_ASSIGNE, commandeId, "COMMANDE");
+
+                // Notifier les admins de l'assignation automatique
+                userRepository.findByRoleAndIsActive(UserRole.ADMIN, true)
+                        .forEach(admin -> notificationService.envoyerNotification(
+                                admin.getId(),
+                                "Commande auto-assignée",
+                                "La commande " + numero + " a été automatiquement assignée au livreur "
+                                        + livreur.getPrenom() + " " + livreur.getNom() + ".",
+                                TypeNotification.COMMANDE_CONFIRMEE, commandeId, "COMMANDE"));
+
+            } else {
+                // Aucun livreur disponible : broadcast + alerte admin
+                log.warn("Aucun livreur disponible dans un rayon de {}km pour la commande {}",
+                        Constants.AUTO_ASSIGN_RADIUS_KM, numero);
+
+                userRepository.findByRoleAndIsActiveAndLivreurDisponible(UserRole.LIVREUR, true, true)
+                        .forEach(livreur -> notificationService.envoyerNotification(
+                                livreur.getId(),
+                                "Nouvelle commande disponible",
+                                "La commande " + numero + " est disponible pour livraison.",
+                                TypeNotification.COMMANDE_CONFIRMEE, commandeId, "COMMANDE"));
+
+                userRepository.findByRoleAndIsActive(UserRole.ADMIN, true)
+                        .forEach(admin -> notificationService.envoyerNotification(
+                                admin.getId(),
+                                "Assignation manuelle requise",
+                                "Aucun livreur disponible trouvé pour la commande " + numero
+                                        + ". Assignation manuelle nécessaire.",
+                                TypeNotification.COMMANDE_CONFIRMEE, commandeId, "COMMANDE"));
+            }
+        } else {
+            // Mode RETRAIT : notifier l'admin pour suivi
+            userRepository.findByRoleAndIsActive(UserRole.ADMIN, true)
+                    .forEach(admin -> notificationService.envoyerNotification(
+                            admin.getId(),
+                            "Commande confirmée (retrait)",
+                            "La commande " + numero + " est confirmée pour retrait sur place.",
+                            TypeNotification.COMMANDE_CONFIRMEE, commandeId, "COMMANDE"));
+        }
+    }
+
+    /**
+     * Sélectionne le meilleur livreur disponible pour une commande.
+     *
+     * Critères de sélection :
+     * - isActive = true ET livreurDisponible = true
+     * - Localisation GPS connue
+     * - Dans le rayon MAX ({@link Constants#AUTO_ASSIGN_RADIUS_KM} km) du restaurant
+     *
+     * Score composite (0-1) :
+     *   score = WEIGHT_DISTANCE × (1 - distance/maxRadius) + WEIGHT_NOTE × (avgNote/5)
+     * → Favorise le livreur le plus proche avec la meilleure note client.
+     * → Si le livreur n'a aucun avis, on lui attribue une note neutre de 3/5.
+     */
+    private Optional<User> trouverMeilleurLivreur(ma.mysuguclientapp.entities.Restaurant restaurant) {
+        if (restaurant.getLocalisation() == null
+                || restaurant.getLocalisation().getLatitude() == null
+                || restaurant.getLocalisation().getLongitude() == null) {
+            log.warn("Restaurant {} sans localisation GPS : auto-assignation impossible", restaurant.getId());
+            return Optional.empty();
+        }
+
+        double restLat = restaurant.getLocalisation().getLatitude();
+        double restLon = restaurant.getLocalisation().getLongitude();
+        double maxRadius = Constants.AUTO_ASSIGN_RADIUS_KM;
+
+        record LivreurScore(User livreur, double score) {}
+
+        return userRepository
+                .findByRoleAndIsActiveAndLivreurDisponible(UserRole.LIVREUR, true, true)
+                .stream()
+                .filter(l -> l.getLocalisation() != null
+                        && l.getLocalisation().getLatitude() != null
+                        && l.getLocalisation().getLongitude() != null)
+                .map(l -> {
+                    double distance = calculateDistance(
+                            restLat, restLon,
+                            l.getLocalisation().getLatitude(),
+                            l.getLocalisation().getLongitude());
+
+                    if (distance > maxRadius) return new LivreurScore(l, -1); // hors rayon
+
+                    Double avgNote = avisRepository.getAverageNoteLivreur(l.getId());
+                    double note = (avgNote != null) ? avgNote : Constants.AUTO_ASSIGN_DEFAULT_NOTE;
+
+                    double distanceScore = 1.0 - (distance / maxRadius);
+                    double noteScore = note / Constants.MAX_RATING;
+                    double score = Constants.AUTO_ASSIGN_WEIGHT_DISTANCE * distanceScore
+                            + Constants.AUTO_ASSIGN_WEIGHT_NOTE * noteScore;
+
+                    log.debug("Livreur {} — distance: {}km, note: {}/5, score: {}",
+                            l.getEmail(),
+                            Math.round(distance * 100.0) / 100.0,
+                            Math.round(note * 10.0) / 10.0,
+                            Math.round(score * 1000.0) / 1000.0);
+                    return new LivreurScore(l, score);
+                })
+                .filter(ls -> ls.score() >= 0) // exclure hors rayon
+                .max(Comparator.comparingDouble(LivreurScore::score))
+                .map(LivreurScore::livreur);
     }
 
     private Commande findCommande(Long id) {

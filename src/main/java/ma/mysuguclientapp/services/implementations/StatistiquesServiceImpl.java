@@ -53,6 +53,8 @@ public class StatistiquesServiceImpl implements StatistiquesService {
                 .commandesEnCours(countCommandesEnCours())
                 .restaurantsActifs(countRestaurantsActifs())
                 .livreursActifs(countLivreursActifs())
+                .livreursDisponibles(countLivreursDisponibles())
+                .livreursEnLivraison(countLivreursEnLivraison())
                 .build();
     }
 
@@ -126,6 +128,22 @@ public class StatistiquesServiceImpl implements StatistiquesService {
         return em.createQuery(
                 "SELECT COUNT(u) FROM User u WHERE u.role = :role AND u.isActive = true", Long.class)
                 .setParameter("role", UserRole.LIVREUR).getSingleResult();
+    }
+
+    /** Livreurs actifs ET déclarés disponibles (prêts à accepter une commande). */
+    private Long countLivreursDisponibles() {
+        return em.createQuery(
+                "SELECT COUNT(u) FROM User u WHERE u.role = :role AND u.isActive = true AND u.livreurDisponible = true",
+                Long.class)
+                .setParameter("role", UserRole.LIVREUR).getSingleResult();
+    }
+
+    /** Livreurs actuellement en course (commande EN_COURS à leur nom). */
+    private Long countLivreursEnLivraison() {
+        return em.createQuery(
+                "SELECT COUNT(DISTINCT c.livreur.id) FROM Commande c WHERE c.statut = :statut AND c.livreur IS NOT NULL",
+                Long.class)
+                .setParameter("statut", StatutCommande.EN_COURS).getSingleResult();
     }
 
     // ==================== ÉVOLUTION COMMANDES ====================
