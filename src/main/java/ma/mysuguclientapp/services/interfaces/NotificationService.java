@@ -22,4 +22,7 @@ public interface NotificationService {
 
     /** Envoie une campagne de notification (in-app + push) à un segment d'utilisateurs. */
     CampagneNotificationResultDTO envoyerCampagne(CampagneNotificationRequestDTO request);
+
+    /** Retourne toutes les notifications envoyées pour une entité (ex. une promotion). */
+    List<NotificationDTO> getNotificationsParEntite(Long entityId, String entityType);
 }

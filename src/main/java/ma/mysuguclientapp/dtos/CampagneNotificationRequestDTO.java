@@ -32,4 +32,11 @@ public class CampagneNotificationRequestDTO {
 
     /** Type de l'entité liée (ex. "PROMOTION"). Optionnel. */
     private String entityType;
+
+    /**
+     * ID d'un utilisateur spécifique à cibler.
+     * Quand ce champ est renseigné, {@code cibleRole} est ignoré
+     * et la notification est envoyée uniquement à cet utilisateur.
+     */
+    private Long destinataireUserId;
 }

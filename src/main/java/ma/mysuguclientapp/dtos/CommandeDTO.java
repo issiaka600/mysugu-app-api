@@ -18,6 +18,9 @@ public class CommandeDTO {
     private String trackingStatut;
     private LocalisationDTO adresseLivraison;
     private BigDecimal montantTotal;
+    private BigDecimal montantRemise;
+    private BigDecimal montantFinal;
+    private String codePromoUtilise;
     private BigDecimal fraisLivraison;
     private String currency = "MAD";
     private String currencySymbol = "DH";

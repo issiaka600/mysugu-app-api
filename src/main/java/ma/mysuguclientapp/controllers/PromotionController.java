@@ -34,6 +34,7 @@ public class PromotionController {
         return ResponseEntity.ok(promotionService.getPromotionsActives());
     }
 
+
     @GetMapping("/flash")
     public ResponseEntity<List<PromotionDTO>> getPromotionsFlash() {
         return ResponseEntity.ok(promotionService.getPromotionsFlash());

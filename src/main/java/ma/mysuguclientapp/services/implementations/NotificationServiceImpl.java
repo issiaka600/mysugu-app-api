@@ -123,7 +123,17 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public CampagneNotificationResultDTO envoyerCampagne(CampagneNotificationRequestDTO request) {
         TypeNotification type = parseTypeCampagne(request.getType());
-        List<User> destinataires = resolverDestinataires(request.getCibleRole());
+
+        // Ciblage utilisateur unique si destinataireUserId est renseigné
+        List<User> destinataires;
+        if (request.getDestinataireUserId() != null) {
+            User user = userRepository.findById(request.getDestinataireUserId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Utilisateur introuvable : " + request.getDestinataireUserId()));
+            destinataires = List.of(user);
+        } else {
+            destinataires = resolverDestinataires(request.getCibleRole());
+        }
 
         if (destinataires.isEmpty()) {
             log.warn("Campagne '{}' : aucun destinataire actif trouvé pour le rôle '{}'",
@@ -232,10 +242,37 @@ public class NotificationServiceImpl implements NotificationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<NotificationDTO> getNotificationsParEntite(Long entityId, String entityType) {
+        return notificationRepository
+                .findByEntityIdAndEntityTypeOrderByCreatedAtDesc(entityId, entityType)
+                .stream().map(this::toDTOWithUser).collect(Collectors.toList());
+    }
+
     private NotificationDTO toDTO(Notification n) {
         return NotificationDTO.builder()
                 .id(n.getId())
                 .destinataireId(n.getDestinataire().getId())
+                .titre(n.getTitre())
+                .message(n.getMessage())
+                .type(n.getType().name())
+                .lue(n.getLue())
+                .lueAt(n.getLueAt())
+                .entityId(n.getEntityId())
+                .entityType(n.getEntityType())
+                .createdAt(n.getCreatedAt())
+                .build();
+    }
+
+    private NotificationDTO toDTOWithUser(Notification n) {
+        User u = n.getDestinataire();
+        return NotificationDTO.builder()
+                .id(n.getId())
+                .destinataireId(u.getId())
+                .destinataireNom(u.getNom())
+                .destinatairePrenom(u.getPrenom())
+                .destinataireEmail(u.getEmail())
                 .titre(n.getTitre())
                 .message(n.getMessage())
                 .type(n.getType().name())

@@ -7,6 +7,9 @@ import java.time.LocalDateTime;
 public class NotificationDTO {
     private Long id;
     private Long destinataireId;
+    private String destinataireNom;
+    private String destinatairePrenom;
+    private String destinataireEmail;
     private String titre;
     private String message;
     private String type;

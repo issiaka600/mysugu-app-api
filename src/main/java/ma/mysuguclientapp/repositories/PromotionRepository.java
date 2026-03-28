@@ -10,7 +10,7 @@ import java.util.List;
 @Repository
 public interface PromotionRepository extends JpaRepository<Promotion, Long> {
 
-    List<Promotion> findByRestaurantId(Long restaurantId);
+    List<Promotion> findByRestaurantsId(Long restaurantId);
 
     List<Promotion> findByIsActiveTrue();
 

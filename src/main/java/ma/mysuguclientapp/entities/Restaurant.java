@@ -50,7 +50,7 @@ public class Restaurant {
     @JoinColumn(name = "owner_id")
     private User owner;
     
-    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "promotion_id")
     private Promotion promotion;
     

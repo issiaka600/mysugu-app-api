@@ -7,6 +7,7 @@ import java.util.List;
 
 public interface PromotionService {
     PromotionDTO creerPromotion(PromotionCreateDTO dto);
+    List<PromotionDTO> getAllPromotions();
     PromotionDTO getPromotion(Long id);
     List<PromotionDTO> getPromotionsActives();
     List<PromotionDTO> getPromotionsRestaurant(Long restaurantId);

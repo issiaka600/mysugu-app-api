@@ -13,4 +13,5 @@ public class CommandeCreateDTO {
     private String commentaire;
     private String methodePaiement;
     private String modeReception;
+    private String codePromo;
 }

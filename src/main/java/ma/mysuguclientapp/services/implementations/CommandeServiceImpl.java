@@ -26,12 +26,18 @@ import ma.mysuguclientapp.enumerations.TypeNotification;
 import ma.mysuguclientapp.enumerations.UserRole;
 import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
+import ma.mysuguclientapp.entities.ZoneLivraison;
+import ma.mysuguclientapp.entities.CodePromo;
+import ma.mysuguclientapp.entities.Promotion;
+import ma.mysuguclientapp.enumerations.TypeReduction;
 import ma.mysuguclientapp.repositories.AvisRepository;
+import ma.mysuguclientapp.repositories.CodePromoRepository;
 import ma.mysuguclientapp.repositories.CommandeRepository;
 import ma.mysuguclientapp.repositories.LigneCommandeRepository;
 import ma.mysuguclientapp.repositories.PlatRepository;
 import ma.mysuguclientapp.repositories.RestaurantRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
+import ma.mysuguclientapp.repositories.ZoneLivraisonRepository;
 import ma.mysuguclientapp.services.interfaces.CommandeService;
 import ma.mysuguclientapp.services.interfaces.NotificationService;
 import ma.mysuguclientapp.util.CommandeNumberGenerator;
@@ -67,11 +73,12 @@ public class CommandeServiceImpl implements CommandeService {
     private final CaisseServiceImpl caisseService;
     private final NotificationService notificationService;
     private final AvisRepository avisRepository;
+    private final ZoneLivraisonRepository zoneLivraisonRepository;
+    private final CodePromoRepository codePromoRepository;
 
     @Override
     @Transactional(readOnly = true)
-    public Page<CommandeDTO> getAllCommandes(Long clientId, Long restaurantId,
-                                             StatutCommande statut, Pageable pageable) {
+    public Page<CommandeDTO> getAllCommandes(Long clientId, Long restaurantId, StatutCommande statut, Pageable pageable) {
         Page<Commande> commandes;
 
         if (clientId != null && statut != null) {
@@ -199,18 +206,88 @@ public class CommandeServiceImpl implements CommandeService {
             montantTotal = montantTotal.add(ligne.getMontantTotal());
         }
 
-        BigDecimal fraisLivraison = modeReception == ModeReceptionCommande.LIVRAISON
-                ? calculateFraisLivraison(restaurant.getLocalisation(), commande.getAdresseLivraison())
-                : BigDecimal.ZERO;
+        // Validation de la zone de livraison et calcul des frais
+        ZoneLivraison zoneApplicable = null;
+        BigDecimal fraisLivraison;
+        if (modeReception == ModeReceptionCommande.LIVRAISON) {
+            zoneApplicable = validerZoneLivraison(restaurant, commande.getAdresseLivraison(), montantTotal);
+            fraisLivraison = (zoneApplicable != null && zoneApplicable.getFraisLivraison() != null)
+                    ? zoneApplicable.getFraisLivraison()
+                    : calculateFraisLivraison(restaurant.getLocalisation(), commande.getAdresseLivraison());
+        } else {
+            fraisLivraison = BigDecimal.ZERO;
+        }
 
         commande.setFraisLivraison(fraisLivraison);
         commande.setMontantTotal(montantTotal.add(fraisLivraison));
         commande.setLignesCommande(lignes);
-        commande.setTempsLivraisonEstime(resolveTempsEstime(restaurant, lignes, modeReception));
+
+        // ── Calcul des remises ────────────────────────────────────────────────
+        BigDecimal remisePromotion = BigDecimal.ZERO;
+        BigDecimal remiseCode = BigDecimal.ZERO;
+
+        // 1. Promotion automatique liée au restaurant
+        Promotion promoRestaurant = restaurant.getPromotion();
+        if (promoRestaurant != null && Boolean.TRUE.equals(promoRestaurant.getIsActive())) {
+            LocalDateTime now = LocalDateTime.now();
+            boolean dateOk = (promoRestaurant.getDateDebut() == null || !now.isBefore(promoRestaurant.getDateDebut()))
+                    && (promoRestaurant.getDateFin() == null || !now.isAfter(promoRestaurant.getDateFin()));
+            boolean montantOk = promoRestaurant.getMontantMinCommande() == null
+                    || montantTotal.compareTo(promoRestaurant.getMontantMinCommande()) >= 0;
+            boolean usageOk = promoRestaurant.getUsageMax() == null
+                    || promoRestaurant.getUsageCount() < promoRestaurant.getUsageMax();
+            if (dateOk && montantOk && usageOk) {
+                remisePromotion = montantTotal
+                        .multiply(BigDecimal.valueOf(promoRestaurant.getPourcentage()))
+                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                promoRestaurant.setUsageCount(promoRestaurant.getUsageCount() + 1);
+            }
+        }
+
+        // 2. Code promo saisi manuellement par le client
+        String codePromoSaisi = commandeDTO.getCodePromo();
+        if (codePromoSaisi != null && !codePromoSaisi.isBlank()) {
+            CodePromo codePromo = codePromoRepository
+                    .findValidCode(codePromoSaisi.trim().toUpperCase(), LocalDateTime.now())
+                    .orElseThrow(() -> new BadRequestException("Code promo invalide ou expiré"));
+
+            if (codePromo.getMontantMinCommande() != null
+                    && montantTotal.compareTo(codePromo.getMontantMinCommande()) < 0) {
+                throw new BadRequestException(
+                        "Montant minimum requis pour ce code promo : " + codePromo.getMontantMinCommande() + " DH");
+            }
+
+            if (codePromo.getTypeReduction() == TypeReduction.POURCENTAGE) {
+                remiseCode = montantTotal
+                        .multiply(codePromo.getValeur())
+                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                if (codePromo.getMontantMaxReduction() != null) {
+                    remiseCode = remiseCode.min(codePromo.getMontantMaxReduction());
+                }
+            } else {
+                remiseCode = codePromo.getValeur().min(montantTotal);
+            }
+
+            codePromo.setUsageCount(codePromo.getUsageCount() + 1);
+            commande.setCodePromoUtilise(codePromo.getCode());
+        }
+
+        BigDecimal totalRemise = remisePromotion.add(remiseCode)
+                .min(montantTotal); // la remise ne peut pas dépasser le sous-total plats
+        BigDecimal montantFinal = commande.getMontantTotal().subtract(totalRemise).max(BigDecimal.ZERO);
+        commande.setMontantRemise(totalRemise);
+        commande.setMontantFinal(montantFinal);
+        // ─────────────────────────────────────────────────────────────────────
+
+        // Temps estimé : priorité à la zone configurée, sinon estimation générique
+        Integer tempsEstime = (zoneApplicable != null && zoneApplicable.getTempsEstimeMinutes() != null)
+                ? zoneApplicable.getTempsEstimeMinutes()
+                : resolveTempsEstime(restaurant, lignes, modeReception);
+        commande.setTempsLivraisonEstime(tempsEstime);
 
         Commande savedCommande = commandeRepository.save(commande);
         ligneCommandeRepository.saveAll(lignes);
-        log.info("Commande creee: {} pour un montant de {}", savedCommande.getNumeroCommande(), savedCommande.getMontantTotal());
+        log.info("Commande creee: {} pour un montant de {} (remise: {})", savedCommande.getNumeroCommande(), savedCommande.getMontantTotal(), totalRemise);
 
         return convertToDTO(savedCommande);
     }
@@ -611,6 +688,77 @@ public class CommandeServiceImpl implements CommandeService {
                 .build();
     }
 
+    /**
+     * Vérifie que l'adresse de livraison est couverte par une zone active du restaurant.
+     *
+     * <p>Comportement :
+     * <ul>
+     *   <li>Si le restaurant n'a aucune zone configurée → pas de restriction (retourne null).</li>
+     *   <li>Si des zones existent mais aucune ne couvre l'adresse → {@link BadRequestException}.</li>
+     *   <li>Si plusieurs zones couvrent l'adresse → la plus petite (la plus spécifique) est retournée.</li>
+     *   <li>Si le montant des produits est inférieur au minimum de la zone → {@link BadRequestException}.</li>
+     * </ul>
+     *
+     * @param restaurant       restaurant commandé
+     * @param adresse          adresse de livraison du client
+     * @param montantProduits  montant total des produits (hors frais)
+     * @return zone applicable, ou null si aucune zone n'est configurée
+     */
+    private ZoneLivraison validerZoneLivraison(Restaurant restaurant,
+                                               Localisation adresse,
+                                               BigDecimal montantProduits) {
+        List<ZoneLivraison> zones =
+                zoneLivraisonRepository.findByRestaurantIdAndIsActiveTrueOrderByFraisLivraisonAsc(restaurant.getId());
+
+        if (zones.isEmpty()) {
+            return null; // aucune zone configurée → pas de restriction
+        }
+
+        if (adresse == null || adresse.getLatitude() == null || adresse.getLongitude() == null) {
+            throw new BadRequestException(
+                    "Les coordonnées GPS de l'adresse de livraison sont requises pour valider la zone.");
+        }
+
+        // Coordonnées de référence du restaurant
+        double restLat = (restaurant.getLocalisation() != null && restaurant.getLocalisation().getLatitude() != null)
+                ? restaurant.getLocalisation().getLatitude() : 0.0;
+        double restLon = (restaurant.getLocalisation() != null && restaurant.getLocalisation().getLongitude() != null)
+                ? restaurant.getLocalisation().getLongitude() : 0.0;
+
+        // Trouver toutes les zones qui couvrent le point, puis garder la plus spécifique (rayon minimal)
+        ZoneLivraison zoneApplicable = zones.stream()
+                .filter(z -> z.getRayonKm() != null)
+                .filter(z -> {
+                    double centreLat = z.getCentreLatitude() != null  ? z.getCentreLatitude()  : restLat;
+                    double centreLon = z.getCentreLongitude() != null ? z.getCentreLongitude() : restLon;
+                    double distance  = calculateDistance(centreLat, centreLon,
+                                                        adresse.getLatitude(), adresse.getLongitude());
+                    return distance <= z.getRayonKm().doubleValue();
+                })
+                .min(Comparator.comparing(ZoneLivraison::getRayonKm))
+                .orElse(null);
+
+        if (zoneApplicable == null) {
+            throw new BadRequestException(
+                    "Ce restaurant ne livre pas à votre adresse. Vérifiez la zone de livraison disponible.");
+        }
+
+        // Vérification du montant minimum de commande
+        if (zoneApplicable.getMontantMinCommande() != null
+                && montantProduits.compareTo(zoneApplicable.getMontantMinCommande()) < 0) {
+            throw new BadRequestException(
+                    "Montant minimum non atteint pour la zone « " + zoneApplicable.getNom()
+                    + " » : " + zoneApplicable.getMontantMinCommande() + " DH"
+                    + " (votre commande : " + montantProduits + " DH).");
+        }
+
+        log.debug("Zone applicable pour la commande : « {} » (rayon {}km, frais {}DH)",
+                zoneApplicable.getNom(),
+                zoneApplicable.getRayonKm(),
+                zoneApplicable.getFraisLivraison());
+        return zoneApplicable;
+    }
+
     private BigDecimal calculateFraisLivraison(Localisation from, Localisation to) {
         if (from == null || to == null) {
             return BigDecimal.valueOf(Constants.BASE_DELIVERY_FEE_MAD);
@@ -724,6 +872,9 @@ public class CommandeServiceImpl implements CommandeService {
         dto.setStatut(commande.getStatut().name());
         dto.setTrackingStatut(mapTrackingStatus(commande));
         dto.setMontantTotal(commande.getMontantTotal());
+        dto.setMontantRemise(commande.getMontantRemise());
+        dto.setMontantFinal(commande.getMontantFinal() != null ? commande.getMontantFinal() : commande.getMontantTotal());
+        dto.setCodePromoUtilise(commande.getCodePromoUtilise());
         dto.setFraisLivraison(commande.getFraisLivraison());
         dto.setTempsLivraisonEstime(commande.getTempsLivraisonEstime());
         dto.setCommentaire(commande.getCommentaire());

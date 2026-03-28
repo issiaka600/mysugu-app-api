@@ -4,10 +4,15 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import ma.mysuguclientapp.dtos.CampagneNotificationRequestDTO;
 import ma.mysuguclientapp.dtos.CampagneNotificationResultDTO;
+import ma.mysuguclientapp.dtos.NotificationDTO;
+import ma.mysuguclientapp.dtos.commerce.PromotionDTO;
 import ma.mysuguclientapp.services.interfaces.NotificationService;
+import ma.mysuguclientapp.services.interfaces.PromotionService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * API réservée à l'admin pour envoyer des campagnes de notifications
@@ -22,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
 public class CampagneNotificationController {
 
     private final NotificationService notificationService;
+    private final PromotionService promotionService;
 
     /**
      * Envoie une campagne de notification à un segment d'utilisateurs.
@@ -50,5 +56,22 @@ public class CampagneNotificationController {
             @Valid @RequestBody CampagneNotificationRequestDTO request) {
         CampagneNotificationResultDTO result = notificationService.envoyerCampagne(request);
         return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Retourne la liste des utilisateurs notifiés pour une promotion donnée.
+     */
+    @GetMapping("/promotion/{promotionId}")
+    public ResponseEntity<List<NotificationDTO>> getNotifiesPromotion(
+            @PathVariable Long promotionId) {
+        return ResponseEntity.ok(notificationService.getNotificationsParEntite(promotionId, "PROMOTION"));
+    }
+
+    /**
+     * Retourne toutes les promotions (actives et inactives) — vue admin.
+     */
+    @GetMapping("/promotions")
+    public ResponseEntity<List<PromotionDTO>> getAllPromotions() {
+        return ResponseEntity.ok(promotionService.getAllPromotions());
     }
 }
