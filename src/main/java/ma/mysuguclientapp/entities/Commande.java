@@ -66,7 +66,16 @@ public class Commande {
 
     @Column(nullable = false)
     private BigDecimal montantTotal;
-    
+
+    @Column(name = "montant_remise")
+    private BigDecimal montantRemise = BigDecimal.ZERO;
+
+    @Column(name = "montant_final")
+    private BigDecimal montantFinal;
+
+    @Column(name = "code_promo_utilise", length = 50)
+    private String codePromoUtilise;
+
     private BigDecimal fraisLivraison;
     
     @Column(name = "temps_livraison_estime")

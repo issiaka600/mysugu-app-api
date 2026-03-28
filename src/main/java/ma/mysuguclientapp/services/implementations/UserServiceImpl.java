@@ -187,9 +187,12 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public List<UserDTO> getAvailableLivreurs(Double latitude, Double longitude, Double radiusKm) {
-        return userRepository.findByRoleAndIsActive(UserRole.LIVREUR, true).stream()
+        // Filtre sur isActive=true ET livreurDisponible=true (correction du bug précédent)
+        return userRepository.findByRoleAndIsActiveAndLivreurDisponible(UserRole.LIVREUR, true, true).stream()
                 .filter(livreur -> {
-                    if (livreur.getLocalisation() == null) {
+                    if (livreur.getLocalisation() == null
+                            || livreur.getLocalisation().getLatitude() == null
+                            || livreur.getLocalisation().getLongitude() == null) {
                         return false;
                     }
                     double distance = calculateDistance(
@@ -201,6 +204,22 @@ public class UserServiceImpl implements UserService {
                 })
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public UserDTO setDisponibilite(String token, Boolean disponible) {
+        String jwt = extractToken(token);
+        String email = jwtTokenProvider.getEmailFromToken(jwt);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND_MESSAGE));
+
+        if (user.getRole() != UserRole.LIVREUR) {
+            throw new BadRequestException("Seuls les livreurs peuvent modifier leur disponibilité");
+        }
+
+        user.setLivreurDisponible(disponible);
+        log.info("Disponibilité du livreur {} mise à jour: {}", user.getEmail(), disponible);
+        return convertToDTO(userRepository.save(user));
     }
 
     @Override

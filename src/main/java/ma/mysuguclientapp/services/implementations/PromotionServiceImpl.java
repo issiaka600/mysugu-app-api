@@ -29,16 +29,14 @@ public class PromotionServiceImpl implements PromotionService {
     @Override
     @Transactional
     public PromotionDTO creerPromotion(PromotionCreateDTO dto) {
-        Restaurant restaurant = restaurantRepository.findById(dto.getRestaurantId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Restaurant introuvable"));
-
+        // La FK promotion_id est portée par la table restaurants (côté @ManyToOne).
+        // On sauvegarde d'abord la promotion seule, puis on lie via Restaurant.setPromotion().
         Promotion promotion = Promotion.builder()
                 .pourcentage(dto.getPourcentage() != null ? dto.getPourcentage() : 0)
                 .dateDebut(dto.getDateDebut())
                 .dateFin(dto.getDateFin())
                 .description(dto.getDescription())
                 .isActive(true)
-                .restaurant(restaurant)
                 .code(dto.getCode())
                 .montantMinCommande(dto.getMontantMinCommande())
                 .usageMax(dto.getUsageMax())
@@ -46,7 +44,32 @@ public class PromotionServiceImpl implements PromotionService {
                 .estFlash(dto.getEstFlash() != null ? dto.getEstFlash() : false)
                 .build();
 
-        return toDTO(promotionRepository.save(promotion));
+        Promotion savedPromotion = promotionRepository.save(promotion);
+
+        boolean tousLesRestaurants = Boolean.TRUE.equals(dto.getAppliquerATousLesRestaurants());
+
+        if (tousLesRestaurants) {
+            // Appliquer la promotion à tous les restaurants actifs
+            List<Restaurant> tous = restaurantRepository.findByIsActive(true);
+            tous.forEach(r -> r.setPromotion(savedPromotion));
+            restaurantRepository.saveAll(tous);
+            savedPromotion.setRestaurants(tous);
+        } else if (dto.getRestaurantId() != null) {
+            // Lier à un restaurant spécifique
+            Restaurant restaurant = restaurantRepository.findById(dto.getRestaurantId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Restaurant introuvable"));
+            restaurant.setPromotion(savedPromotion);
+            restaurantRepository.save(restaurant);
+            savedPromotion.setRestaurants(List.of(restaurant));
+        }
+
+        return toDTO(savedPromotion);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PromotionDTO> getAllPromotions() {
+        return promotionRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     @Override
@@ -64,7 +87,7 @@ public class PromotionServiceImpl implements PromotionService {
     @Override
     @Transactional(readOnly = true)
     public List<PromotionDTO> getPromotionsRestaurant(Long restaurantId) {
-        return promotionRepository.findByRestaurantId(restaurantId).stream().map(this::toDTO).collect(Collectors.toList());
+        return promotionRepository.findByRestaurantsId(restaurantId).stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     @Override
@@ -78,7 +101,13 @@ public class PromotionServiceImpl implements PromotionService {
     @Override
     @Transactional
     public void supprimerPromotion(Long id) {
-        promotionRepository.delete(findById(id));
+        Promotion promo = findById(id);
+        // Dissocier les restaurants avant de supprimer pour éviter la violation de FK
+        restaurantRepository.findByPromotion(promo).forEach(r -> {
+            r.setPromotion(null);
+            restaurantRepository.save(r);
+        });
+        promotionRepository.delete(promo);
     }
 
     @Override
@@ -106,9 +135,9 @@ public class PromotionServiceImpl implements PromotionService {
         dto.setUsageMax(p.getUsageMax());
         dto.setUsageCount(p.getUsageCount());
         dto.setEstFlash(p.getEstFlash());
-        if (p.getRestaurant() != null) {
-            dto.setRestaurantId(p.getRestaurant().getId());
-            dto.setRestaurantNom(p.getRestaurant().getNom());
+        if (p.getRestaurants() != null && p.getRestaurants().size() == 1) {
+            dto.setRestaurantId(p.getRestaurants().get(0).getId());
+            dto.setRestaurantNom(p.getRestaurants().get(0).getNom());
         }
         return dto;
     }

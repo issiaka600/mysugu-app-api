@@ -1,5 +1,7 @@
 package ma.mysuguclientapp.services.interfaces;
 
+import ma.mysuguclientapp.dtos.CampagneNotificationRequestDTO;
+import ma.mysuguclientapp.dtos.CampagneNotificationResultDTO;
 import ma.mysuguclientapp.dtos.NotificationDTO;
 import ma.mysuguclientapp.enumerations.TypeNotification;
 import org.springframework.data.domain.Page;
@@ -17,4 +19,10 @@ public interface NotificationService {
     void envoyerNotification(Long userId, String titre, String message, TypeNotification type, Long entityId, String entityType);
     void envoyerNotificationCommande(Long userId, String numeroCommande, TypeNotification type, Long commandeId);
     void envoyerNotificationSysteme(Long userId, String titre, String message);
+
+    /** Envoie une campagne de notification (in-app + push) à un segment d'utilisateurs. */
+    CampagneNotificationResultDTO envoyerCampagne(CampagneNotificationRequestDTO request);
+
+    /** Retourne toutes les notifications envoyées pour une entité (ex. une promotion). */
+    List<NotificationDTO> getNotificationsParEntite(Long entityId, String entityType);
 }

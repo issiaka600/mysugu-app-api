@@ -32,5 +32,11 @@ public interface UserService {
 
     UserDTO toggleUserStatus(Long id);
 
+    /**
+     * Permet à un livreur de mettre à jour sa disponibilité (disponible/indisponible).
+     * Met aussi à jour le flag en BDD de façon cohérente.
+     */
+    UserDTO setDisponibilite(String token, Boolean disponible);
+
     Page<UserDTO> getUsersByRole(String role, String search, Pageable pageable);
 }

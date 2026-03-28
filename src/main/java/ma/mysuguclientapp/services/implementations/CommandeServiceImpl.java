@@ -22,15 +22,24 @@ import ma.mysuguclientapp.enumerations.ModeReceptionCommande;
 import ma.mysuguclientapp.enumerations.MethodePaiement;
 import ma.mysuguclientapp.enumerations.StatutCommande;
 import ma.mysuguclientapp.enumerations.StatutPaiement;
+import ma.mysuguclientapp.enumerations.TypeNotification;
 import ma.mysuguclientapp.enumerations.UserRole;
 import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
+import ma.mysuguclientapp.entities.ZoneLivraison;
+import ma.mysuguclientapp.entities.CodePromo;
+import ma.mysuguclientapp.entities.Promotion;
+import ma.mysuguclientapp.enumerations.TypeReduction;
+import ma.mysuguclientapp.repositories.AvisRepository;
+import ma.mysuguclientapp.repositories.CodePromoRepository;
 import ma.mysuguclientapp.repositories.CommandeRepository;
 import ma.mysuguclientapp.repositories.LigneCommandeRepository;
 import ma.mysuguclientapp.repositories.PlatRepository;
 import ma.mysuguclientapp.repositories.RestaurantRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
+import ma.mysuguclientapp.repositories.ZoneLivraisonRepository;
 import ma.mysuguclientapp.services.interfaces.CommandeService;
+import ma.mysuguclientapp.services.interfaces.NotificationService;
 import ma.mysuguclientapp.util.CommandeNumberGenerator;
 import ma.mysuguclientapp.util.Constants;
 import org.springframework.data.domain.Page;
@@ -44,10 +53,12 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -60,11 +71,14 @@ public class CommandeServiceImpl implements CommandeService {
     private final PlatRepository platRepository;
     private final LigneCommandeRepository ligneCommandeRepository;
     private final CaisseServiceImpl caisseService;
+    private final NotificationService notificationService;
+    private final AvisRepository avisRepository;
+    private final ZoneLivraisonRepository zoneLivraisonRepository;
+    private final CodePromoRepository codePromoRepository;
 
     @Override
     @Transactional(readOnly = true)
-    public Page<CommandeDTO> getAllCommandes(Long clientId, Long restaurantId,
-                                             StatutCommande statut, Pageable pageable) {
+    public Page<CommandeDTO> getAllCommandes(Long clientId, Long restaurantId, StatutCommande statut, Pageable pageable) {
         Page<Commande> commandes;
 
         if (clientId != null && statut != null) {
@@ -192,18 +206,88 @@ public class CommandeServiceImpl implements CommandeService {
             montantTotal = montantTotal.add(ligne.getMontantTotal());
         }
 
-        BigDecimal fraisLivraison = modeReception == ModeReceptionCommande.LIVRAISON
-                ? calculateFraisLivraison(restaurant.getLocalisation(), commande.getAdresseLivraison())
-                : BigDecimal.ZERO;
+        // Validation de la zone de livraison et calcul des frais
+        ZoneLivraison zoneApplicable = null;
+        BigDecimal fraisLivraison;
+        if (modeReception == ModeReceptionCommande.LIVRAISON) {
+            zoneApplicable = validerZoneLivraison(restaurant, commande.getAdresseLivraison(), montantTotal);
+            fraisLivraison = (zoneApplicable != null && zoneApplicable.getFraisLivraison() != null)
+                    ? zoneApplicable.getFraisLivraison()
+                    : calculateFraisLivraison(restaurant.getLocalisation(), commande.getAdresseLivraison());
+        } else {
+            fraisLivraison = BigDecimal.ZERO;
+        }
 
         commande.setFraisLivraison(fraisLivraison);
         commande.setMontantTotal(montantTotal.add(fraisLivraison));
         commande.setLignesCommande(lignes);
-        commande.setTempsLivraisonEstime(resolveTempsEstime(restaurant, lignes, modeReception));
+
+        // ── Calcul des remises ────────────────────────────────────────────────
+        BigDecimal remisePromotion = BigDecimal.ZERO;
+        BigDecimal remiseCode = BigDecimal.ZERO;
+
+        // 1. Promotion automatique liée au restaurant
+        Promotion promoRestaurant = restaurant.getPromotion();
+        if (promoRestaurant != null && Boolean.TRUE.equals(promoRestaurant.getIsActive())) {
+            LocalDateTime now = LocalDateTime.now();
+            boolean dateOk = (promoRestaurant.getDateDebut() == null || !now.isBefore(promoRestaurant.getDateDebut()))
+                    && (promoRestaurant.getDateFin() == null || !now.isAfter(promoRestaurant.getDateFin()));
+            boolean montantOk = promoRestaurant.getMontantMinCommande() == null
+                    || montantTotal.compareTo(promoRestaurant.getMontantMinCommande()) >= 0;
+            boolean usageOk = promoRestaurant.getUsageMax() == null
+                    || promoRestaurant.getUsageCount() < promoRestaurant.getUsageMax();
+            if (dateOk && montantOk && usageOk) {
+                remisePromotion = montantTotal
+                        .multiply(BigDecimal.valueOf(promoRestaurant.getPourcentage()))
+                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                promoRestaurant.setUsageCount(promoRestaurant.getUsageCount() + 1);
+            }
+        }
+
+        // 2. Code promo saisi manuellement par le client
+        String codePromoSaisi = commandeDTO.getCodePromo();
+        if (codePromoSaisi != null && !codePromoSaisi.isBlank()) {
+            CodePromo codePromo = codePromoRepository
+                    .findValidCode(codePromoSaisi.trim().toUpperCase(), LocalDateTime.now())
+                    .orElseThrow(() -> new BadRequestException("Code promo invalide ou expiré"));
+
+            if (codePromo.getMontantMinCommande() != null
+                    && montantTotal.compareTo(codePromo.getMontantMinCommande()) < 0) {
+                throw new BadRequestException(
+                        "Montant minimum requis pour ce code promo : " + codePromo.getMontantMinCommande() + " DH");
+            }
+
+            if (codePromo.getTypeReduction() == TypeReduction.POURCENTAGE) {
+                remiseCode = montantTotal
+                        .multiply(codePromo.getValeur())
+                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                if (codePromo.getMontantMaxReduction() != null) {
+                    remiseCode = remiseCode.min(codePromo.getMontantMaxReduction());
+                }
+            } else {
+                remiseCode = codePromo.getValeur().min(montantTotal);
+            }
+
+            codePromo.setUsageCount(codePromo.getUsageCount() + 1);
+            commande.setCodePromoUtilise(codePromo.getCode());
+        }
+
+        BigDecimal totalRemise = remisePromotion.add(remiseCode)
+                .min(montantTotal); // la remise ne peut pas dépasser le sous-total plats
+        BigDecimal montantFinal = commande.getMontantTotal().subtract(totalRemise).max(BigDecimal.ZERO);
+        commande.setMontantRemise(totalRemise);
+        commande.setMontantFinal(montantFinal);
+        // ─────────────────────────────────────────────────────────────────────
+
+        // Temps estimé : priorité à la zone configurée, sinon estimation générique
+        Integer tempsEstime = (zoneApplicable != null && zoneApplicable.getTempsEstimeMinutes() != null)
+                ? zoneApplicable.getTempsEstimeMinutes()
+                : resolveTempsEstime(restaurant, lignes, modeReception);
+        commande.setTempsLivraisonEstime(tempsEstime);
 
         Commande savedCommande = commandeRepository.save(commande);
         ligneCommandeRepository.saveAll(lignes);
-        log.info("Commande creee: {} pour un montant de {}", savedCommande.getNumeroCommande(), savedCommande.getMontantTotal());
+        log.info("Commande creee: {} pour un montant de {} (remise: {})", savedCommande.getNumeroCommande(), savedCommande.getMontantTotal(), totalRemise);
 
         return convertToDTO(savedCommande);
     }
@@ -219,6 +303,11 @@ public class CommandeServiceImpl implements CommandeService {
         if (nouveauStatut == StatutCommande.ANNULEE) {
             commande.setRaisonAnnulation(statusDTO.getRaisonAnnulation());
             commande.setStatutPaiement(StatutPaiement.REMBOURSE);
+            // Libérer le livreur si déjà assigné
+            if (commande.getLivreur() != null) {
+                commande.getLivreur().setLivreurDisponible(true);
+                userRepository.save(commande.getLivreur());
+            }
         } else if (statusDTO.getRaisonAnnulation() != null && !statusDTO.getRaisonAnnulation().isBlank()) {
             commande.setRaisonAnnulation(statusDTO.getRaisonAnnulation());
         }
@@ -226,6 +315,13 @@ public class CommandeServiceImpl implements CommandeService {
         if (nouveauStatut == StatutCommande.LIVREE) {
             commande.setLivreeAt(LocalDateTime.now());
             commande.setStatutPaiement(StatutPaiement.PAYE);
+            // Le livreur redevient disponible après livraison
+            if (commande.getLivreur() != null) {
+                commande.getLivreur().setLivreurDisponible(true);
+                userRepository.save(commande.getLivreur());
+                log.info("Livreur {} remis disponible après livraison de la commande {}",
+                        commande.getLivreur().getEmail(), commande.getNumeroCommande());
+            }
         }
 
         Commande updatedCommande = commandeRepository.save(commande);
@@ -237,6 +333,11 @@ public class CommandeServiceImpl implements CommandeService {
                 log.warn("Erreur lors de l'enregistrement de la collecte caisse pour commande {}: {}", commande.getNumeroCommande(), e.getMessage());
             }
         }
+
+        if (nouveauStatut == StatutCommande.CONFIRMEE) {
+            envoyerNotificationsConfirmation(updatedCommande);
+        }
+
         log.info("Statut de la commande {} mis a jour: {}", commande.getNumeroCommande(), nouveauStatut);
         return convertToDTO(updatedCommande);
     }
@@ -254,13 +355,52 @@ public class CommandeServiceImpl implements CommandeService {
             throw new BadRequestException("Un livreur ne peut etre assigne qu'aux commandes en livraison");
         }
 
+        // Si un autre livreur était déjà assigné, le remettre disponible
+        User ancienLivreur = commande.getLivreur();
+        if (ancienLivreur != null && !ancienLivreur.getId().equals(livreur.getId())) {
+            ancienLivreur.setLivreurDisponible(true);
+            userRepository.save(ancienLivreur);
+            log.info("Ancien livreur {} libéré suite à ré-assignation de la commande {}",
+                    ancienLivreur.getEmail(), commande.getNumeroCommande());
+        }
+
         commande.setLivreur(livreur);
+        livreur.setLivreurDisponible(false);
+        userRepository.save(livreur);
+
         if (commande.getStatut() == StatutCommande.PRETE || commande.getStatut() == StatutCommande.EN_PREPARATION) {
             commande.setStatut(StatutCommande.EN_COURS);
         }
 
         Commande updatedCommande = commandeRepository.save(commande);
         log.info("Livreur {} assigne a la commande {}", livreur.getNom(), commande.getNumeroCommande());
+
+        // Notifier le livreur qu'une livraison lui est assignée
+        notificationService.envoyerNotificationCommande(
+                livreur.getId(),
+                updatedCommande.getNumeroCommande(),
+                TypeNotification.LIVREUR_ASSIGNE,
+                updatedCommande.getId()
+        );
+
+        // Notifier le client qu'un livreur a été assigné à sa commande
+        notificationService.envoyerNotificationCommande(
+                updatedCommande.getClient().getId(),
+                updatedCommande.getNumeroCommande(),
+                TypeNotification.COMMANDE_EN_COURS,
+                updatedCommande.getId()
+        );
+
+        // Notifier le restaurant que la livraison est en cours
+        if (updatedCommande.getRestaurant().getOwner() != null) {
+            notificationService.envoyerNotificationCommande(
+                    updatedCommande.getRestaurant().getOwner().getId(),
+                    updatedCommande.getNumeroCommande(),
+                    TypeNotification.LIVREUR_ASSIGNE,
+                    updatedCommande.getId()
+            );
+        }
+
         return convertToDTO(updatedCommande);
     }
 
@@ -273,6 +413,12 @@ public class CommandeServiceImpl implements CommandeService {
         }
         if (commande.getStatut() == StatutCommande.EN_COURS) {
             throw new BadRequestException("Impossible d'annuler une commande en cours de livraison");
+        }
+
+        // Libérer le livreur si assigné
+        if (commande.getLivreur() != null) {
+            commande.getLivreur().setLivreurDisponible(true);
+            userRepository.save(commande.getLivreur());
         }
 
         commande.setStatut(StatutCommande.ANNULEE);
@@ -326,6 +472,151 @@ public class CommandeServiceImpl implements CommandeService {
 
         tracking.put("destination", toLocationMap(commande.getAdresseLivraison()));
         return tracking;
+    }
+
+    /**
+     * Confirmation de commande :
+     * 1. Tente d'auto-assigner le meilleur livreur disponible (si mode LIVRAISON)
+     * 2. Envoie les notifications push appropriées selon le résultat
+     */
+    private void envoyerNotificationsConfirmation(Commande commande) {
+        String numero = commande.getNumeroCommande();
+        Long commandeId = commande.getId();
+        boolean estLivraison = resolveModeReception(commande) == ModeReceptionCommande.LIVRAISON;
+
+        // 1. Notifier le client (toujours)
+        notificationService.envoyerNotificationCommande(
+                commande.getClient().getId(), numero,
+                TypeNotification.COMMANDE_CONFIRMEE, commandeId);
+
+        // 2. Notifier le restaurant (toujours)
+        if (commande.getRestaurant().getOwner() != null) {
+            notificationService.envoyerNotification(
+                    commande.getRestaurant().getOwner().getId(),
+                    "Commande confirmée",
+                    "La commande " + numero + " est confirmée. Veuillez la préparer.",
+                    TypeNotification.COMMANDE_CONFIRMEE, commandeId, "COMMANDE");
+        }
+
+        // 3. Auto-assignation si mode LIVRAISON
+        if (estLivraison) {
+            Optional<User> meilleurLivreur = trouverMeilleurLivreur(commande.getRestaurant());
+
+            if (meilleurLivreur.isPresent()) {
+                User livreur = meilleurLivreur.get();
+                commande.setLivreur(livreur);
+                livreur.setLivreurDisponible(false);
+                userRepository.save(livreur);
+                commandeRepository.save(commande);
+                log.info("Commande {} auto-assignée au livreur {} (score optimal)",
+                        numero, livreur.getEmail());
+
+                // Notifier le livreur assigné
+                notificationService.envoyerNotification(
+                        livreur.getId(),
+                        "Nouvelle livraison assignée",
+                        "La commande " + numero + " vous a été assignée automatiquement. Préparez-vous !",
+                        TypeNotification.LIVREUR_ASSIGNE, commandeId, "COMMANDE");
+
+                // Notifier les admins de l'assignation automatique
+                userRepository.findByRoleAndIsActive(UserRole.ADMIN, true)
+                        .forEach(admin -> notificationService.envoyerNotification(
+                                admin.getId(),
+                                "Commande auto-assignée",
+                                "La commande " + numero + " a été automatiquement assignée au livreur "
+                                        + livreur.getPrenom() + " " + livreur.getNom() + ".",
+                                TypeNotification.COMMANDE_CONFIRMEE, commandeId, "COMMANDE"));
+
+            } else {
+                // Aucun livreur disponible : broadcast + alerte admin
+                log.warn("Aucun livreur disponible dans un rayon de {}km pour la commande {}",
+                        Constants.AUTO_ASSIGN_RADIUS_KM, numero);
+
+                userRepository.findByRoleAndIsActiveAndLivreurDisponible(UserRole.LIVREUR, true, true)
+                        .forEach(livreur -> notificationService.envoyerNotification(
+                                livreur.getId(),
+                                "Nouvelle commande disponible",
+                                "La commande " + numero + " est disponible pour livraison.",
+                                TypeNotification.COMMANDE_CONFIRMEE, commandeId, "COMMANDE"));
+
+                userRepository.findByRoleAndIsActive(UserRole.ADMIN, true)
+                        .forEach(admin -> notificationService.envoyerNotification(
+                                admin.getId(),
+                                "Assignation manuelle requise",
+                                "Aucun livreur disponible trouvé pour la commande " + numero
+                                        + ". Assignation manuelle nécessaire.",
+                                TypeNotification.COMMANDE_CONFIRMEE, commandeId, "COMMANDE"));
+            }
+        } else {
+            // Mode RETRAIT : notifier l'admin pour suivi
+            userRepository.findByRoleAndIsActive(UserRole.ADMIN, true)
+                    .forEach(admin -> notificationService.envoyerNotification(
+                            admin.getId(),
+                            "Commande confirmée (retrait)",
+                            "La commande " + numero + " est confirmée pour retrait sur place.",
+                            TypeNotification.COMMANDE_CONFIRMEE, commandeId, "COMMANDE"));
+        }
+    }
+
+    /**
+     * Sélectionne le meilleur livreur disponible pour une commande.
+     *
+     * Critères de sélection :
+     * - isActive = true ET livreurDisponible = true
+     * - Localisation GPS connue
+     * - Dans le rayon MAX ({@link Constants#AUTO_ASSIGN_RADIUS_KM} km) du restaurant
+     *
+     * Score composite (0-1) :
+     *   score = WEIGHT_DISTANCE × (1 - distance/maxRadius) + WEIGHT_NOTE × (avgNote/5)
+     * → Favorise le livreur le plus proche avec la meilleure note client.
+     * → Si le livreur n'a aucun avis, on lui attribue une note neutre de 3/5.
+     */
+    private Optional<User> trouverMeilleurLivreur(ma.mysuguclientapp.entities.Restaurant restaurant) {
+        if (restaurant.getLocalisation() == null
+                || restaurant.getLocalisation().getLatitude() == null
+                || restaurant.getLocalisation().getLongitude() == null) {
+            log.warn("Restaurant {} sans localisation GPS : auto-assignation impossible", restaurant.getId());
+            return Optional.empty();
+        }
+
+        double restLat = restaurant.getLocalisation().getLatitude();
+        double restLon = restaurant.getLocalisation().getLongitude();
+        double maxRadius = Constants.AUTO_ASSIGN_RADIUS_KM;
+
+        record LivreurScore(User livreur, double score) {}
+
+        return userRepository
+                .findByRoleAndIsActiveAndLivreurDisponible(UserRole.LIVREUR, true, true)
+                .stream()
+                .filter(l -> l.getLocalisation() != null
+                        && l.getLocalisation().getLatitude() != null
+                        && l.getLocalisation().getLongitude() != null)
+                .map(l -> {
+                    double distance = calculateDistance(
+                            restLat, restLon,
+                            l.getLocalisation().getLatitude(),
+                            l.getLocalisation().getLongitude());
+
+                    if (distance > maxRadius) return new LivreurScore(l, -1); // hors rayon
+
+                    Double avgNote = avisRepository.getAverageNoteLivreur(l.getId());
+                    double note = (avgNote != null) ? avgNote : Constants.AUTO_ASSIGN_DEFAULT_NOTE;
+
+                    double distanceScore = 1.0 - (distance / maxRadius);
+                    double noteScore = note / Constants.MAX_RATING;
+                    double score = Constants.AUTO_ASSIGN_WEIGHT_DISTANCE * distanceScore
+                            + Constants.AUTO_ASSIGN_WEIGHT_NOTE * noteScore;
+
+                    log.debug("Livreur {} — distance: {}km, note: {}/5, score: {}",
+                            l.getEmail(),
+                            Math.round(distance * 100.0) / 100.0,
+                            Math.round(note * 10.0) / 10.0,
+                            Math.round(score * 1000.0) / 1000.0);
+                    return new LivreurScore(l, score);
+                })
+                .filter(ls -> ls.score() >= 0) // exclure hors rayon
+                .max(Comparator.comparingDouble(LivreurScore::score))
+                .map(LivreurScore::livreur);
     }
 
     private Commande findCommande(Long id) {
@@ -395,6 +686,77 @@ public class CommandeServiceImpl implements CommandeService {
                 .codePostal(dto.getCodePostal())
                 .pays(dto.getPays())
                 .build();
+    }
+
+    /**
+     * Vérifie que l'adresse de livraison est couverte par une zone active du restaurant.
+     *
+     * <p>Comportement :
+     * <ul>
+     *   <li>Si le restaurant n'a aucune zone configurée → pas de restriction (retourne null).</li>
+     *   <li>Si des zones existent mais aucune ne couvre l'adresse → {@link BadRequestException}.</li>
+     *   <li>Si plusieurs zones couvrent l'adresse → la plus petite (la plus spécifique) est retournée.</li>
+     *   <li>Si le montant des produits est inférieur au minimum de la zone → {@link BadRequestException}.</li>
+     * </ul>
+     *
+     * @param restaurant       restaurant commandé
+     * @param adresse          adresse de livraison du client
+     * @param montantProduits  montant total des produits (hors frais)
+     * @return zone applicable, ou null si aucune zone n'est configurée
+     */
+    private ZoneLivraison validerZoneLivraison(Restaurant restaurant,
+                                               Localisation adresse,
+                                               BigDecimal montantProduits) {
+        List<ZoneLivraison> zones =
+                zoneLivraisonRepository.findByRestaurantIdAndIsActiveTrueOrderByFraisLivraisonAsc(restaurant.getId());
+
+        if (zones.isEmpty()) {
+            return null; // aucune zone configurée → pas de restriction
+        }
+
+        if (adresse == null || adresse.getLatitude() == null || adresse.getLongitude() == null) {
+            throw new BadRequestException(
+                    "Les coordonnées GPS de l'adresse de livraison sont requises pour valider la zone.");
+        }
+
+        // Coordonnées de référence du restaurant
+        double restLat = (restaurant.getLocalisation() != null && restaurant.getLocalisation().getLatitude() != null)
+                ? restaurant.getLocalisation().getLatitude() : 0.0;
+        double restLon = (restaurant.getLocalisation() != null && restaurant.getLocalisation().getLongitude() != null)
+                ? restaurant.getLocalisation().getLongitude() : 0.0;
+
+        // Trouver toutes les zones qui couvrent le point, puis garder la plus spécifique (rayon minimal)
+        ZoneLivraison zoneApplicable = zones.stream()
+                .filter(z -> z.getRayonKm() != null)
+                .filter(z -> {
+                    double centreLat = z.getCentreLatitude() != null  ? z.getCentreLatitude()  : restLat;
+                    double centreLon = z.getCentreLongitude() != null ? z.getCentreLongitude() : restLon;
+                    double distance  = calculateDistance(centreLat, centreLon,
+                                                        adresse.getLatitude(), adresse.getLongitude());
+                    return distance <= z.getRayonKm().doubleValue();
+                })
+                .min(Comparator.comparing(ZoneLivraison::getRayonKm))
+                .orElse(null);
+
+        if (zoneApplicable == null) {
+            throw new BadRequestException(
+                    "Ce restaurant ne livre pas à votre adresse. Vérifiez la zone de livraison disponible.");
+        }
+
+        // Vérification du montant minimum de commande
+        if (zoneApplicable.getMontantMinCommande() != null
+                && montantProduits.compareTo(zoneApplicable.getMontantMinCommande()) < 0) {
+            throw new BadRequestException(
+                    "Montant minimum non atteint pour la zone « " + zoneApplicable.getNom()
+                    + " » : " + zoneApplicable.getMontantMinCommande() + " DH"
+                    + " (votre commande : " + montantProduits + " DH).");
+        }
+
+        log.debug("Zone applicable pour la commande : « {} » (rayon {}km, frais {}DH)",
+                zoneApplicable.getNom(),
+                zoneApplicable.getRayonKm(),
+                zoneApplicable.getFraisLivraison());
+        return zoneApplicable;
     }
 
     private BigDecimal calculateFraisLivraison(Localisation from, Localisation to) {
@@ -510,6 +872,9 @@ public class CommandeServiceImpl implements CommandeService {
         dto.setStatut(commande.getStatut().name());
         dto.setTrackingStatut(mapTrackingStatus(commande));
         dto.setMontantTotal(commande.getMontantTotal());
+        dto.setMontantRemise(commande.getMontantRemise());
+        dto.setMontantFinal(commande.getMontantFinal() != null ? commande.getMontantFinal() : commande.getMontantTotal());
+        dto.setCodePromoUtilise(commande.getCodePromoUtilise());
         dto.setFraisLivraison(commande.getFraisLivraison());
         dto.setTempsLivraisonEstime(commande.getTempsLivraisonEstime());
         dto.setCommentaire(commande.getCommentaire());

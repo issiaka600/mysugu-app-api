@@ -60,7 +60,9 @@ public class SecurityConfig {
                                 "/v3/api-docs.yaml",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
-                                "/actuator/health"
+                                "/actuator/health",
+                                "/notification-test.html",
+                                "/firebase-messaging-sw.js"
                         ).permitAll()
 
                         // WebSocket endpoint
@@ -136,6 +138,12 @@ public class SecurityConfig {
 
                         // Notifications (authenticated)
                         .requestMatchers("/api/notifications/**").authenticated()
+
+                        // Device tokens FCM (authenticated)
+                        .requestMatchers("/api/device-tokens/**").authenticated()
+
+                        // Disponibilité livreur (livreur uniquement)
+                        .requestMatchers("/api/users/livreur/disponibilite").hasRole("LIVREUR")
 
                         // Livreur gains
                         .requestMatchers("/api/livreurs/gains/**").hasAnyRole("LIVREUR", "ADMIN")

@@ -16,4 +16,5 @@ public class PromotionCreateDTO {
     private BigDecimal montantMinCommande;
     private Integer usageMax;
     private Boolean estFlash;
+    private Boolean appliquerATousLesRestaurants;
 }

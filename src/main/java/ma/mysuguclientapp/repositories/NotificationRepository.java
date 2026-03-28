@@ -22,4 +22,10 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     @Modifying
     @Query("UPDATE Notification n SET n.lue = true, n.lueAt = :now WHERE n.destinataire.id = :userId AND n.lue = false")
     void marquerToutesCommeVues(@Param("userId") Long userId, @Param("now") LocalDateTime now);
+
+    List<Notification> findByEntityIdAndEntityTypeOrderByCreatedAtDesc(Long entityId, String entityType);
+
+    @Modifying
+    @Query("DELETE FROM Notification n WHERE n.destinataire.id IN :userIds")
+    void deleteByDestinataireIdIn(@Param("userIds") List<Long> userIds);
 }

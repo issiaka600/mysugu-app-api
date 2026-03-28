@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "promotions")
@@ -35,8 +37,8 @@ public class Promotion {
     @Column(name = "is_active")
     private Boolean isActive = true;
     
-    @OneToOne(mappedBy = "promotion")
-    private Restaurant restaurant;
+    @OneToMany(mappedBy = "promotion")
+    private List<Restaurant> restaurants = new ArrayList<>();
 
     @Column(unique = true, length = 50)
     private String code;

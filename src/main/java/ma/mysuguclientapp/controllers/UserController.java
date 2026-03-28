@@ -1,6 +1,7 @@
 package ma.mysuguclientapp.controllers;
 
 import lombok.RequiredArgsConstructor;
+import ma.mysuguclientapp.dtos.DisponibiliteDTO;
 import ma.mysuguclientapp.dtos.GoogleAuthRequestDTO;
 import ma.mysuguclientapp.dtos.LocationUpdateDTO;
 import ma.mysuguclientapp.dtos.LoginDTO;
@@ -65,5 +66,17 @@ public class UserController {
             @RequestParam Double longitude,
             @RequestParam(defaultValue = "10.0") Double radiusKm) {
         return ResponseEntity.ok(userService.getAvailableLivreurs(latitude, longitude, radiusKm));
+    }
+
+    /**
+     * Permet à un livreur de déclarer sa disponibilité (disponible ou en pause).
+     * PATCH /api/users/livreur/disponibilite
+     * Body: { "disponible": true }
+     */
+    @PatchMapping("api/users/livreur/disponibilite")
+    public ResponseEntity<UserDTO> setDisponibilite(
+            @RequestHeader("Authorization") String token,
+            @Valid @RequestBody DisponibiliteDTO dto) {
+        return ResponseEntity.ok(userService.setDisponibilite(token, dto.getDisponible()));
     }
 }

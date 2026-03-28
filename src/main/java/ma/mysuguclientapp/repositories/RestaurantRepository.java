@@ -1,5 +1,6 @@
 package ma.mysuguclientapp.repositories;
 
+import ma.mysuguclientapp.entities.Promotion;
 import ma.mysuguclientapp.entities.Restaurant;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +17,7 @@ import java.util.Optional;
 public interface RestaurantRepository extends JpaRepository<Restaurant, Long> {
 
     Optional<Restaurant> findByOwnerId(Long ownerId);
+    List<Restaurant> findByPromotion(Promotion promotion);
     Page<Restaurant> findByIsActive(Boolean isActive, Pageable pageable);
     Page<Restaurant> findByCategorieIdAndIsActive(Long categorieId, Boolean isActive, Pageable pageable);
     List<Restaurant> findByIsActiveOrderByAppreciationDesc(Boolean isActive);
