@@ -25,6 +25,7 @@ public class CommandeDTO {
     private String currency = "MAD";
     private String currencySymbol = "DH";
     private Integer tempsLivraisonEstime;
+    private BigDecimal montantCommissionTotal;
     private String commentaire;
     private String raisonAnnulation;
     private String modeReception;

@@ -26,4 +26,6 @@ public class RestaurantDTO {
     private LocalTime heureFermeture;
     private LocalDateTime createdAt;
     private Double distance;
+    /** Pourcentage de commission négocié avec ce restaurant (en %) */
+    private java.math.BigDecimal commissionPourcentage;
 }

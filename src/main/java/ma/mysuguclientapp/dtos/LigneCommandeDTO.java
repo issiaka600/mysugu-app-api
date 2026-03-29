@@ -14,4 +14,6 @@ public class LigneCommandeDTO {
     private String currency = "MAD";
     private String currencySymbol = "DH";
     private String remarque;
+    private java.math.BigDecimal commissionPourcentage;
+    private java.math.BigDecimal montantCommission;
 }

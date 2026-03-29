@@ -220,6 +220,20 @@ public class RestaurantServiceImpl implements RestaurantService {
         return convertToDTO(updatedRestaurant, null, null);
     }
 
+    @Override
+    public RestaurantDTO setCommissionPourcentage(Long id, java.math.BigDecimal pourcentage) {
+        if (pourcentage == null || pourcentage.compareTo(java.math.BigDecimal.ZERO) < 0
+                || pourcentage.compareTo(new java.math.BigDecimal("100")) > 0) {
+            throw new BadRequestException("Le pourcentage de commission doit être compris entre 0 et 100");
+        }
+        Restaurant restaurant = restaurantRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Restaurant non trouvé"));
+        restaurant.setCommissionPourcentage(pourcentage);
+        Restaurant updated = restaurantRepository.save(restaurant);
+        log.info("Commission du restaurant {} définie à {}%", restaurant.getNom(), pourcentage);
+        return convertToDTO(updated, null, null);
+    }
+
     private void applyAutoCloseSettings(Restaurant restaurant, RestaurantCreateDTO restaurantDTO) {
         boolean autoCloseEnabled = Boolean.TRUE.equals(restaurantDTO.getAutoCloseEnabled());
         restaurant.setAutoCloseEnabled(autoCloseEnabled);
@@ -279,6 +293,7 @@ public class RestaurantServiceImpl implements RestaurantService {
         dto.setOpenNow(openNow);
         dto.setIsActive(openNow);
         dto.setCreatedAt(restaurant.getCreatedAt());
+        dto.setCommissionPourcentage(restaurant.getCommissionPourcentage());
 
         if (restaurant.getLocalisation() != null) {
             LocalisationDTO locDTO = new LocalisationDTO();

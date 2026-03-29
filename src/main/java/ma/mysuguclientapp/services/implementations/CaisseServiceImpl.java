@@ -308,6 +308,8 @@ public class CaisseServiceImpl {
         if (dto.getIntervalleReconciliationHeures() != null) params.setIntervalleReconciliationHeures(dto.getIntervalleReconciliationHeures());
         if (dto.getTauxCommissionPlateforme() != null) params.setTauxCommissionPlateforme(dto.getTauxCommissionPlateforme());
         if (dto.getPeriodicitePaiementRestaurantJours() != null) params.setPeriodicitePaiementRestaurantJours(dto.getPeriodicitePaiementRestaurantJours());
+        if (dto.getSeuilPrixCommission() != null) params.setSeuilPrixCommission(dto.getSeuilPrixCommission());
+        if (dto.getCommissionMinPourcentage() != null) params.setCommissionMinPourcentage(dto.getCommissionMinPourcentage());
         return toParamsDTO(parametresCaisseRepository.save(params));
     }
 
@@ -504,6 +506,8 @@ public class CaisseServiceImpl {
         dto.setIntervalleReconciliationHeures(p.getIntervalleReconciliationHeures());
         dto.setTauxCommissionPlateforme(p.getTauxCommissionPlateforme());
         dto.setPeriodicitePaiementRestaurantJours(p.getPeriodicitePaiementRestaurantJours());
+        dto.setSeuilPrixCommission(p.getSeuilPrixCommission());
+        dto.setCommissionMinPourcentage(p.getCommissionMinPourcentage());
         return dto;
     }
 }

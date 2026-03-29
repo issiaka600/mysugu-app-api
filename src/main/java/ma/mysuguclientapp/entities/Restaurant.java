@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -80,7 +81,15 @@ public class Restaurant {
 
     @Column(name = "horaires_ouverture", length = 500)
     private String horairesOuverture; // Format JSON ou texte
-    
+
+    /**
+     * Pourcentage de commission négocié avec ce restaurant (en %).
+     * S'applique aux plats dont le prix dépasse le seuilPrixCommission global.
+     * Ex: 15 → 15%.
+     */
+    @Column(name = "commission_pourcentage", precision = 5, scale = 2)
+    private BigDecimal commissionPourcentage;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

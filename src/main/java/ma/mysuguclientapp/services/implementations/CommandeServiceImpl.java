@@ -27,6 +27,7 @@ import ma.mysuguclientapp.repositories.AvisRepository;
 import ma.mysuguclientapp.repositories.CodePromoRepository;
 import ma.mysuguclientapp.repositories.CommandeRepository;
 import ma.mysuguclientapp.repositories.LigneCommandeRepository;
+import ma.mysuguclientapp.repositories.ParametresCaisseRepository;
 import ma.mysuguclientapp.repositories.PlatRepository;
 import ma.mysuguclientapp.repositories.RestaurantRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
@@ -62,6 +63,7 @@ public class CommandeServiceImpl implements CommandeService {
     private final RestaurantRepository restaurantRepository;
     private final PlatRepository platRepository;
     private final LigneCommandeRepository ligneCommandeRepository;
+    private final ParametresCaisseRepository parametresCaisseRepository;
     private final CaisseServiceImpl caisseService;
     private final NotificationService notificationService;
     private final AvisRepository avisRepository;
@@ -196,6 +198,31 @@ public class CommandeServiceImpl implements CommandeService {
             lignes.add(ligne);
             montantTotal = montantTotal.add(ligne.getMontantTotal());
         }
+
+        // ── Calcul des commissions par ligne ─────────────────────────────────
+        ma.mysuguclientapp.entities.ParametresCaisse params = parametresCaisseRepository.findById(1L)
+                .orElse(new ma.mysuguclientapp.entities.ParametresCaisse());
+        BigDecimal seuilPrix = params.getSeuilPrixCommission() != null
+                ? params.getSeuilPrixCommission() : new BigDecimal("10.00");
+        BigDecimal commissionMinGlobal = params.getCommissionMinPourcentage() != null
+                ? params.getCommissionMinPourcentage() : new BigDecimal("20.00");
+        BigDecimal commissionRestaurant = restaurant.getCommissionPourcentage() != null
+                ? restaurant.getCommissionPourcentage() : BigDecimal.ZERO;
+
+        BigDecimal totalCommission = BigDecimal.ZERO;
+        for (LigneCommande ligne : lignes) {
+            BigDecimal tauxApplique = ligne.getPrixUnitaire().compareTo(seuilPrix) <= 0
+                    ? commissionMinGlobal
+                    : commissionRestaurant;
+            BigDecimal commission = ligne.getMontantTotal()
+                    .multiply(tauxApplique)
+                    .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+            ligne.setCommissionPourcentage(tauxApplique);
+            ligne.setMontantCommission(commission);
+            totalCommission = totalCommission.add(commission);
+        }
+        commande.setMontantCommissionTotal(totalCommission);
+        // ─────────────────────────────────────────────────────────────────────
 
         // Validation de la zone de déploiement et calcul des frais
         BigDecimal fraisLivraison = BigDecimal.ZERO;
@@ -876,6 +903,7 @@ public class CommandeServiceImpl implements CommandeService {
         dto.setMontantFinal(commande.getMontantFinal() != null ? commande.getMontantFinal() : commande.getMontantTotal());
         dto.setCodePromoUtilise(commande.getCodePromoUtilise());
         dto.setFraisLivraison(commande.getFraisLivraison());
+        dto.setMontantCommissionTotal(commande.getMontantCommissionTotal());
         dto.setTempsLivraisonEstime(commande.getTempsLivraisonEstime());
         dto.setCommentaire(commande.getCommentaire());
         dto.setRaisonAnnulation(commande.getRaisonAnnulation());
@@ -923,6 +951,7 @@ public class CommandeServiceImpl implements CommandeService {
             restDTO.setHeureOuverture(restaurant.getHeureOuverture());
             restDTO.setHeureFermeture(restaurant.getHeureFermeture());
             restDTO.setCreatedAt(restaurant.getCreatedAt());
+            restDTO.setCommissionPourcentage(restaurant.getCommissionPourcentage());
             restDTO.setLocalisation(toLocalisationDTO(restaurant.getLocalisation()));
             if (restaurant.getCategorie() != null) {
                 CategorieRestaurantDTO catDTO = new CategorieRestaurantDTO();
@@ -999,6 +1028,8 @@ public class CommandeServiceImpl implements CommandeService {
             dto.setPlat(platDTO);
         }
 
+        dto.setCommissionPourcentage(ligne.getCommissionPourcentage());
+        dto.setMontantCommission(ligne.getMontantCommission());
         return dto;
     }
 }
