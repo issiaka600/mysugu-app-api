@@ -2,6 +2,7 @@ package ma.mysuguclientapp.services.implementations;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import ma.mysuguclientapp.dtos.CategorieRestaurantDTO;
 import ma.mysuguclientapp.dtos.CommandeCreateDTO;
 import ma.mysuguclientapp.dtos.CommandeDTO;
 import ma.mysuguclientapp.dtos.CommandeUpdateStatusDTO;
@@ -880,7 +881,9 @@ public class CommandeServiceImpl implements CommandeService {
         dto.setRaisonAnnulation(commande.getRaisonAnnulation());
         dto.setModeReception(resolveModeReception(commande).name());
         dto.setCreatedAt(commande.getCreatedAt());
+        dto.setUpdatedAt(commande.getUpdatedAt());
         dto.setLivreeAt(commande.getLivreeAt());
+        dto.setScheduledAt(commande.getScheduledAt());
 
         if (commande.getMethodePaiement() != null) {
             dto.setMethodePaiement(commande.getMethodePaiement().name());
@@ -890,31 +893,61 @@ public class CommandeServiceImpl implements CommandeService {
         }
 
         if (commande.getClient() != null) {
+            User client = commande.getClient();
             UserDTO clientDTO = new UserDTO();
-            clientDTO.setId(commande.getClient().getId());
-            clientDTO.setNom(commande.getClient().getNom());
-            clientDTO.setPrenom(commande.getClient().getPrenom());
-            clientDTO.setTelephone(commande.getClient().getTelephone());
-            clientDTO.setLocalisation(toLocalisationDTO(commande.getClient().getLocalisation()));
+            clientDTO.setId(client.getId());
+            clientDTO.setNom(client.getNom());
+            clientDTO.setPrenom(client.getPrenom());
+            clientDTO.setEmail(client.getEmail());
+            clientDTO.setTelephone(client.getTelephone());
+            clientDTO.setAvatar(client.getAvatar());
+            clientDTO.setRole(client.getRole() != null ? client.getRole().name() : null);
+            clientDTO.setIsActive(client.getIsActive());
+            clientDTO.setCreatedAt(client.getCreatedAt());
+            clientDTO.setLocalisation(toLocalisationDTO(client.getLocalisation()));
             dto.setClient(clientDTO);
         }
 
         if (commande.getRestaurant() != null) {
+            Restaurant restaurant = commande.getRestaurant();
             RestaurantDTO restDTO = new RestaurantDTO();
-            restDTO.setId(commande.getRestaurant().getId());
-            restDTO.setNom(commande.getRestaurant().getNom());
-            restDTO.setLogoUrl(commande.getRestaurant().getLogoUrl());
-            restDTO.setLocalisation(toLocalisationDTO(commande.getRestaurant().getLocalisation()));
+            restDTO.setId(restaurant.getId());
+            restDTO.setNom(restaurant.getNom());
+            restDTO.setDescription(restaurant.getDescription());
+            restDTO.setLogoUrl(restaurant.getLogoUrl());
+            restDTO.setAppreciation(restaurant.getAppreciation());
+            restDTO.setNombreAvis(restaurant.getNombreAvis());
+            restDTO.setTempsLivraisonMoyen(restaurant.getTempsLivraisonMoyen());
+            restDTO.setIsActive(restaurant.getIsActive());
+            restDTO.setAutoCloseEnabled(restaurant.getAutoCloseEnabled());
+            restDTO.setHeureOuverture(restaurant.getHeureOuverture());
+            restDTO.setHeureFermeture(restaurant.getHeureFermeture());
+            restDTO.setCreatedAt(restaurant.getCreatedAt());
+            restDTO.setLocalisation(toLocalisationDTO(restaurant.getLocalisation()));
+            if (restaurant.getCategorie() != null) {
+                CategorieRestaurantDTO catDTO = new CategorieRestaurantDTO();
+                catDTO.setId(restaurant.getCategorie().getId());
+                catDTO.setNom(restaurant.getCategorie().getNom());
+                catDTO.setDescription(restaurant.getCategorie().getDescription());
+                catDTO.setImageUrl(restaurant.getCategorie().getImageUrl());
+                restDTO.setCategorie(catDTO);
+            }
             dto.setRestaurant(restDTO);
         }
 
         if (commande.getLivreur() != null) {
+            User livreur = commande.getLivreur();
             UserDTO livreurDTO = new UserDTO();
-            livreurDTO.setId(commande.getLivreur().getId());
-            livreurDTO.setNom(commande.getLivreur().getNom());
-            livreurDTO.setPrenom(commande.getLivreur().getPrenom());
-            livreurDTO.setTelephone(commande.getLivreur().getTelephone());
-            livreurDTO.setLocalisation(toLocalisationDTO(commande.getLivreur().getLocalisation()));
+            livreurDTO.setId(livreur.getId());
+            livreurDTO.setNom(livreur.getNom());
+            livreurDTO.setPrenom(livreur.getPrenom());
+            livreurDTO.setEmail(livreur.getEmail());
+            livreurDTO.setTelephone(livreur.getTelephone());
+            livreurDTO.setAvatar(livreur.getAvatar());
+            livreurDTO.setRole(livreur.getRole() != null ? livreur.getRole().name() : null);
+            livreurDTO.setIsActive(livreur.getIsActive());
+            livreurDTO.setLivreurDisponible(livreur.getLivreurDisponible());
+            livreurDTO.setLocalisation(toLocalisationDTO(livreur.getLocalisation()));
             dto.setLivreur(livreurDTO);
         }
 
@@ -956,8 +989,13 @@ public class CommandeServiceImpl implements CommandeService {
             PlatDTO platDTO = new PlatDTO();
             platDTO.setId(ligne.getPlat().getId());
             platDTO.setNom(ligne.getPlat().getNom());
-            platDTO.setImageUrl(ligne.getPlat().getImageUrl());
+            platDTO.setDescription(ligne.getPlat().getDescription());
             platDTO.setPrix(ligne.getPlat().getPrix());
+            platDTO.setImageUrl(ligne.getPlat().getImageUrl());
+            platDTO.setIngredients(ligne.getPlat().getIngredients());
+            platDTO.setCategoriePlat(ligne.getPlat().getCategoriePlat() != null
+                    ? ligne.getPlat().getCategoriePlat().name() : null);
+            platDTO.setTempsPreparation(ligne.getPlat().getTempsPreparation());
             dto.setPlat(platDTO);
         }
 

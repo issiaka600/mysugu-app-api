@@ -31,5 +31,7 @@ public class CommandeDTO {
     private String methodePaiement;
     private String statutPaiement;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     private LocalDateTime livreeAt;
+    private LocalDateTime scheduledAt;
 }
