@@ -75,7 +75,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/files/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/promotions/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/menus/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/zones-livraison/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/zones-deploiement/actives").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/files/upload").authenticated()
 
                         // Auth enhanced (email verification, forgot password — public)
@@ -103,7 +103,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/plats/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
 
                         .requestMatchers("/api/menus/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
-                        .requestMatchers("/api/zones-livraison/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
+                        .requestMatchers("/api/zones-deploiement/**").hasRole("ADMIN")
                         .requestMatchers("/api/restaurant-dashboard/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
 
                         // Routes catégories (admin)

@@ -7,16 +7,19 @@ import ma.mysuguclientapp.dtos.LocalisationDTO;
 import ma.mysuguclientapp.dtos.PromotionDTO;
 import ma.mysuguclientapp.dtos.RestaurantCreateDTO;
 import ma.mysuguclientapp.dtos.RestaurantDTO;
+import ma.mysuguclientapp.dtos.ZoneDeploiementDTO;
 import ma.mysuguclientapp.entities.CategorieRestaurant;
 import ma.mysuguclientapp.entities.Localisation;
 import ma.mysuguclientapp.entities.Restaurant;
 import ma.mysuguclientapp.entities.User;
+import ma.mysuguclientapp.entities.ZoneDeploiement;
 import ma.mysuguclientapp.enumerations.UserRole;
 import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
 import ma.mysuguclientapp.repositories.CategoriesRestaurantRepository;
 import ma.mysuguclientapp.repositories.RestaurantRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
+import ma.mysuguclientapp.repositories.ZoneDeploiementRepository;
 import ma.mysuguclientapp.services.interfaces.RestaurantService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -39,6 +42,7 @@ public class RestaurantServiceImpl implements RestaurantService {
     private final CategoriesRestaurantRepository categorieRepository;
     private final UserRepository userRepository;
     private final MinioService minioService;
+    private final ZoneDeploiementRepository zoneDeploiementRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -120,6 +124,7 @@ public class RestaurantServiceImpl implements RestaurantService {
 
         applyAutoCloseSettings(restaurant, restaurantDTO);
         applyLocalisation(restaurant, restaurantDTO.getLocalisation());
+        applyZoneDeploiement(restaurant, restaurantDTO.getZoneDeploiementId());
 
         if (Boolean.TRUE.equals(restaurantDTO.getRemoveLogo())) {
             restaurant.setLogoUrl(null);
@@ -157,6 +162,7 @@ public class RestaurantServiceImpl implements RestaurantService {
         }
 
         applyLocalisation(restaurant, restaurantDTO.getLocalisation());
+        applyZoneDeploiement(restaurant, restaurantDTO.getZoneDeploiementId());
 
         if (Boolean.TRUE.equals(restaurantDTO.getRemoveLogo()) && restaurant.getLogoUrl() != null) {
             try {
@@ -223,6 +229,17 @@ public class RestaurantServiceImpl implements RestaurantService {
         if (autoCloseEnabled && (restaurantDTO.getHeureOuverture() == null || restaurantDTO.getHeureFermeture() == null)) {
             throw new BadRequestException("Les heures d'ouverture et de fermeture sont requises quand la fermeture automatique est activée");
         }
+    }
+
+    private void applyZoneDeploiement(Restaurant restaurant, Long zoneDeploiementId) {
+        if (zoneDeploiementId == null) {
+            restaurant.setZoneDeploiement(null);
+            return;
+        }
+        ZoneDeploiement zone = zoneDeploiementRepository.findById(zoneDeploiementId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Zone de déploiement introuvable : " + zoneDeploiementId));
+        restaurant.setZoneDeploiement(zone);
     }
 
     private void applyLocalisation(Restaurant restaurant, LocalisationDTO localisationDTO) {
@@ -300,6 +317,20 @@ public class RestaurantServiceImpl implements RestaurantService {
             promoDTO.setDescription(restaurant.getPromotion().getDescription());
             promoDTO.setIsActive(restaurant.getPromotion().getIsActive());
             dto.setPromotion(promoDTO);
+        }
+
+        if (restaurant.getZoneDeploiement() != null) {
+            ZoneDeploiement z = restaurant.getZoneDeploiement();
+            ZoneDeploiementDTO zoneDTO = new ZoneDeploiementDTO();
+            zoneDTO.setId(z.getId());
+            zoneDTO.setNom(z.getNom());
+            zoneDTO.setDescription(z.getDescription());
+            zoneDTO.setCentreLatitude(z.getCentreLatitude());
+            zoneDTO.setCentreLongitude(z.getCentreLongitude());
+            zoneDTO.setRayonKm(z.getRayonKm());
+            zoneDTO.setFraisLivraisonMin(z.getFraisLivraisonMin());
+            zoneDTO.setIsActive(z.getIsActive());
+            dto.setZoneDeploiement(zoneDTO);
         }
 
         return dto;

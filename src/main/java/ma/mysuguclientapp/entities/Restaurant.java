@@ -53,6 +53,15 @@ public class Restaurant {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "promotion_id")
     private Promotion promotion;
+
+    /**
+     * Zone de déploiement à laquelle appartient ce restaurant.
+     * Détermine la couverture géographique du service de livraison.
+     * Null = aucune restriction de zone appliquée.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "zone_deploiement_id")
+    private ZoneDeploiement zoneDeploiement;
     
     @OneToMany(mappedBy = "restaurant", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Plat> plats = new ArrayList<>();

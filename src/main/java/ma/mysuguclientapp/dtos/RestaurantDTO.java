@@ -8,6 +8,7 @@ import java.time.LocalTime;
 @Data
 public class RestaurantDTO {
     private Long id;
+    private ZoneDeploiementDTO zoneDeploiement;
     private String nom;
     private String description;
     private String logoObjectName;

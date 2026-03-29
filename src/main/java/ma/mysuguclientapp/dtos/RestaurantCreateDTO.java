@@ -17,4 +17,10 @@ public class RestaurantCreateDTO {
     private LocalTime heureOuverture;
     private LocalTime heureFermeture;
     private Boolean removeLogo;
+
+    /**
+     * Identifiant de la zone de déploiement à laquelle rattacher ce restaurant.
+     * Obligatoire dès que le restaurant propose la livraison.
+     */
+    private Long zoneDeploiementId;
 }
