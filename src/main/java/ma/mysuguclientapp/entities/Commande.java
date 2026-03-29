@@ -107,6 +107,10 @@ public class Commande {
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;
 
+    /** Total de commission plateforme sur les articles de cette commande */
+    @Column(name = "montant_commission_total", precision = 10, scale = 2)
+    private BigDecimal montantCommissionTotal = BigDecimal.ZERO;
+
     @Column(name = "is_reorder")
     private Boolean isReorder = false;
 

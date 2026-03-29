@@ -37,4 +37,12 @@ public class LigneCommande {
     
     @Column(length = 500)
     private String remarque; // Instructions spéciales pour ce plat
+
+    /** Taux de commission appliqué à cette ligne (en %), capturé au moment de la commande */
+    @Column(name = "commission_pourcentage", precision = 5, scale = 2)
+    private BigDecimal commissionPourcentage;
+
+    /** Montant de commission calculé pour cette ligne (prixUnitaire × quantite × commissionPourcentage / 100) */
+    @Column(name = "montant_commission", precision = 10, scale = 2)
+    private BigDecimal montantCommission = BigDecimal.ZERO;
 }

@@ -10,6 +10,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -120,6 +121,18 @@ public class RestaurantController {
     @PatchMapping("/{id}/activate")
     public ResponseEntity<RestaurantDTO> toggleRestaurantStatus(@PathVariable Long id) {
         RestaurantDTO updated = restaurantService.toggleRestaurantStatus(id);
+        return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * PATCH /api/restaurants/{id}/commission - Définir le taux de commission d'un restaurant (admin)
+     */
+    @PatchMapping("/{id}/commission")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<RestaurantDTO> setCommission(
+            @PathVariable Long id,
+            @RequestParam java.math.BigDecimal pourcentage) {
+        RestaurantDTO updated = restaurantService.setCommissionPourcentage(id, pourcentage);
         return ResponseEntity.ok(updated);
     }
 

@@ -8,6 +8,7 @@ import java.time.LocalTime;
 @Data
 public class RestaurantDTO {
     private Long id;
+    private ZoneDeploiementDTO zoneDeploiement;
     private String nom;
     private String description;
     private String logoObjectName;
@@ -25,4 +26,6 @@ public class RestaurantDTO {
     private LocalTime heureFermeture;
     private LocalDateTime createdAt;
     private Double distance;
+    /** Pourcentage de commission négocié avec ce restaurant (en %) */
+    private java.math.BigDecimal commissionPourcentage;
 }

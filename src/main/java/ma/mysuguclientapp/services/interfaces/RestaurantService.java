@@ -55,4 +55,9 @@ public interface RestaurantService {
      */
     RestaurantDTO toggleRestaurantStatus(Long id);
 
+    /**
+     * Définir le taux de commission négocié avec un restaurant (admin)
+     */
+    RestaurantDTO setCommissionPourcentage(Long id, java.math.BigDecimal pourcentage);
+
 }

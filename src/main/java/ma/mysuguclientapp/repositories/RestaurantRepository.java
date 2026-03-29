@@ -18,6 +18,7 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Long> {
 
     Optional<Restaurant> findByOwnerId(Long ownerId);
     List<Restaurant> findByPromotion(Promotion promotion);
+    long countByZoneDeploiementId(Long zoneDeploiementId);
     Page<Restaurant> findByIsActive(Boolean isActive, Pageable pageable);
     Page<Restaurant> findByCategorieIdAndIsActive(Long categorieId, Boolean isActive, Pageable pageable);
     List<Restaurant> findByIsActiveOrderByAppreciationDesc(Boolean isActive);

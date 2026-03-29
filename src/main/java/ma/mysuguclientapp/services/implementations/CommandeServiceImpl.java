@@ -2,6 +2,7 @@ package ma.mysuguclientapp.services.implementations;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import ma.mysuguclientapp.dtos.CategorieRestaurantDTO;
 import ma.mysuguclientapp.dtos.CommandeCreateDTO;
 import ma.mysuguclientapp.dtos.CommandeDTO;
 import ma.mysuguclientapp.dtos.CommandeUpdateStatusDTO;
@@ -11,12 +12,7 @@ import ma.mysuguclientapp.dtos.LocalisationDTO;
 import ma.mysuguclientapp.dtos.PlatDTO;
 import ma.mysuguclientapp.dtos.RestaurantDTO;
 import ma.mysuguclientapp.dtos.UserDTO;
-import ma.mysuguclientapp.entities.Commande;
-import ma.mysuguclientapp.entities.LigneCommande;
-import ma.mysuguclientapp.entities.Localisation;
-import ma.mysuguclientapp.entities.Plat;
-import ma.mysuguclientapp.entities.Restaurant;
-import ma.mysuguclientapp.entities.User;
+import ma.mysuguclientapp.entities.*;
 import ma.mysuguclientapp.enumerations.ModeDisponibilitePlat;
 import ma.mysuguclientapp.enumerations.ModeReceptionCommande;
 import ma.mysuguclientapp.enumerations.MethodePaiement;
@@ -26,18 +22,15 @@ import ma.mysuguclientapp.enumerations.TypeNotification;
 import ma.mysuguclientapp.enumerations.UserRole;
 import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
-import ma.mysuguclientapp.entities.ZoneLivraison;
-import ma.mysuguclientapp.entities.CodePromo;
-import ma.mysuguclientapp.entities.Promotion;
 import ma.mysuguclientapp.enumerations.TypeReduction;
 import ma.mysuguclientapp.repositories.AvisRepository;
 import ma.mysuguclientapp.repositories.CodePromoRepository;
 import ma.mysuguclientapp.repositories.CommandeRepository;
 import ma.mysuguclientapp.repositories.LigneCommandeRepository;
+import ma.mysuguclientapp.repositories.ParametresCaisseRepository;
 import ma.mysuguclientapp.repositories.PlatRepository;
 import ma.mysuguclientapp.repositories.RestaurantRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
-import ma.mysuguclientapp.repositories.ZoneLivraisonRepository;
 import ma.mysuguclientapp.services.interfaces.CommandeService;
 import ma.mysuguclientapp.services.interfaces.NotificationService;
 import ma.mysuguclientapp.util.CommandeNumberGenerator;
@@ -70,10 +63,10 @@ public class CommandeServiceImpl implements CommandeService {
     private final RestaurantRepository restaurantRepository;
     private final PlatRepository platRepository;
     private final LigneCommandeRepository ligneCommandeRepository;
+    private final ParametresCaisseRepository parametresCaisseRepository;
     private final CaisseServiceImpl caisseService;
     private final NotificationService notificationService;
     private final AvisRepository avisRepository;
-    private final ZoneLivraisonRepository zoneLivraisonRepository;
     private final CodePromoRepository codePromoRepository;
 
     @Override
@@ -206,16 +199,36 @@ public class CommandeServiceImpl implements CommandeService {
             montantTotal = montantTotal.add(ligne.getMontantTotal());
         }
 
-        // Validation de la zone de livraison et calcul des frais
-        ZoneLivraison zoneApplicable = null;
-        BigDecimal fraisLivraison;
+        // ── Calcul des commissions par ligne ─────────────────────────────────
+        ma.mysuguclientapp.entities.ParametresCaisse params = parametresCaisseRepository.findById(1L)
+                .orElse(new ma.mysuguclientapp.entities.ParametresCaisse());
+        BigDecimal seuilPrix = params.getSeuilPrixCommission() != null
+                ? params.getSeuilPrixCommission() : new BigDecimal("10.00");
+        BigDecimal commissionMinGlobal = params.getCommissionMinPourcentage() != null
+                ? params.getCommissionMinPourcentage() : new BigDecimal("20.00");
+        BigDecimal commissionRestaurant = restaurant.getCommissionPourcentage() != null
+                ? restaurant.getCommissionPourcentage() : BigDecimal.ZERO;
+
+        BigDecimal totalCommission = BigDecimal.ZERO;
+        for (LigneCommande ligne : lignes) {
+            BigDecimal tauxApplique = ligne.getPrixUnitaire().compareTo(seuilPrix) <= 0
+                    ? commissionMinGlobal
+                    : commissionRestaurant;
+            BigDecimal commission = ligne.getMontantTotal()
+                    .multiply(tauxApplique)
+                    .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+            ligne.setCommissionPourcentage(tauxApplique);
+            ligne.setMontantCommission(commission);
+            totalCommission = totalCommission.add(commission);
+        }
+        commande.setMontantCommissionTotal(totalCommission);
+        // ─────────────────────────────────────────────────────────────────────
+
+        // Validation de la zone de déploiement et calcul des frais
+        BigDecimal fraisLivraison = BigDecimal.ZERO;
         if (modeReception == ModeReceptionCommande.LIVRAISON) {
-            zoneApplicable = validerZoneLivraison(restaurant, commande.getAdresseLivraison(), montantTotal);
-            fraisLivraison = (zoneApplicable != null && zoneApplicable.getFraisLivraison() != null)
-                    ? zoneApplicable.getFraisLivraison()
-                    : calculateFraisLivraison(restaurant.getLocalisation(), commande.getAdresseLivraison());
-        } else {
-            fraisLivraison = BigDecimal.ZERO;
+            validerZoneDeploiement(restaurant, commande.getAdresseLivraison());
+            fraisLivraison = calculerFraisAvecZone(restaurant, commande.getAdresseLivraison());
         }
 
         commande.setFraisLivraison(fraisLivraison);
@@ -279,11 +292,7 @@ public class CommandeServiceImpl implements CommandeService {
         commande.setMontantFinal(montantFinal);
         // ─────────────────────────────────────────────────────────────────────
 
-        // Temps estimé : priorité à la zone configurée, sinon estimation générique
-        Integer tempsEstime = (zoneApplicable != null && zoneApplicable.getTempsEstimeMinutes() != null)
-                ? zoneApplicable.getTempsEstimeMinutes()
-                : resolveTempsEstime(restaurant, lignes, modeReception);
-        commande.setTempsLivraisonEstime(tempsEstime);
+        commande.setTempsLivraisonEstime(resolveTempsEstime(restaurant, lignes, modeReception));
 
         Commande savedCommande = commandeRepository.save(commande);
         ligneCommandeRepository.saveAll(lignes);
@@ -689,84 +698,102 @@ public class CommandeServiceImpl implements CommandeService {
     }
 
     /**
-     * Vérifie que l'adresse de livraison est couverte par une zone active du restaurant.
+     * Vérifie que l'adresse de livraison se trouve dans la zone de déploiement
+     * du restaurant. Échoue immédiatement si la zone n'est pas couverte,
+     * évitant d'enregistrer une commande non livrable.
      *
-     * <p>Comportement :
-     * <ul>
-     *   <li>Si le restaurant n'a aucune zone configurée → pas de restriction (retourne null).</li>
-     *   <li>Si des zones existent mais aucune ne couvre l'adresse → {@link BadRequestException}.</li>
-     *   <li>Si plusieurs zones couvrent l'adresse → la plus petite (la plus spécifique) est retournée.</li>
-     *   <li>Si le montant des produits est inférieur au minimum de la zone → {@link BadRequestException}.</li>
-     * </ul>
-     *
-     * @param restaurant       restaurant commandé
-     * @param adresse          adresse de livraison du client
-     * @param montantProduits  montant total des produits (hors frais)
-     * @return zone applicable, ou null si aucune zone n'est configurée
+     * Si le restaurant n'a pas de zone définie (ou zone désactivée),
+     * aucune restriction n'est appliquée.
      */
-    private ZoneLivraison validerZoneLivraison(Restaurant restaurant,
-                                               Localisation adresse,
-                                               BigDecimal montantProduits) {
-        List<ZoneLivraison> zones =
-                zoneLivraisonRepository.findByRestaurantIdAndIsActiveTrueOrderByFraisLivraisonAsc(restaurant.getId());
+    private void validerZoneDeploiement(Restaurant restaurant, Localisation adresse) {
+        ZoneDeploiement zone = restaurant.getZoneDeploiement();
 
-        if (zones.isEmpty()) {
-            return null; // aucune zone configurée → pas de restriction
+        if (zone == null || !Boolean.TRUE.equals(zone.getIsActive())) {
+            return; // pas de zone configurée → aucune restriction
         }
 
         if (adresse == null || adresse.getLatitude() == null || adresse.getLongitude() == null) {
             throw new BadRequestException(
-                    "Les coordonnées GPS de l'adresse de livraison sont requises pour valider la zone.");
+                    "Les coordonnées GPS de l'adresse de livraison sont requises.");
         }
 
-        // Coordonnées de référence du restaurant
-        double restLat = (restaurant.getLocalisation() != null && restaurant.getLocalisation().getLatitude() != null)
-                ? restaurant.getLocalisation().getLatitude() : 0.0;
-        double restLon = (restaurant.getLocalisation() != null && restaurant.getLocalisation().getLongitude() != null)
-                ? restaurant.getLocalisation().getLongitude() : 0.0;
+        if (zone.getCentreLatitude() == null || zone.getCentreLongitude() == null || zone.getRayonKm() == null) {
+            log.warn("Zone de déploiement '{}' sans coordonnées complètes — validation ignorée.", zone.getNom());
+            return;
+        }
 
-        // Trouver toutes les zones qui couvrent le point, puis garder la plus spécifique (rayon minimal)
-        ZoneLivraison zoneApplicable = zones.stream()
-                .filter(z -> z.getRayonKm() != null)
-                .filter(z -> {
-                    double centreLat = z.getCentreLatitude() != null  ? z.getCentreLatitude()  : restLat;
-                    double centreLon = z.getCentreLongitude() != null ? z.getCentreLongitude() : restLon;
-                    double distance  = calculateDistance(centreLat, centreLon,
-                                                        adresse.getLatitude(), adresse.getLongitude());
-                    return distance <= z.getRayonKm().doubleValue();
-                })
-                .min(Comparator.comparing(ZoneLivraison::getRayonKm))
-                .orElse(null);
+        double distanceKm = calculateDistance(
+                zone.getCentreLatitude(), zone.getCentreLongitude(),
+                adresse.getLatitude(), adresse.getLongitude());
 
-        if (zoneApplicable == null) {
+        if (distanceKm > zone.getRayonKm().doubleValue()) {
             throw new BadRequestException(
-                    "Ce restaurant ne livre pas à votre adresse. Vérifiez la zone de livraison disponible.");
+                    "Notre service de livraison n'est pas encore disponible dans votre zone. "
+                    + "Zones couvertes actuellement : " + zone.getNom() + ".");
         }
 
-        // Vérification du montant minimum de commande
-        if (zoneApplicable.getMontantMinCommande() != null
-                && montantProduits.compareTo(zoneApplicable.getMontantMinCommande()) < 0) {
-            throw new BadRequestException(
-                    "Montant minimum non atteint pour la zone « " + zoneApplicable.getNom()
-                    + " » : " + zoneApplicable.getMontantMinCommande() + " DH"
-                    + " (votre commande : " + montantProduits + " DH).");
-        }
-
-        log.debug("Zone applicable pour la commande : « {} » (rayon {}km, frais {}DH)",
-                zoneApplicable.getNom(),
-                zoneApplicable.getRayonKm(),
-                zoneApplicable.getFraisLivraison());
-        return zoneApplicable;
+        log.debug("Adresse validée dans la zone '{}' (distance {}km / rayon {}km)",
+                zone.getNom(), String.format("%.1f", distanceKm), zone.getRayonKm());
     }
 
-    private BigDecimal calculateFraisLivraison(Localisation from, Localisation to) {
-        if (from == null || to == null) {
-            return BigDecimal.valueOf(Constants.BASE_DELIVERY_FEE_MAD);
+    /**
+     * Calcule les frais de livraison selon la grille tarifaire de la zone :
+     * - si distance ≤ distanceMinKm → fraisLivraisonMin
+     * - sinon → fraisLivraisonMin + (distance - distanceMinKm) * prixExtraParKm
+     *
+     * Si la zone ou ses paramètres tarifaires sont absents, repli sur les
+     * constantes globales (BASE_DELIVERY_FEE + distance * FEE_PER_KM).
+     */
+    private BigDecimal calculerFraisAvecZone(Restaurant restaurant, Localisation adresse) {
+        ZoneDeploiement zone = restaurant.getZoneDeploiement();
+
+        boolean canCalculateDistance = restaurant.getLocalisation() != null
+                && adresse != null
+                && restaurant.getLocalisation().getLatitude() != null
+                && adresse.getLatitude() != null;
+
+        boolean hasZoneTariff = zone != null
+                && zone.getFraisLivraisonMin() != null
+                && zone.getDistanceMinKm() != null
+                && zone.getPrixExtraParKm() != null;
+
+        if (canCalculateDistance && hasZoneTariff) {
+            double distanceKm = calculateDistance(
+                    restaurant.getLocalisation().getLatitude(),
+                    restaurant.getLocalisation().getLongitude(),
+                    adresse.getLatitude(), adresse.getLongitude());
+
+            BigDecimal distance = BigDecimal.valueOf(distanceKm);
+            if (distance.compareTo(zone.getDistanceMinKm()) <= 0) {
+                return zone.getFraisLivraisonMin();
+            } else {
+                BigDecimal kmSupplementaires = distance.subtract(zone.getDistanceMinKm());
+                return zone.getFraisLivraisonMin()
+                        .add(kmSupplementaires.multiply(zone.getPrixExtraParKm()))
+                        .setScale(0, RoundingMode.UP);
+            }
         }
 
-        double distance = calculateDistance(from.getLatitude(), from.getLongitude(), to.getLatitude(), to.getLongitude());
-        return BigDecimal.valueOf(Constants.BASE_DELIVERY_FEE_MAD + (distance * Constants.DELIVERY_FEE_PER_KM_MAD))
-                .setScale(0, RoundingMode.UP);
+        // Repli : constantes globales (zone non configurée ou coordonnées manquantes)
+        BigDecimal fraisCalcules;
+        if (canCalculateDistance) {
+            double distanceKm = calculateDistance(
+                    restaurant.getLocalisation().getLatitude(),
+                    restaurant.getLocalisation().getLongitude(),
+                    adresse.getLatitude(), adresse.getLongitude());
+            fraisCalcules = BigDecimal.valueOf(
+                            Constants.BASE_DELIVERY_FEE_MAD + (distanceKm * Constants.DELIVERY_FEE_PER_KM_MAD))
+                    .setScale(0, RoundingMode.UP);
+        } else {
+            fraisCalcules = BigDecimal.valueOf(Constants.BASE_DELIVERY_FEE_MAD);
+        }
+
+        // Plancher : fraisLivraisonMin de la zone si disponible mais sans grille complète
+        if (zone != null && zone.getFraisLivraisonMin() != null) {
+            fraisCalcules = fraisCalcules.max(zone.getFraisLivraisonMin());
+        }
+
+        return fraisCalcules;
     }
 
     private int resolveTempsEstime(Restaurant restaurant, List<LigneCommande> lignes, ModeReceptionCommande modeReception) {
@@ -876,12 +903,15 @@ public class CommandeServiceImpl implements CommandeService {
         dto.setMontantFinal(commande.getMontantFinal() != null ? commande.getMontantFinal() : commande.getMontantTotal());
         dto.setCodePromoUtilise(commande.getCodePromoUtilise());
         dto.setFraisLivraison(commande.getFraisLivraison());
+        dto.setMontantCommissionTotal(commande.getMontantCommissionTotal());
         dto.setTempsLivraisonEstime(commande.getTempsLivraisonEstime());
         dto.setCommentaire(commande.getCommentaire());
         dto.setRaisonAnnulation(commande.getRaisonAnnulation());
         dto.setModeReception(resolveModeReception(commande).name());
         dto.setCreatedAt(commande.getCreatedAt());
+        dto.setUpdatedAt(commande.getUpdatedAt());
         dto.setLivreeAt(commande.getLivreeAt());
+        dto.setScheduledAt(commande.getScheduledAt());
 
         if (commande.getMethodePaiement() != null) {
             dto.setMethodePaiement(commande.getMethodePaiement().name());
@@ -891,31 +921,62 @@ public class CommandeServiceImpl implements CommandeService {
         }
 
         if (commande.getClient() != null) {
+            User client = commande.getClient();
             UserDTO clientDTO = new UserDTO();
-            clientDTO.setId(commande.getClient().getId());
-            clientDTO.setNom(commande.getClient().getNom());
-            clientDTO.setPrenom(commande.getClient().getPrenom());
-            clientDTO.setTelephone(commande.getClient().getTelephone());
-            clientDTO.setLocalisation(toLocalisationDTO(commande.getClient().getLocalisation()));
+            clientDTO.setId(client.getId());
+            clientDTO.setNom(client.getNom());
+            clientDTO.setPrenom(client.getPrenom());
+            clientDTO.setEmail(client.getEmail());
+            clientDTO.setTelephone(client.getTelephone());
+            clientDTO.setAvatar(client.getAvatar());
+            clientDTO.setRole(client.getRole() != null ? client.getRole().name() : null);
+            clientDTO.setIsActive(client.getIsActive());
+            clientDTO.setCreatedAt(client.getCreatedAt());
+            clientDTO.setLocalisation(toLocalisationDTO(client.getLocalisation()));
             dto.setClient(clientDTO);
         }
 
         if (commande.getRestaurant() != null) {
+            Restaurant restaurant = commande.getRestaurant();
             RestaurantDTO restDTO = new RestaurantDTO();
-            restDTO.setId(commande.getRestaurant().getId());
-            restDTO.setNom(commande.getRestaurant().getNom());
-            restDTO.setLogoUrl(commande.getRestaurant().getLogoUrl());
-            restDTO.setLocalisation(toLocalisationDTO(commande.getRestaurant().getLocalisation()));
+            restDTO.setId(restaurant.getId());
+            restDTO.setNom(restaurant.getNom());
+            restDTO.setDescription(restaurant.getDescription());
+            restDTO.setLogoUrl(restaurant.getLogoUrl());
+            restDTO.setAppreciation(restaurant.getAppreciation());
+            restDTO.setNombreAvis(restaurant.getNombreAvis());
+            restDTO.setTempsLivraisonMoyen(restaurant.getTempsLivraisonMoyen());
+            restDTO.setIsActive(restaurant.getIsActive());
+            restDTO.setAutoCloseEnabled(restaurant.getAutoCloseEnabled());
+            restDTO.setHeureOuverture(restaurant.getHeureOuverture());
+            restDTO.setHeureFermeture(restaurant.getHeureFermeture());
+            restDTO.setCreatedAt(restaurant.getCreatedAt());
+            restDTO.setCommissionPourcentage(restaurant.getCommissionPourcentage());
+            restDTO.setLocalisation(toLocalisationDTO(restaurant.getLocalisation()));
+            if (restaurant.getCategorie() != null) {
+                CategorieRestaurantDTO catDTO = new CategorieRestaurantDTO();
+                catDTO.setId(restaurant.getCategorie().getId());
+                catDTO.setNom(restaurant.getCategorie().getNom());
+                catDTO.setDescription(restaurant.getCategorie().getDescription());
+                catDTO.setImageUrl(restaurant.getCategorie().getImageUrl());
+                restDTO.setCategorie(catDTO);
+            }
             dto.setRestaurant(restDTO);
         }
 
         if (commande.getLivreur() != null) {
+            User livreur = commande.getLivreur();
             UserDTO livreurDTO = new UserDTO();
-            livreurDTO.setId(commande.getLivreur().getId());
-            livreurDTO.setNom(commande.getLivreur().getNom());
-            livreurDTO.setPrenom(commande.getLivreur().getPrenom());
-            livreurDTO.setTelephone(commande.getLivreur().getTelephone());
-            livreurDTO.setLocalisation(toLocalisationDTO(commande.getLivreur().getLocalisation()));
+            livreurDTO.setId(livreur.getId());
+            livreurDTO.setNom(livreur.getNom());
+            livreurDTO.setPrenom(livreur.getPrenom());
+            livreurDTO.setEmail(livreur.getEmail());
+            livreurDTO.setTelephone(livreur.getTelephone());
+            livreurDTO.setAvatar(livreur.getAvatar());
+            livreurDTO.setRole(livreur.getRole() != null ? livreur.getRole().name() : null);
+            livreurDTO.setIsActive(livreur.getIsActive());
+            livreurDTO.setLivreurDisponible(livreur.getLivreurDisponible());
+            livreurDTO.setLocalisation(toLocalisationDTO(livreur.getLocalisation()));
             dto.setLivreur(livreurDTO);
         }
 
@@ -957,11 +1018,18 @@ public class CommandeServiceImpl implements CommandeService {
             PlatDTO platDTO = new PlatDTO();
             platDTO.setId(ligne.getPlat().getId());
             platDTO.setNom(ligne.getPlat().getNom());
-            platDTO.setImageUrl(ligne.getPlat().getImageUrl());
+            platDTO.setDescription(ligne.getPlat().getDescription());
             platDTO.setPrix(ligne.getPlat().getPrix());
+            platDTO.setImageUrl(ligne.getPlat().getImageUrl());
+            platDTO.setIngredients(ligne.getPlat().getIngredients());
+            platDTO.setCategoriePlat(ligne.getPlat().getCategoriePlat() != null
+                    ? ligne.getPlat().getCategoriePlat().name() : null);
+            platDTO.setTempsPreparation(ligne.getPlat().getTempsPreparation());
             dto.setPlat(platDTO);
         }
 
+        dto.setCommissionPourcentage(ligne.getCommissionPourcentage());
+        dto.setMontantCommission(ligne.getMontantCommission());
         return dto;
     }
 }

@@ -41,6 +41,21 @@ public class ParametresCaisse {
     @Column(name = "taux_commission_plateforme", nullable = false, precision = 5, scale = 4)
     private BigDecimal tauxCommissionPlateforme = new BigDecimal("0.1500"); // 15%
 
+    /**
+     * Seuil de prix en dessous duquel la commission minimum globale s'applique (ex: 10 DH).
+     * Pour les plats dont le prix ≤ seuilPrixCommission, on applique commissionMinPourcentage.
+     * Pour les plats dont le prix > seuilPrixCommission, on applique le taux négocié du restaurant.
+     */
+    @Column(name = "seuil_prix_commission", precision = 8, scale = 2)
+    private BigDecimal seuilPrixCommission = new BigDecimal("10.00");
+
+    /**
+     * Pourcentage de commission minimum global appliqué aux plats dont le prix ≤ seuilPrixCommission.
+     * Exprimé en % (ex: 20 → 20%).
+     */
+    @Column(name = "commission_min_pourcentage", precision = 5, scale = 2)
+    private BigDecimal commissionMinPourcentage = new BigDecimal("20.00");
+
     /** Périodicité de paiement des restaurants en mode PERIODIQUE (ex: 7 jours) */
     @Column(name = "periodicite_paiement_restaurant_jours", nullable = false)
     private Integer periodicitePaiementRestaurantJours = 7;
