@@ -1,49 +1,76 @@
 # MySugu — Documentation API
 
-> Base URL : `http://localhost:8080`
-> Authentification : `Authorization: Bearer <JWT>`
-> Format des réponses : `application/json` sauf indication contraire.
+> **Base URL :** `http://localhost:8083`
+> **Authentification :** `Authorization: Bearer <JWT>`
+> **Format :** `application/json` sauf indication contraire
+> **Pagination Spring Boot 4.x :** `{ content: [...], page: { size, number, totalElements, totalPages } }`
+
+---
+
+## Légende des rôles
+
+| Rôle | Description |
+|---|---|
+| `ADMIN` | Administrateur plateforme |
+| `CLIENT` | Client final |
+| `LIVREUR` | Livreur |
+| `RESTAURANT_OWNER` | Propriétaire de restaurant |
+| `AUTH` | Tout utilisateur authentifié |
+| *(public)* | Aucune authentification requise |
 
 ---
 
 ## Table des matières
 
-1. [Authentification & Compte](#1-authentification--compte)
-2. [Gestion des utilisateurs (Admin)](#2-gestion-des-utilisateurs-admin)
-3. [Restaurants](#3-restaurants)
-4. [Plats](#4-plats)
-5. [Catégories de restaurant](#5-catégories-de-restaurant)
-6. [Commandes](#6-commandes)
-7. [Promotions](#7-promotions)
-8. [Codes Promo](#8-codes-promo)
-9. [Notifications](#9-notifications)
-10. [Campagnes de notification (Admin)](#10-campagnes-de-notification-admin)
-11. [FCM Device Tokens](#11-fcm-device-tokens)
-12. [Wallet](#12-wallet)
-13. [Fidélité](#13-fidélité)
-14. [Caisse Livreur](#14-caisse-livreur)
-15. [Gains Livreur](#15-gains-livreur)
-16. [Facturation Restaurant](#16-facturation-restaurant)
-17. [Zones de déploiement](#17-zones-de-déploiement)
-18. [Statistiques Admin](#18-statistiques-admin)
-19. [Avis](#19-avis)
-20. [Favoris](#20-favoris)
-21. [Panier](#21-panier)
-22. [Menus](#22-menus)
-23. [Dashboard Restaurant](#23-dashboard-restaurant)
-24. [Employés Restaurant](#24-employés-restaurant)
-25. [Fichiers (Minio)](#25-fichiers-minio)
-26. [WebSocket Tracking GPS](#26-websocket-tracking-gps)
+1. [Authentification](#1-authentification)
+2. [Utilisateurs & Profil](#2-utilisateurs--profil)
+3. [Adresses de livraison](#3-adresses-de-livraison)
+4. [Administration des utilisateurs](#4-administration-des-utilisateurs)
+5. [Restaurants](#5-restaurants)
+6. [Catégories de restaurants](#6-catégories-de-restaurants)
+7. [Plats](#7-plats)
+8. [Menus](#8-menus)
+9. [Panier](#9-panier)
+10. [Commandes](#10-commandes)
+11. [Zones de déploiement](#11-zones-de-déploiement)
+12. [Promotions](#12-promotions)
+13. [Codes promo](#13-codes-promo)
+14. [Avis](#14-avis)
+15. [Favoris](#15-favoris)
+16. [Wallet](#16-wallet)
+17. [Fidélité](#17-fidélité)
+18. [Notifications](#18-notifications)
+19. [Device Tokens (FCM)](#19-device-tokens-fcm)
+20. [Caisse livreur](#20-caisse-livreur)
+21. [Gains livreur](#21-gains-livreur)
+22. [Facturation restaurant](#22-facturation-restaurant)
+23. [Dashboard restaurant](#23-dashboard-restaurant)
+24. [Employés restaurant](#24-employés-restaurant)
+25. [Statistiques admin](#25-statistiques-admin)
+26. [Fichiers (MinIO)](#26-fichiers-minio)
+27. [Tracking WebSocket](#27-tracking-websocket)
+28. [Campagnes de notification](#28-campagnes-de-notification)
 
 ---
 
-## 1. Authentification & Compte
+## 1. Authentification
 
-### POST `/auth/register`
-Inscription d'un nouvel utilisateur.
+**Base :** `/auth`
 
-**Accès :** Public
-**Body :**
+| Méthode | Endpoint | Rôle | Description |
+|---|---|---|---|
+| `POST` | `/auth/register` | *(public)* | Créer un compte |
+| `POST` | `/auth/login` | *(public)* | Connexion email/mot de passe |
+| `POST` | `/auth/google` | *(public)* | Connexion via Google OAuth |
+| `POST` | `/api/auth/verify-email` | *(public)* | Vérifier l'adresse e-mail |
+| `POST` | `/api/auth/forgot-password` | *(public)* | Demander une réinitialisation de mot de passe |
+| `POST` | `/api/auth/reset-password` | *(public)* | Réinitialiser le mot de passe avec le token reçu |
+| `POST` | `/api/auth/refresh` | *(public)* | Rafraîchir le JWT via un refresh token |
+| `POST` | `/api/auth/send-verification` | `AUTH` | Renvoyer l'e-mail de vérification |
+| `POST` | `/api/auth/logout` | `AUTH` | Invalider le refresh token |
+| `POST` | `/api/auth/change-password` | `AUTH` | Changer son mot de passe |
+
+### POST /auth/register
 ```json
 {
   "email": "user@example.com",
@@ -54,2102 +81,877 @@ Inscription d'un nouvel utilisateur.
   "role": "CLIENT"
 }
 ```
-Valeurs de `role` : `CLIENT`, `LIVREUR`, `RESTAURANT_OWNER`, `ADMIN`
-
 **Réponse 201 :** `UserDTO`
 
----
-
-### POST `/auth/login`
-Connexion par email/mot de passe.
-
-**Accès :** Public
-**Body :**
+### POST /auth/login
 ```json
 { "email": "user@example.com", "password": "motdepasse" }
 ```
-**Réponse 200 :** `LoginResponseDTO`
+**Réponse 200 :** `{ "token": "...", "refreshToken": "...", "user": UserDTO }`
+
+### POST /api/auth/refresh
 ```json
-{ "token": "<JWT>", "user": { ...UserDTO } }
+{ "refreshToken": "..." }
 ```
+**Réponse 200 :** `{ "token": "...", "refreshToken": "..." }`
 
----
-
-### POST `/auth/google`
-Connexion via Google OAuth.
-
-**Accès :** Public
-**Body :**
-```json
-{ "idToken": "<Google ID Token>" }
-```
-**Réponse 200 :** `LoginResponseDTO`
-
----
-
-### GET `/users/profile`
-Profil de l'utilisateur connecté.
-
-**Accès :** Authentifié
-**Réponse 200 :** `UserDTO`
-
----
-
-### PUT `/users/profile`
-Mise à jour du profil (multipart/form-data).
-
-**Accès :** Authentifié
-**Content-Type :** `multipart/form-data`
-**Champs form :**
-```
-nom, prenom, telephone    (champs texte)
-avatar                    (fichier image, optionnel)
-```
-**Réponse 200 :** `UserDTO`
-
----
-
-### PATCH `/users/location`
-Mise à jour de la position GPS de l'utilisateur.
-
-**Accès :** Authentifié
-**Body :**
-```json
-{ "latitude": 31.6295, "longitude": -7.9811 }
-```
-**Réponse 200 :** `UserDTO`
-
----
-
-### PATCH `/api/users/livreur/disponibilite`
-Déclare la disponibilité d'un livreur.
-
-**Accès :** `LIVREUR`
-**Body :**
-```json
-{ "disponible": true }
-```
-**Réponse 200 :** `UserDTO`
-
----
-
-### GET `/livreurs/disponibles`
-Liste des livreurs disponibles à proximité.
-
-**Accès :** Authentifié
-**Query params :**
-| Param | Type | Défaut | Description |
-|---|---|---|---|
-| `latitude` | double | requis | Latitude du point de référence |
-| `longitude` | double | requis | Longitude du point de référence |
-| `radiusKm` | double | 10.0 | Rayon de recherche en km |
-
-**Réponse 200 :** `UserDTO[]`
-
----
-
-### POST `/api/auth/send-verification`
-Envoie un email de vérification à l'utilisateur connecté.
-
-**Accès :** Authentifié
-**Réponse 200 :**
-```json
-{ "message": "Email de vérification envoyé" }
-```
-
----
-
-### POST `/api/auth/verify-email`
-Vérifie l'email avec le token reçu par mail.
-
-**Accès :** Public
-**Body :**
-```json
-{ "token": "<verification-token>" }
-```
-**Réponse 200 :**
-```json
-{ "message": "Email vérifié avec succès" }
-```
-
----
-
-### POST `/api/auth/forgot-password`
-Déclenche un email de réinitialisation de mot de passe.
-
-**Accès :** Public
-**Body :**
+### POST /api/auth/forgot-password
 ```json
 { "email": "user@example.com" }
 ```
-**Réponse 200 :**
+
+### POST /api/auth/reset-password
 ```json
-{ "message": "Si votre email est enregistré, vous recevrez un lien de réinitialisation" }
+{ "token": "...", "newPassword": "nouveauMotDePasse" }
 ```
 
----
-
-### POST `/api/auth/reset-password`
-Réinitialise le mot de passe via le token reçu par mail.
-
-**Accès :** Public
-**Body :**
-```json
-{ "token": "<reset-token>", "newPassword": "nouveauMotDePasse" }
-```
-**Réponse 200 :**
-```json
-{ "message": "Mot de passe réinitialisé avec succès" }
-```
-
----
-
-### POST `/api/auth/refresh`
-Rafraîchit le JWT à partir d'un refresh token.
-
-**Accès :** Public
-**Body :**
-```json
-{ "refreshToken": "<refresh-token>" }
-```
-**Réponse 200 :** `RefreshTokenResponseDTO`
-```json
-{ "token": "<new-JWT>", "refreshToken": "<new-refresh-token>" }
-```
-
----
-
-### POST `/api/auth/logout`
-Invalide le token actuel (et optionnellement le refresh token FCM).
-
-**Accès :** Authentifié
-**Body (optionnel) :**
-```json
-{ "refreshToken": "<refresh-token>", "fcmToken": "<fcm-device-token>" }
-```
-**Réponse 200 :**
-```json
-{ "message": "Déconnexion réussie" }
-```
-
----
-
-### POST `/api/auth/change-password`
-Change le mot de passe (ancien → nouveau).
-
-**Accès :** Authentifié
-**Body :**
+### POST /api/auth/change-password
 ```json
 { "ancienMotDePasse": "...", "nouveauMotDePasse": "..." }
 ```
-**Réponse 200 :**
+
+---
+
+## 2. Utilisateurs & Profil
+
+**Base :** `/users`
+
+| Méthode | Endpoint | Rôle | Description |
+|---|---|---|---|
+| `GET` | `/users/profile` | `AUTH` | Récupérer son profil |
+| `PUT` | `/users/profile` | `AUTH` | Mettre à jour son profil (multipart/form-data) |
+| `PATCH` | `/users/location` | `AUTH` | Mettre à jour sa position GPS |
+| `PATCH` | `/api/users/livreur/disponibilite` | `LIVREUR` | Mettre à jour sa disponibilité |
+| `DELETE` | `/api/users/compte` | `AUTH` | Supprimer son compte |
+| `GET` | `/livreurs/disponibles` | *(public)* | Lister les livreurs disponibles à proximité |
+
+### GET /users/profile
+**Réponse :** `UserDTO`
+
+### PUT /users/profile
+`Content-Type: multipart/form-data`
+
+| Champ | Type | Description |
+|---|---|---|
+| `nom` | string | Nom |
+| `prenom` | string | Prénom |
+| `telephone` | string | Téléphone |
+| `avatar` | file | Photo de profil |
+
+### PATCH /users/location
 ```json
-{ "message": "Mot de passe modifié avec succès" }
+{ "latitude": 14.6928, "longitude": -17.4467 }
 ```
 
+### PATCH /api/users/livreur/disponibilite
+```json
+{ "disponible": true }
+```
+
+### GET /livreurs/disponibles
+**Params :** `latitude`, `longitude`, `radiusKm`
+
 ---
 
-### GET `/api/users/adresses`
-Liste des adresses de livraison sauvegardées.
+## 3. Adresses de livraison
 
-**Accès :** Authentifié
-**Réponse 200 :** `AdresseLivraisonDTO[]`
+**Base :** `/api/users/adresses` — `AUTH`
 
----
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/users/adresses` | Lister mes adresses |
+| `POST` | `/api/users/adresses` | Ajouter une adresse |
+| `PUT` | `/api/users/adresses/{adresseId}` | Modifier une adresse |
+| `DELETE` | `/api/users/adresses/{adresseId}` | Supprimer une adresse |
+| `PATCH` | `/api/users/adresses/{adresseId}/default` | Définir comme adresse par défaut |
 
-### POST `/api/users/adresses`
-Ajoute une adresse de livraison.
-
-**Accès :** Authentifié
-**Body :**
+### POST /api/users/adresses
 ```json
 {
-  "libelle": "Domicile",
-  "adresse": "123 Rue de la Palmeraie",
+  "adresse": "Rue des Acacias",
   "ville": "Marrakech",
+  "codePostal": "40000",
+  "pays": "Maroc",
   "latitude": 31.6295,
   "longitude": -7.9811,
-  "estParDefaut": false
+  "estParDefaut": true
 }
 ```
 **Réponse 201 :** `AdresseLivraisonDTO`
 
 ---
 
-### PUT `/api/users/adresses/{adresseId}`
-Modifie une adresse de livraison.
+## 4. Administration des utilisateurs
 
-**Accès :** Authentifié
-**Body :** même structure que POST
-**Réponse 200 :** `AdresseLivraisonDTO`
+**Base :** `/api/admin/users` — `ADMIN`
 
----
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/admin/users` | Lister les utilisateurs paginés |
+| `GET` | `/api/admin/users/{id}` | Récupérer un utilisateur par ID |
+| `PATCH` | `/api/admin/users/{id}/toggle` | Activer / désactiver un utilisateur |
 
-### DELETE `/api/users/adresses/{adresseId}`
-Supprime une adresse de livraison.
-
-**Accès :** Authentifié
-**Réponse 204**
-
----
-
-### PATCH `/api/users/adresses/{adresseId}/default`
-Définit une adresse comme adresse par défaut.
-
-**Accès :** Authentifié
-**Réponse 200 :** `AdresseLivraisonDTO`
+### GET /api/admin/users
+**Params :** `role` (CLIENT/LIVREUR/RESTAURANT_OWNER/ADMIN), `page`, `size`, `search`
+**Réponse :** `Page<UserDTO>`
 
 ---
 
-### DELETE `/api/users/compte`
-Supprime définitivement le compte (conformité RGPD).
+## 5. Restaurants
 
-**Accès :** Authentifié
-**Réponse 200 :**
-```json
-{ "message": "Votre compte a été supprimé conformément au RGPD" }
-```
+**Base :** `/api/restaurants`
 
----
-
-## 2. Gestion des utilisateurs (Admin)
-
-### GET `/api/admin/users`
-Liste paginée d'utilisateurs filtrés par rôle.
-
-**Accès :** `ADMIN`
-**Query params :**
-| Param | Type | Défaut | Description |
+| Méthode | Endpoint | Rôle | Description |
 |---|---|---|---|
-| `role` | string | `CLIENT` | Rôle : `CLIENT`, `LIVREUR`, `RESTAURANT_OWNER`, `ADMIN` |
-| `page` | int | 0 | Numéro de page |
-| `size` | int | 10 | Taille de page |
-| `search` | string | — | Recherche par nom / email (optionnel) |
+| `GET` | `/api/restaurants` | *(public)* | Lister les restaurants paginés |
+| `GET` | `/api/restaurants/{id}` | *(public)* | Récupérer un restaurant par ID |
+| `GET` | `/api/restaurants/search` | *(public)* | Rechercher par mot-clé |
+| `GET` | `/api/restaurants/top-rated` | *(public)* | Top restaurants par note |
+| `GET` | `/api/restaurants/nearby` | *(public)* | Restaurants à proximité |
+| `GET` | `/api/restaurants/{id}/plats` | *(public)* | Plats d'un restaurant |
+| `POST` | `/api/restaurants` | `RESTAURANT_OWNER`, `ADMIN` | Créer un restaurant |
+| `PUT` | `/api/restaurants/{id}` | `RESTAURANT_OWNER`, `ADMIN` | Modifier un restaurant |
+| `DELETE` | `/api/restaurants/{id}` | `RESTAURANT_OWNER`, `ADMIN` | Supprimer un restaurant |
+| `PATCH` | `/api/restaurants/{id}/activate` | `RESTAURANT_OWNER`, `ADMIN` | Activer / désactiver |
+| `PATCH` | `/api/restaurants/{id}/commission` | `ADMIN` | Définir le taux de commission négocié |
 
-**Réponse 200 :** `Page<UserDTO>`
+### GET /api/restaurants
+**Params :** `categorieId`, `latitude`, `longitude`, `maxDistance`, `page`, `size`
+**Réponse :** `Page<RestaurantDTO>`
 
----
+### GET /api/restaurants/nearby
+**Params :** `latitude`, `longitude`, `radiusKm`
+**Réponse :** `List<RestaurantDTO>`
 
-### GET `/api/admin/users/{id}`
-Récupère un utilisateur par son ID.
+### POST /api/restaurants
+`Content-Type: multipart/form-data`
 
-**Accès :** `ADMIN`
-**Réponse 200 :** `UserDTO`
-
----
-
-### PATCH `/api/admin/users/{id}/toggle`
-Active ou désactive un compte utilisateur.
-
-**Accès :** `ADMIN`
-**Réponse 200 :** `UserDTO`
-
----
-
-## 3. Restaurants
-
-### GET `/api/restaurants`
-Liste paginée des restaurants, avec filtres optionnels.
-
-**Accès :** Public
-**Query params :**
-| Param | Type | Description |
+| Champ | Type | Description |
 |---|---|---|
-| `categorieId` | Long | Filtre par catégorie |
-| `latitude` | double | Latitude du client (pour tri par distance) |
-| `longitude` | double | Longitude du client |
-| `maxDistance` | double | Distance max en km |
-| `page`, `size`, `sort` | — | Pagination Spring |
+| `nom` | string | Nom du restaurant (requis) |
+| `description` | string | Description |
+| `categorieId` | number | ID catégorie |
+| `zoneDeploiementId` | number | ID zone de déploiement |
+| `tempsLivraisonMoyen` | number | Temps moyen en minutes |
+| `heureOuverture` | string | Format `HH:mm` |
+| `heureFermeture` | string | Format `HH:mm` |
+| `localisation.adresse` | string | Adresse |
+| `localisation.ville` | string | Ville |
+| `logo` | file | Logo du restaurant |
+| `removeLogo` | boolean | Supprimer le logo existant |
 
-**Réponse 200 :** `Page<RestaurantDTO>`
-
----
-
-### GET `/api/restaurants/{id}`
-Détail d'un restaurant.
-
-**Accès :** Public
-**Réponse 200 :** `RestaurantDTO`
-
----
-
-### GET `/api/restaurants/search`
-Recherche plein-texte sur le nom du restaurant.
-
-**Accès :** Public
-**Query params :**
-| Param | Type | Description |
-|---|---|---|
-| `keyword` | string | Mot-clé de recherche |
-
-**Réponse 200 :** `RestaurantDTO[]`
-
----
-
-### GET `/api/restaurants/top-rated`
-Restaurants les mieux notés.
-
-**Accès :** Public
-**Query params :**
-| Param | Type | Défaut |
-|---|---|---|
-| `limit` | int | 10 |
-
-**Réponse 200 :** `RestaurantDTO[]`
-
----
-
-### GET `/api/restaurants/nearby`
-Restaurants à proximité d'un point GPS.
-
-**Accès :** Public
-**Query params :**
-| Param | Type | Défaut | Description |
-|---|---|---|---|
-| `latitude` | double | requis | |
-| `longitude` | double | requis | |
-| `radiusKm` | double | 5.0 | Rayon en km |
-
-**Réponse 200 :** `RestaurantDTO[]`
-
----
-
-### POST `/api/restaurants`
-Crée un restaurant (multipart/form-data).
-
-**Accès :** `RESTAURANT_OWNER`, `ADMIN`
-**Content-Type :** `multipart/form-data`
-**Champs form :**
-```
-nom*              string
-description       string
-categorieId*      Long
-zoneDeploiementId Long    (optionnel — zone de livraison rattachée)
-adresse           string
-ville             string
-latitude          double
-longitude         double
-heureOuverture    string  (ex: "09:00")
-heureFermeture    string  (ex: "23:00")
-autoCloseEnabled  boolean
-logo              fichier image (optionnel)
-```
 **Réponse 201 :** `RestaurantDTO`
 
----
+### PATCH /api/restaurants/{id}/commission
+**Param :** `pourcentage` (0–100, ex: `15.5`)
+**Réponse :** `RestaurantDTO`
 
-### PUT `/api/restaurants/{id}`
-Met à jour un restaurant (multipart/form-data).
-
-**Accès :** `RESTAURANT_OWNER`, `ADMIN`
-**Content-Type :** `multipart/form-data`
-**Champs form :** identiques à POST
-**Réponse 200 :** `RestaurantDTO`
+> Ce taux s'applique aux plats dont le prix dépasse le seuil global (`seuilPrixCommission`).
+> En dessous du seuil, c'est la `commissionMinPourcentage` globale (paramètres caisse) qui s'applique.
 
 ---
 
-### DELETE `/api/restaurants/{id}`
-Supprime un restaurant.
+## 6. Catégories de restaurants
 
-**Accès :** `RESTAURANT_OWNER`, `ADMIN`
-**Réponse 204**
+**Base :** `/api/categories`
 
----
+| Méthode | Endpoint | Rôle | Description |
+|---|---|---|---|
+| `GET` | `/api/categories` | *(public)* | Lister toutes les catégories |
+| `GET` | `/api/categories/{id}` | *(public)* | Récupérer une catégorie |
+| `GET` | `/api/categories/{id}/restaurants` | *(public)* | Restaurants d'une catégorie |
+| `POST` | `/api/categories` | `ADMIN` | Créer une catégorie |
+| `PUT` | `/api/categories/{id}` | `ADMIN` | Modifier une catégorie |
+| `DELETE` | `/api/categories/{id}` | `ADMIN` | Supprimer une catégorie |
 
-### PATCH `/api/restaurants/{id}/activate`
-Bascule l'état actif/inactif d'un restaurant.
-
-**Accès :** `RESTAURANT_OWNER`, `ADMIN`
-**Réponse 200 :** `RestaurantDTO`
-
----
-
-## 4. Plats
-
-### GET `/api/plats`
-Liste paginée de plats.
-
-**Accès :** Public
-**Query params :**
-| Param | Type | Description |
-|---|---|---|
-| `restaurantId` | Long | Filtre par restaurant |
-| `categorie` | string | `ENTREE`, `PLAT_PRINCIPAL`, `DESSERT`, `BOISSON` |
-| `available` | boolean | Filtre sur disponibilité |
-| `page`, `size` | — | Pagination Spring |
-
-**Réponse 200 :** `Page<PlatDTO>`
-
----
-
-### GET `/api/plats/{id}`
-Détail d'un plat.
-
-**Accès :** Public
-**Réponse 200 :** `PlatDTO`
-
----
-
-### GET `/api/plats/restaurant/{restaurantId}`
-Tous les plats d'un restaurant.
-
-**Accès :** Public
-**Réponse 200 :** `PlatDTO[]`
-
----
-
-### GET `/api/plats/search`
-Recherche plein-texte sur le nom du plat.
-
-**Accès :** Public
-**Query params :**
-| Param | Type |
-|---|---|
-| `keyword` | string |
-
-**Réponse 200 :** `PlatDTO[]`
-
----
-
-### POST `/api/plats`
-Crée un plat (multipart/form-data).
-
-**Accès :** `RESTAURANT_OWNER`, `ADMIN`
-**Content-Type :** `multipart/form-data`
-**Champs form :**
-```
-nom*              string
-description       string
-prix*             BigDecimal
-restaurantId*     Long
-categoriePlat     string   (ENTREE | PLAT_PRINCIPAL | DESSERT | BOISSON)
-ingredients       string   (séparés par virgule)
-tempsPreparation  int      (minutes)
-isAvailable       boolean
-image             fichier image (optionnel)
-```
-**Réponse 201 :** `PlatDTO`
-
----
-
-### PUT `/api/plats/{id}`
-Met à jour un plat (multipart/form-data).
-
-**Accès :** `RESTAURANT_OWNER`, `ADMIN`
-**Content-Type :** `multipart/form-data`
-**Champs form :** identiques à POST
-**Réponse 200 :** `PlatDTO`
-
----
-
-### PATCH `/api/plats/{id}/image`
-Met à jour uniquement l'image d'un plat.
-
-**Accès :** `RESTAURANT_OWNER`, `ADMIN`
-**Content-Type :** `multipart/form-data`
-**Champs form :**
-```
-image*    fichier image
-```
-**Réponse 200 :** `PlatDTO`
-
----
-
-### DELETE `/api/plats/{id}`
-Supprime un plat.
-
-**Accès :** `RESTAURANT_OWNER`, `ADMIN`
-**Réponse 204**
-
----
-
-### PATCH `/api/plats/{id}/availability`
-Met à jour la disponibilité d'un plat.
-
-**Accès :** `RESTAURANT_OWNER`, `ADMIN`
-**Body :**
-```json
-{
-  "available": true,
-  "availabilityMode": "ALWAYS",
-  "indisponibleJusqua": "2025-12-31T23:59:59"
-}
-```
-`availabilityMode` : `ALWAYS` | `SCHEDULE` | `MANUAL`
-**Réponse 200 :** `PlatDTO`
-
----
-
-## 5. Catégories de restaurant
-
-### GET `/api/categories`
-Liste toutes les catégories.
-
-**Accès :** Public
-**Réponse 200 :** `CategorieRestaurantDTO[]`
-
----
-
-### GET `/api/categories/{id}`
-Détail d'une catégorie.
-
-**Accès :** Public
-**Réponse 200 :** `CategorieRestaurantDTO`
-
----
-
-### GET `/api/categories/{id}/restaurants`
-Restaurants d'une catégorie.
-
-**Accès :** Public
-**Réponse 200 :** `RestaurantDTO[]`
-
----
-
-### POST `/api/categories`
-Crée une catégorie.
-
-**Accès :** `ADMIN`
-**Content-Type :** `multipart/form-data`
-**Champs form :**
-```
-nom*          string
-description   string
-image         fichier image (optionnel)
-```
+### POST /api/categories
+`Content-Type: multipart/form-data` — champs : `nom`, `description`, `image`
 **Réponse 201 :** `CategorieRestaurantDTO`
 
 ---
 
-### PUT `/api/categories/{id}`
-Met à jour une catégorie.
+## 7. Plats
 
-**Accès :** `ADMIN`
-**Content-Type :** `multipart/form-data`
-**Champs form :** identiques à POST
-**Réponse 200 :** `CategorieRestaurantDTO`
+**Base :** `/api/plats`
 
----
+| Méthode | Endpoint | Rôle | Description |
+|---|---|---|---|
+| `GET` | `/api/plats` | *(public)* | Lister les plats paginés |
+| `GET` | `/api/plats/{id}` | *(public)* | Récupérer un plat |
+| `GET` | `/api/plats/restaurant/{restaurantId}` | *(public)* | Plats d'un restaurant |
+| `GET` | `/api/plats/search` | *(public)* | Rechercher par mot-clé |
+| `POST` | `/api/plats` | `RESTAURANT_OWNER`, `ADMIN` | Créer un plat |
+| `PUT` | `/api/plats/{id}` | `RESTAURANT_OWNER`, `ADMIN` | Modifier un plat |
+| `PATCH` | `/api/plats/{id}/image` | `RESTAURANT_OWNER`, `ADMIN` | Changer l'image |
+| `PATCH` | `/api/plats/{id}/availability` | `RESTAURANT_OWNER`, `ADMIN` | Changer la disponibilité |
+| `DELETE` | `/api/plats/{id}` | `RESTAURANT_OWNER`, `ADMIN` | Supprimer un plat |
 
-### DELETE `/api/categories/{id}`
-Supprime une catégorie.
+### GET /api/plats
+**Params :** `restaurantId`, `categorie`, `available` (boolean), `page`, `size`
+**Réponse :** `Page<PlatDTO>`
 
-**Accès :** `ADMIN`
-**Réponse 204**
+### POST /api/plats
+`Content-Type: multipart/form-data`
 
----
-
-## 6. Commandes
-
-### Statuts possibles
-`EN_ATTENTE` → `CONFIRMEE` → `EN_PREPARATION` → `PRETE` → `EN_COURS` → `LIVREE`
-`ANNULEE`, `NON_FINALISEE`
-
-### Modes de réception
-`LIVRAISON`, `RETRAIT_SUR_PLACE`
-
-### Méthodes de paiement
-`ESPECES`, `CARTE`, `WALLET`, `MOBILE_MONEY`
-
----
-
-### GET `/api/commandes`
-Liste paginée des commandes.
-
-**Accès :** `ADMIN` (tous), `CLIENT` / `RESTAURANT_OWNER` / `LIVREUR` (les leurs)
-**Query params :**
-| Param | Type | Description |
+| Champ | Type | Description |
 |---|---|---|
-| `clientId` | Long | Filtre par client |
-| `restaurantId` | Long | Filtre par restaurant |
-| `statut` | string | Filtre par statut |
-| `page`, `size` | — | Pagination |
+| `nom` | string | Nom du plat (requis) |
+| `description` | string | Description |
+| `prix` | number | Prix (requis) |
+| `restaurantId` | number | ID restaurant (requis) |
+| `categoriePlat` | string | ENTREE / PLAT_PRINCIPAL / DESSERT / BOISSON |
+| `tempsPreparation` | number | En minutes |
+| `ingredients` | string[] | Liste d'ingrédients |
+| `image` | file | Image du plat |
 
-**Réponse 200 :** `Page<CommandeDTO>`
+**Réponse 201 :** `PlatDTO`
 
----
-
-### GET `/api/commandes/{id}`
-Détail d'une commande.
-
-**Accès :** Authentifié
-**Réponse 200 :** `CommandeDTO`
-
----
-
-### GET `/api/commandes/numero/{numeroCommande}`
-Commande par numéro (ex : `CMD-20250401-0001`).
-
-**Accès :** Authentifié
-**Réponse 200 :** `CommandeDTO`
+### PATCH /api/plats/{id}/availability
+```json
+{ "available": false, "indisponibleJusqua": "2026-04-01T10:00:00" }
+```
 
 ---
 
-### GET `/api/commandes/client/{clientId}`
-Toutes les commandes d'un client.
+## 8. Menus
 
-**Accès :** `CLIENT` (son propre ID), `ADMIN`
-**Réponse 200 :** `CommandeDTO[]`
+**Base :** `/api/menus`
 
----
+| Méthode | Endpoint | Rôle | Description |
+|---|---|---|---|
+| `GET` | `/api/menus/{id}` | *(public)* | Récupérer un menu |
+| `GET` | `/api/menus/restaurant/{restaurantId}` | *(public)* | Menus d'un restaurant |
+| `POST` | `/api/menus` | `RESTAURANT_OWNER`, `ADMIN` | Créer un menu |
+| `PATCH` | `/api/menus/{id}/activer` | `RESTAURANT_OWNER`, `ADMIN` | Activer / désactiver |
+| `DELETE` | `/api/menus/{id}` | `RESTAURANT_OWNER`, `ADMIN` | Supprimer |
 
-### GET `/api/commandes/restaurant/{restaurantId}`
-Toutes les commandes d'un restaurant.
-
-**Accès :** `RESTAURANT_OWNER`, `ADMIN`
-**Réponse 200 :** `CommandeDTO[]`
-
----
-
-### GET `/api/commandes/livreur/{livreurId}`
-Commandes assignées à un livreur.
-
-**Accès :** `LIVREUR` (son propre ID), `ADMIN`
-**Réponse 200 :** `CommandeDTO[]`
-
----
-
-### GET `/api/commandes/en-cours`
-Commandes en cours (tous statuts actifs).
-
-**Accès :** `ADMIN`
-**Réponse 200 :** `CommandeDTO[]`
-
----
-
-### GET `/api/commandes/{id}/tracking`
-Informations de suivi d'une commande.
-
-**Accès :** Authentifié
-**Réponse 200 :** `CommandeTrackingDTO`
-
----
-
-### POST `/api/commandes`
-Crée une commande.
-
-**Accès :** `CLIENT`, `ADMIN`
-**Body :**
+### POST /api/menus
 ```json
 {
   "restaurantId": 1,
+  "nom": "Menu du jour",
+  "description": "Plat + boisson",
+  "platsIds": [1, 2, 3],
+  "prix": 45.00,
+  "actif": true
+}
+```
+**Réponse 201 :** `MenuDTO`
+
+---
+
+## 9. Panier
+
+**Base :** `/api/panier` — `CLIENT`
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/panier` | Consulter mon panier |
+| `POST` | `/api/panier/items` | Ajouter un article |
+| `PATCH` | `/api/panier/items/{itemId}` | Modifier la quantité d'un article |
+| `DELETE` | `/api/panier` | Vider le panier |
+
+### POST /api/panier/items
+```json
+{ "platId": 1, "quantite": 2, "remarque": "Sans piment" }
+```
+**Réponse 201 :** `PanierDTO`
+
+### PATCH /api/panier/items/{itemId}
+**Param :** `quantite` (integer)
+**Réponse :** `PanierDTO`
+
+---
+
+## 10. Commandes
+
+**Base :** `/api/commandes`
+
+| Méthode | Endpoint | Rôle | Description |
+|---|---|---|---|
+| `GET` | `/api/commandes` | `AUTH` | Lister les commandes paginées |
+| `GET` | `/api/commandes/{id}` | `AUTH` | Récupérer une commande |
+| `GET` | `/api/commandes/numero/{numeroCommande}` | `AUTH` | Récupérer par numéro |
+| `GET` | `/api/commandes/client/{clientId}` | `CLIENT`, `ADMIN` | Commandes d'un client |
+| `GET` | `/api/commandes/restaurant/{restaurantId}` | `RESTAURANT_OWNER`, `ADMIN` | Commandes d'un restaurant |
+| `GET` | `/api/commandes/livreur/{livreurId}` | `LIVREUR`, `ADMIN` | Commandes d'un livreur |
+| `GET` | `/api/commandes/en-cours` | `AUTH` | Commandes en cours |
+| `GET` | `/api/commandes/{id}/tracking` | `AUTH` | Suivi en temps réel |
+| `POST` | `/api/commandes` | `CLIENT`, `ADMIN` | Créer une commande |
+| `PATCH` | `/api/commandes/{id}/status` | `RESTAURANT_OWNER`, `LIVREUR`, `ADMIN` | Changer le statut |
+| `PATCH` | `/api/commandes/{id}/assign-livreur/{livreurId}` | `RESTAURANT_OWNER`, `ADMIN` | Assigner un livreur |
+| `DELETE` | `/api/commandes/{id}` | `AUTH` | Annuler une commande |
+
+### GET /api/commandes
+**Params :** `clientId`, `restaurantId`, `statut`, `page`, `size`
+**Réponse :** `Page<CommandeDTO>`
+
+### POST /api/commandes
+```json
+{
+  "clientId": 4,
+  "restaurantId": 1,
   "lignes": [
-    { "platId": 10, "quantite": 2, "remarque": "sans piment" }
+    { "platId": 1, "quantite": 2, "remarque": "Sans piment" }
   ],
-  "modeReception": "LIVRAISON",
-  "methodePaiement": "ESPECES",
   "adresseLivraison": {
-    "adresse": "123 Rue de la Palmeraie",
-    "ville": "Marrakech",
-    "latitude": 31.6295,
-    "longitude": -7.9811
+    "latitude": 14.6928,
+    "longitude": -17.4467,
+    "adresse": "Djour Marjane",
+    "ville": "Marrakech"
   },
-  "commentaire": "Sonner à l'interphone",
+  "commentaire": "Livraison urgente",
+  "methodePaiement": "ESPECES",
+  "modeReception": "LIVRAISON",
   "codePromo": "PROMO10"
 }
 ```
-
-> **Validation zone :** Si le restaurant est rattaché à une zone de déploiement,
-> l'adresse de livraison est vérifiée contre le rayon de la zone. Une adresse
-> hors-zone retourne une erreur `400` avec un message explicite.
-
-> **Calcul des frais :** Si la zone a une grille tarifaire complète (`fraisLivraisonMin`,
-> `distanceMinKm`, `prixExtraParKm`) :
-> - `distance ≤ distanceMinKm` → `fraisLivraisonMin`
-> - `distance > distanceMinKm` → `fraisLivraisonMin + (distance − distanceMinKm) × prixExtraParKm`
-
 **Réponse 201 :** `CommandeDTO`
 
----
+> **Commission :** à la création, le système applique automatiquement :
+> - Si `prixUnitaire ≤ seuilPrixCommission` → `commissionMinPourcentage` globale (ex: 20%)
+> - Si `prixUnitaire > seuilPrixCommission` → taux négocié du restaurant (`commissionPourcentage`)
+>
+> Les champs `commissionPourcentage` et `montantCommission` sont renseignés sur chaque `LigneCommande`.
+> Le total est disponible dans `CommandeDTO.montantCommissionTotal`.
 
-### PATCH `/api/commandes/{id}/status`
-Met à jour le statut d'une commande.
-
-**Accès :** `RESTAURANT_OWNER`, `LIVREUR`, `ADMIN`
-**Body :**
+### PATCH /api/commandes/{id}/status
 ```json
-{ "statut": "EN_PREPARATION", "raisonAnnulation": "..." }
+{ "statut": "EN_PREPARATION" }
 ```
-**Réponse 200 :** `CommandeDTO`
+**Statuts possibles :** `EN_ATTENTE` → `CONFIRMEE` → `EN_PREPARATION` → `PRETE` → `EN_COURS` → `LIVREE` / `ANNULEE`
 
----
-
-### PATCH `/api/commandes/{id}/assign-livreur/{livreurId}`
-Assigne un livreur à une commande.
-
-**Accès :** `ADMIN`
-**Réponse 200 :** `CommandeDTO`
-
----
-
-### DELETE `/api/commandes/{id}`
-Annule une commande.
-
-**Accès :** `CLIENT` (si en attente), `ADMIN`
-**Réponse 200 :** `CommandeDTO` (statut `ANNULEE`)
-
----
-
-## 7. Promotions
-
-### GET `/api/promotions`
-Liste des promotions actives.
-
-**Accès :** Public
-**Réponse 200 :** `PromotionDTO[]`
-
----
-
-### GET `/api/promotions/flash`
-Promotions flash actives (durée courte).
-
-**Accès :** Public
-**Réponse 200 :** `PromotionDTO[]`
-
----
-
-### GET `/api/promotions/{id}`
-Détail d'une promotion.
-
-**Accès :** Public
-**Réponse 200 :** `PromotionDTO`
-
----
-
-### GET `/api/promotions/restaurant/{restaurantId}`
-Promotions actives d'un restaurant.
-
-**Accès :** Public
-**Réponse 200 :** `PromotionDTO[]`
-
----
-
-### POST `/api/promotions`
-Crée une promotion.
-
-**Accès :** `ADMIN`
-**Body :**
-```json
-{
-  "pourcentage": 20,
-  "dateDebut": "2025-04-01T00:00:00",
-  "dateFin": "2025-04-30T23:59:59",
-  "description": "Promotion de printemps",
-  "restaurantId": 1,
-  "appliquerATousLesRestaurants": false,
-  "montantMinCommande": 50.00,
-  "usageMax": 100,
-  "estFlash": false
-}
-```
-Si `appliquerATousLesRestaurants: true`, la promotion est créée pour tous les restaurants (champ `restaurantId` ignoré).
-
-**Réponse 201 :** `PromotionDTO`
-
----
-
-### PATCH `/api/promotions/{id}/activer`
-Active ou désactive une promotion.
-
-**Accès :** `ADMIN`
-**Query params :** `actif=true|false`
-**Réponse 200 :** `PromotionDTO`
-
----
-
-### DELETE `/api/promotions/{id}`
-Supprime une promotion.
-
-**Accès :** `ADMIN`
-**Réponse 204**
-
----
-
-## 8. Codes Promo
-
-### GET `/api/codes-promo`
-Liste tous les codes promo.
-
-**Accès :** `ADMIN`
-**Réponse 200 :** `CodePromoDTO[]`
-
----
-
-### GET `/api/codes-promo/{id}`
-Détail d'un code promo.
-
-**Accès :** `ADMIN`
-**Réponse 200 :** `CodePromoDTO`
-
----
-
-### POST `/api/codes-promo`
-Crée un code promo.
-
-**Accès :** `ADMIN`
-**Body :**
-```json
-{
-  "code": "BIENVENUE10",
-  "description": "10% de réduction pour les nouveaux clients",
-  "typeReduction": "POURCENTAGE",
-  "valeur": 10,
-  "montantMinCommande": 30.00,
-  "montantMaxReduction": 50.00,
-  "dateDebut": "2025-04-01T00:00:00",
-  "dateFin": "2025-12-31T23:59:59",
-  "usageMax": 500
-}
-```
-`typeReduction` : `POURCENTAGE` | `MONTANT_FIXE`
-
-**Réponse 201 :** `CodePromoDTO`
-
----
-
-### PATCH `/api/codes-promo/{id}/activer`
-Active ou désactive un code promo.
-
-**Accès :** `ADMIN`
-**Query params :** `actif=true|false`
-**Réponse 200 :** `CodePromoDTO`
-
----
-
-### DELETE `/api/codes-promo/{id}`
-Supprime un code promo.
-
-**Accès :** `ADMIN`
-**Réponse 204**
-
----
-
-### POST `/api/codes-promo/valider`
-Valide un code promo et calcule la remise pour un montant donné.
-
-**Accès :** `CLIENT`, `ADMIN`
-**Body :**
-```json
-{ "code": "BIENVENUE10", "montantCommande": 80.00 }
-```
-**Réponse 200 :** `ResultatCodePromoDTO`
-```json
-{
-  "valide": true,
-  "montantRemise": 8.00,
-  "montantFinal": 72.00,
-  "message": "Code valide — 10% de réduction appliqué"
-}
-```
-
----
-
-## 9. Notifications
-
-### GET `/api/notifications`
-Notifications paginées de l'utilisateur connecté.
-
-**Accès :** Authentifié
-**Query params :** `page`, `size` (pagination Spring)
-**Réponse 200 :** `Page<NotificationDTO>`
-
----
-
-### GET `/api/notifications/non-lues`
-Notifications non lues de l'utilisateur connecté.
-
-**Accès :** Authentifié
-**Réponse 200 :** `NotificationDTO[]`
-
----
-
-### GET `/api/notifications/count`
-Nombre de notifications non lues.
-
-**Accès :** Authentifié
-**Réponse 200 :**
-```json
-{ "nonLues": 5 }
-```
-
----
-
-### PATCH `/api/notifications/{id}/lire`
-Marque une notification comme lue.
-
-**Accès :** Authentifié
-**Réponse 200 :** `NotificationDTO`
-
----
-
-### POST `/api/notifications/lire-toutes`
-Marque toutes les notifications comme lues.
-
-**Accès :** Authentifié
-**Réponse 200 :**
-```json
-{ "message": "Toutes les notifications ont été marquées comme lues." }
-```
-
----
-
-## 10. Campagnes de notification (Admin)
-
-### POST `/api/admin/notifications/campagne`
-Envoie une campagne de notification à un segment d'utilisateurs.
-Les notifications sont envoyées **en in-app (BDD) ET en push FCM**.
-
-**Accès :** `ADMIN`
-**Body :**
-```json
-{
-  "titre": "Promo de Printemps",
-  "message": "Profitez de -20% sur toutes vos commandes ce week-end !",
-  "type": "PROMOTION",
-  "cibleRole": "CLIENT",
-  "entityId": 42,
-  "entityType": "PROMOTION"
-}
-```
-| Champ | Valeurs | Défaut |
-|---|---|---|
-| `type` | `PROMOTION`, `SYSTEME` | `PROMOTION` |
-| `cibleRole` | `CLIENT`, `LIVREUR`, `RESTAURANT_OWNER`, `ADMIN`, `ALL` | `CLIENT` |
-| `entityId` | ID d'une entité liée | — |
-| `entityType` | ex. `"PROMOTION"`, `"COMMANDE"` | — |
-
-**Réponse 200 :** `CampagneNotificationResultDTO`
-```json
-{
-  "destinatairesCount": 1234,
-  "notificationsCreees": 1234,
-  "pushEnvoyees": 987,
-  "envoyeeAt": "2025-04-01T10:00:00"
-}
-```
-
----
-
-### GET `/api/admin/notifications/promotion/{promotionId}`
-Liste des utilisateurs notifiés pour une promotion donnée.
-
-**Accès :** `ADMIN`
-**Réponse 200 :** `NotificationDTO[]`
-
----
-
-### GET `/api/admin/notifications/promotions`
-Toutes les promotions (actives + inactives) — vue admin.
-
-**Accès :** `ADMIN`
-**Réponse 200 :** `PromotionDTO[]`
-
----
-
-## 11. FCM Device Tokens
-
-### POST `/api/device-tokens/register`
-Enregistre ou met à jour un token FCM.
-À appeler au démarrage de l'application mobile ou lors du renouvellement du token.
-
-**Accès :** Authentifié
-**Body :**
-```json
-{
-  "userId": 123,
-  "token": "<FCM-token>",
-  "platform": "ANDROID"
-}
-```
-`platform` : `ANDROID` | `IOS`
-
-**Réponse 200 :**
-```json
-{ "message": "Token FCM enregistré avec succès" }
-```
-
----
-
-### DELETE `/api/device-tokens/{token}`
-Désactive un token FCM (appeler à la déconnexion).
-
-**Accès :** Authentifié
-**Réponse 200 :**
-```json
-{ "message": "Token FCM désactivé" }
-```
-
----
-
-### DELETE `/api/device-tokens/user/{userId}`
-Désactive tous les tokens FCM d'un utilisateur.
-
-**Accès :** Authentifié
-**Réponse 200 :**
-```json
-{ "message": "Tous les tokens FCM de l'utilisateur désactivés" }
-```
-
----
-
-## 12. Wallet
-
-### GET `/api/wallet`
-Solde et informations du wallet de l'utilisateur connecté.
-
-**Accès :** `CLIENT`, `ADMIN`
-**Réponse 200 :** `WalletDTO`
+### CommandeDTO — Structure complète
 ```json
 {
   "id": 1,
-  "userId": 123,
-  "userNom": "Traoré",
-  "userPrenom": "Issiaka",
-  "solde": 150.00,
-  "createdAt": "2025-01-01T00:00:00",
-  "updatedAt": "2025-04-01T10:00:00"
+  "numeroCommande": "CMD-20260221062843-7941",
+  "statut": "LIVREE",
+  "trackingStatut": "COMMANDE_LIVREE",
+  "client": { "id": 4, "nom": "TRAORE", "prenom": "Client", "email": "...", "telephone": "...", "role": "CLIENT", "avatar": null },
+  "restaurant": { "id": 1, "nom": "Chez Fatou", "commissionPourcentage": 15.0, "..." : "..." },
+  "livreur": { "id": 3, "nom": "TRAORE", "prenom": "Livreur", "telephone": "...", "..." : "..." },
+  "lignesCommande": [
+    {
+      "id": 1, "quantite": 2,
+      "prixUnitaire": 5000.00, "montantTotal": 10000.00,
+      "commissionPourcentage": 15.0, "montantCommission": 1500.00,
+      "remarque": "Sans piment",
+      "plat": { "id": 1, "nom": "Thiéboudienne", "prix": 50.00, "..." : "..." }
+    }
+  ],
+  "montantTotal": 10500.00,
+  "montantRemise": 0,
+  "montantFinal": 10500.00,
+  "montantCommissionTotal": 1500.00,
+  "fraisLivraison": 500.00,
+  "codePromoUtilise": null,
+  "methodePaiement": "ESPECES",
+  "statutPaiement": "PAYE",
+  "modeReception": "LIVRAISON",
+  "adresseLivraison": { "adresse": "Djour Marjane", "ville": "Marrakech", "latitude": 14.6928, "longitude": -17.4467 },
+  "tempsLivraisonEstime": 30,
+  "commentaire": "Livraison urgente",
+  "raisonAnnulation": null,
+  "currency": "MAD", "currencySymbol": "DH",
+  "createdAt": "2026-02-21T06:28:43",
+  "updatedAt": "2026-03-22T23:03:52",
+  "livreeAt": "2026-03-22T23:03:52",
+  "scheduledAt": null
 }
 ```
 
 ---
 
-### POST `/api/wallet/recharger`
-Recharge le wallet.
+## 11. Zones de déploiement
 
-**Accès :** `CLIENT`, `ADMIN`
-**Body :**
-```json
-{ "montant": 100.00, "reference": "REF-PAIEMENT-XYZ" }
-```
-**Réponse 200 :** `WalletDTO`
+**Base :** `/api/zones-deploiement`
 
----
+| Méthode | Endpoint | Rôle | Description |
+|---|---|---|---|
+| `GET` | `/api/zones-deploiement/actives` | *(public)* | Lister les zones actives |
+| `GET` | `/api/zones-deploiement` | `ADMIN` | Lister toutes les zones |
+| `GET` | `/api/zones-deploiement/{id}` | `ADMIN` | Récupérer une zone |
+| `POST` | `/api/zones-deploiement` | `ADMIN` | Créer une zone |
+| `PUT` | `/api/zones-deploiement/{id}` | `ADMIN` | Modifier une zone |
+| `PATCH` | `/api/zones-deploiement/{id}/activer` | `ADMIN` | Activer / désactiver |
+| `DELETE` | `/api/zones-deploiement/{id}` | `ADMIN` | Supprimer |
 
-### POST `/api/wallet/payer`
-Effectue un paiement depuis le wallet.
-
-**Accès :** `CLIENT`, `ADMIN`
-**Body :**
-```json
-{ "montant": 45.00, "description": "Commande CMD-20250401-0001" }
-```
-**Réponse 200 :** `WalletDTO`
-
----
-
-### GET `/api/wallet/transactions`
-Historique paginé des transactions du wallet.
-
-**Accès :** `CLIENT`, `ADMIN`
-**Query params :** `page`, `size`
-**Réponse 200 :** `Page<TransactionWalletDTO>`
-
----
-
-### GET `/api/wallet/admin/{userId}`
-Wallet d'un utilisateur spécifique.
-
-**Accès :** `ADMIN`
-**Réponse 200 :** `WalletDTO`
-
----
-
-## 13. Fidélité
-
-### GET `/api/fidelite`
-Points de fidélité de l'utilisateur connecté.
-
-**Accès :** `CLIENT`, `ADMIN`
-**Réponse 200 :** `PointsFideliteDTO`
+### POST /api/zones-deploiement
 ```json
 {
-  "id": 1,
-  "userId": 123,
-  "userNom": "Traoré",
-  "userPrenom": "Issiaka",
-  "pointsTotal": 500,
-  "pointsDisponibles": 450,
-  "pointsUtilises": 50,
-  "niveauFidelite": "ARGENT",
-  "pointsPourProchainNiveau": 500,
-  "prochainNiveau": "OR"
-}
-```
-Niveaux : `BRONZE` → `ARGENT` → `OR` → `PLATINE`
-
----
-
-### GET `/api/fidelite/historique`
-Historique paginé des transactions de points.
-
-**Accès :** `CLIENT`, `ADMIN`
-**Query params :** `page`, `size`
-**Réponse 200 :** `Page<TransactionPointsDTO>`
-
----
-
-### GET `/api/fidelite/admin/{userId}`
-Points de fidélité d'un utilisateur spécifique.
-
-**Accès :** `ADMIN`
-**Réponse 200 :** `PointsFideliteDTO`
-
----
-
-## 14. Caisse Livreur
-
-### Routes Livreur
-
-#### GET `/api/caisse/ma-position`
-Position de caisse de l'utilisateur livreur connecté.
-
-**Accès :** `LIVREUR`
-**Réponse 200 :** `CaisseLivreurDTO`
-
----
-
-#### GET `/api/caisse/mon-historique`
-Historique paginé des transactions de caisse du livreur connecté.
-
-**Accès :** `LIVREUR`
-**Query params :** `page`, `size` (défaut : 20)
-**Réponse 200 :** `Page<TransactionCaisseDTO>`
-
----
-
-#### GET `/api/caisse/info-commande/{commandeId}`
-Informations de paiement d'une commande pour le livreur.
-
-**Accès :** `LIVREUR`
-**Réponse 200 :** `InfoPaiementCommandeDTO`
-
----
-
-#### POST `/api/caisse/paiement-restaurant/{commandeId}`
-Confirme le paiement remis au restaurant par le livreur.
-
-**Accès :** `LIVREUR`
-**Réponse 200 :** `CaisseLivreurDTO`
-
----
-
-### Routes Admin
-
-#### GET `/api/caisse/bord-admin`
-Tableau de bord global de la caisse (tous les livreurs).
-
-**Accès :** `ADMIN`
-**Réponse 200 :** `BordCaisseAdminDTO`
-
----
-
-#### GET `/api/caisse/{livreurId}/position`
-Position de caisse d'un livreur spécifique.
-
-**Accès :** `ADMIN`
-**Réponse 200 :** `CaisseLivreurDTO`
-
----
-
-#### GET `/api/caisse/{livreurId}/historique`
-Historique paginé des transactions d'un livreur.
-
-**Accès :** `ADMIN`
-**Query params :** `page`, `size`
-**Réponse 200 :** `Page<TransactionCaisseDTO>`
-
----
-
-#### POST `/api/caisse/avance/{livreurId}`
-Accorde une avance de liquidités à un livreur.
-
-**Accès :** `ADMIN`
-**Body :**
-```json
-{ "montant": 50.00, "note": "Avance pour frais d'essence" }
-```
-**Réponse 200 :** `CaisseLivreurDTO`
-
----
-
-#### POST `/api/caisse/reconcilier`
-Réconciliation : le livreur remet les espèces collectées à l'admin.
-
-**Accès :** `ADMIN`
-**Body :**
-```json
-{ "livreurId": 3, "montantRemis": 100.00, "note": "Réconciliation du soir" }
-```
-**Réponse 200 :** `ReconciliationResultDTO`
-```json
-{
-  "livreurId": 3,
-  "livreurNom": "Dupont",
-  "soldeCourantAvant": 120.00,
-  "gainsDus": 95.00,
-  "montantDuCalcule": 95.00,
-  "montantRemis": 100.00,
-  "ecart": 5.00,
-  "dateReconciliation": "2025-04-01T18:00:00",
-  "message": "Réconciliation réussie avec écart de +5 DH"
-}
-```
-
----
-
-#### GET `/api/caisse/parametres`
-Paramètres globaux de la caisse (plafonds, seuils d'alerte).
-
-**Accès :** `ADMIN`
-**Réponse 200 :** `ParametresCaisseDTO`
-
----
-
-#### PUT `/api/caisse/parametres`
-Met à jour les paramètres globaux de la caisse.
-
-**Accès :** `ADMIN`
-**Body :** `ParametresCaisseDTO`
-**Réponse 200 :** `ParametresCaisseDTO`
-
----
-
-#### PUT `/api/caisse/{livreurId}/plafond`
-Définit un plafond personnalisé pour un livreur.
-
-**Accès :** `ADMIN`
-**Query params :** `plafond=200.00`
-**Réponse 200 :** `CaisseLivreurDTO`
-
----
-
-## 15. Gains Livreur
-
-### GET `/api/livreurs/gains`
-Historique paginé des gains du livreur connecté.
-
-**Accès :** `LIVREUR`
-**Query params :** `page`, `size`
-**Réponse 200 :** `Page<GainsLivreurDTO>`
-
----
-
-### GET `/api/livreurs/gains/summary`
-Résumé des gains du livreur connecté (total, mois en cours, etc.).
-
-**Accès :** `LIVREUR`
-**Réponse 200 :** `GainsSummaryDTO`
-
----
-
-### GET `/api/livreurs/{livreurId}/gains`
-Historique des gains d'un livreur spécifique.
-
-**Accès :** `ADMIN`
-**Query params :** `page`, `size`
-**Réponse 200 :** `Page<GainsLivreurDTO>`
-
----
-
-### GET `/api/livreurs/{livreurId}/gains/summary`
-Résumé des gains d'un livreur spécifique.
-
-**Accès :** `ADMIN`
-**Réponse 200 :** `GainsSummaryDTO`
-
----
-
-## 16. Facturation Restaurant
-
-### GET `/api/facturation-restaurant/{restaurantId}/parametres`
-Paramètres de paiement d'un restaurant (mode de versement, RIB, etc.).
-
-**Accès :** `RESTAURANT_OWNER`, `ADMIN`
-**Réponse 200 :** `ParametresPaiementRestaurantDTO`
-```json
-{
-  "id": 1,
-  "restaurantId": 10,
-  "restaurantNom": "Le Palais",
-  "modePaiement": "VIREMENT",
-  "periodiciteJours": 7,
-  "modeVersement": "VIREMENT",
-  "rib": "MA12345678901234567890",
-  "nomBeneficiaire": "Le Palais SARL"
-}
-```
-
----
-
-### PUT `/api/facturation-restaurant/{restaurantId}/parametres`
-Met à jour les paramètres de paiement.
-
-**Accès :** `RESTAURANT_OWNER`, `ADMIN`
-**Body :** `ParametresPaiementRestaurantDTO`
-**Réponse 200 :** `ParametresPaiementRestaurantDTO`
-
----
-
-### GET `/api/facturation-restaurant/{restaurantId}/dettes`
-Liste des dettes en attente d'un restaurant.
-
-**Accès :** `ADMIN`
-**Réponse 200 :** `DetteRestaurantDTO[]`
-
----
-
-### GET `/api/facturation-restaurant/{restaurantId}/dettes/total`
-Montant total des dettes en attente.
-
-**Accès :** `ADMIN`
-**Réponse 200 :** `BigDecimal` (montant en DH)
-
----
-
-### POST `/api/facturation-restaurant/{restaurantId}/payer`
-Crée un paiement groupé au restaurant pour une période donnée.
-
-**Accès :** `ADMIN`
-**Query params :**
-| Param | Type | Description |
-|---|---|---|
-| `periodeDebut` | ISO date-time | Date de début de la période |
-| `periodeFin` | ISO date-time | Date de fin de la période |
-| `note` | string | Note interne (optionnel) |
-
-Exemple : `?periodeDebut=2025-04-01T00:00:00&periodeFin=2025-04-30T23:59:59`
-
-**Réponse 201 :** `PaiementRestaurantDTO`
-
----
-
-### GET `/api/facturation-restaurant/{restaurantId}/paiements`
-Historique paginé des paiements d'un restaurant.
-
-**Accès :** `RESTAURANT_OWNER`, `ADMIN`
-**Query params :** `page`, `size` (défaut : 20)
-**Réponse 200 :** `Page<PaiementRestaurantDTO>`
-
----
-
-### GET `/api/facturation-restaurant/paiements/{paiementId}/dettes`
-Détail des dettes incluses dans un paiement donné.
-
-**Accès :** `RESTAURANT_OWNER`, `ADMIN`
-**Réponse 200 :** `DetteRestaurantDTO[]`
-
----
-
-## 17. Zones de déploiement
-
-Les zones de déploiement définissent les villes / secteurs couverts par MySugu.
-Chaque restaurant est rattaché à une zone. À la création d'une commande en livraison,
-l'adresse du client est vérifiée contre la zone du restaurant.
-
-**Calcul des frais de livraison** (si la zone a une grille tarifaire complète) :
-- `distance ≤ distanceMinKm` → `fraisLivraisonMin`
-- `distance > distanceMinKm` → `fraisLivraisonMin + (distance − distanceMinKm) × prixExtraParKm`
-
----
-
-### GET `/api/zones-deploiement/actives`
-Zones de déploiement actives.
-
-**Accès :** Public (aucune authentification requise)
-**Utilisé par :** app mobile (sélecteur lors de la création d'un restaurant)
-**Réponse 200 :** `ZoneDeploiementDTO[]`
-
----
-
-### GET `/api/zones-deploiement`
-Toutes les zones (actives + inactives).
-
-**Accès :** `ADMIN`
-**Réponse 200 :** `ZoneDeploiementDTO[]`
-
----
-
-### GET `/api/zones-deploiement/{id}`
-Détail d'une zone.
-
-**Accès :** `ADMIN`
-**Réponse 200 :** `ZoneDeploiementDTO`
-
----
-
-### POST `/api/zones-deploiement`
-Crée une zone de déploiement.
-
-**Accès :** `ADMIN`
-**Body :**
-```json
-{
-  "nom": "Marrakech",
-  "description": "Grand Marrakech — Médina, Guéliz, Hivernage, Palmeraie",
+  "nom": "Marrakech Centre",
+  "description": "Zone centre-ville",
   "centreLatitude": 31.6295,
   "centreLongitude": -7.9811,
   "rayonKm": 20,
   "fraisLivraisonMin": 10.00,
   "distanceMinKm": 3.0,
-  "prixExtraParKm": 2.00,
+  "prixExtraParKm": 2.0,
   "isActive": true
 }
 ```
-**Réponse 201 :** `ZoneDeploiementDTO`
+
+> **Calcul des frais de livraison :**
+> - Si `distance ≤ distanceMinKm` → `fraisLivraisonMin`
+> - Sinon → `fraisLivraisonMin + (distance − distanceMinKm) × prixExtraParKm`
+>
+> *Exemple : fraisMin=10 DH, distMin=3 km, prixExtra=2 DH/km — commande à 7 km → 10 + (7−3)×2 = 18 DH*
 
 ---
 
-### PUT `/api/zones-deploiement/{id}`
-Met à jour une zone de déploiement.
+## 12. Promotions
 
-**Accès :** `ADMIN`
-**Body :** identique à POST
-**Réponse 200 :** `ZoneDeploiementDTO`
+**Base :** `/api/promotions`
 
----
+| Méthode | Endpoint | Rôle | Description |
+|---|---|---|---|
+| `GET` | `/api/promotions` | *(public)* | Promotions actives |
+| `GET` | `/api/promotions/{id}` | *(public)* | Récupérer une promotion |
+| `GET` | `/api/promotions/flash` | *(public)* | Promotions flash |
+| `GET` | `/api/promotions/restaurant/{restaurantId}` | *(public)* | Promotions d'un restaurant |
+| `POST` | `/api/promotions` | `ADMIN` | Créer une promotion |
+| `PATCH` | `/api/promotions/{id}/activer` | `ADMIN` | Activer / désactiver |
+| `DELETE` | `/api/promotions/{id}` | `ADMIN` | Supprimer |
 
-### PATCH `/api/zones-deploiement/{id}/activer`
-Active ou désactive une zone.
-
-**Accès :** `ADMIN`
-**Query params :** `actif=true|false`
-**Réponse 200 :** `ZoneDeploiementDTO`
-
----
-
-### DELETE `/api/zones-deploiement/{id}`
-Supprime une zone.
-
-**Accès :** `ADMIN`
-> Retourne `400` si des restaurants sont encore rattachés à cette zone.
-
-**Réponse 204**
-
----
-
-## 18. Statistiques Admin
-
-Tous les endpoints de cette section sont réservés à `ADMIN`.
-Base URL : `/api/admin/statistiques`
+### POST /api/promotions
+```json
+{
+  "restaurantId": 1,
+  "nom": "Happy Hour",
+  "pourcentage": 20,
+  "montantMinCommande": 50.00,
+  "montantMaxReduction": 30.00,
+  "dateDebut": "2026-04-01T00:00:00",
+  "dateFin": "2026-04-30T23:59:59",
+  "isFlash": false,
+  "usageMax": 100
+}
+```
+**Réponse 201 :** `PromotionDTO`
 
 ---
 
-### GET `/api/admin/statistiques/dashboard`
-Vue d'ensemble du tableau de bord.
+## 13. Codes promo
 
-**Réponse 200 :** `DashboardOverviewDTO`
+**Base :** `/api/codes-promo`
+
+| Méthode | Endpoint | Rôle | Description |
+|---|---|---|---|
+| `GET` | `/api/codes-promo` | `ADMIN` | Lister tous les codes |
+| `GET` | `/api/codes-promo/{id}` | `ADMIN` | Récupérer un code |
+| `POST` | `/api/codes-promo` | `ADMIN` | Créer un code promo |
+| `PATCH` | `/api/codes-promo/{id}/activer` | `ADMIN` | Activer / désactiver |
+| `DELETE` | `/api/codes-promo/{id}` | `ADMIN` | Supprimer |
+| `POST` | `/api/codes-promo/valider` | `CLIENT`, `ADMIN` | Valider et simuler l'application d'un code |
+
+### POST /api/codes-promo
+```json
+{
+  "code": "BIENVENUE10",
+  "typeReduction": "POURCENTAGE",
+  "valeur": 10,
+  "montantMinCommande": 30.00,
+  "montantMaxReduction": 20.00,
+  "dateExpiration": "2026-12-31T23:59:59",
+  "usageMax": 500,
+  "actif": true
+}
+```
+
+### POST /api/codes-promo/valider
+```json
+{ "code": "BIENVENUE10", "montantCommande": 75.00 }
+```
+**Réponse :** `{ "valide": true, "remise": 7.50, "message": "..." }`
+
+---
+
+## 14. Avis
+
+**Base :** `/api/avis`
+
+| Méthode | Endpoint | Rôle | Description |
+|---|---|---|---|
+| `GET` | `/api/avis/{id}` | *(public)* | Récupérer un avis |
+| `GET` | `/api/avis/restaurant/{restaurantId}` | *(public)* | Avis d'un restaurant |
+| `GET` | `/api/avis/livreur/{livreurId}` | *(public)* | Avis sur un livreur |
+| `GET` | `/api/avis/mes-avis` | `AUTH` | Mes avis |
+| `GET` | `/api/avis/admin/en-attente` | `ADMIN` | Avis en attente de modération |
+| `POST` | `/api/avis` | `CLIENT` | Soumettre un avis |
+| `PATCH` | `/api/avis/{id}/moderation` | `ADMIN` | Modérer un avis |
+| `DELETE` | `/api/avis/{id}` | `AUTH` | Supprimer un avis |
+
+### POST /api/avis
+```json
+{
+  "commandeId": 1,
+  "restaurantId": 1,
+  "livreurId": 3,
+  "noteRestaurant": 4,
+  "noteLivreur": 5,
+  "commentaire": "Excellent service !"
+}
+```
+
+---
+
+## 15. Favoris
+
+**Base :** `/api/favoris` — `CLIENT`
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/favoris` | Mes restaurants favoris |
+| `POST` | `/api/favoris/{restaurantId}` | Ajouter un favori |
+| `DELETE` | `/api/favoris/{restaurantId}` | Retirer un favori |
+| `POST` | `/api/favoris/{restaurantId}/toggle` | Toggle favori |
+| `GET` | `/api/favoris/{restaurantId}/status` | Vérifier si en favori |
+| `GET` | `/api/favoris/{restaurantId}/count` | Nombre de fois mis en favori |
+
+---
+
+## 16. Wallet
+
+**Base :** `/api/wallet` — `CLIENT`, `ADMIN`
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/wallet` | Consulter son wallet |
+| `POST` | `/api/wallet/recharger` | Recharger son wallet |
+| `POST` | `/api/wallet/payer` | Payer une commande via wallet |
+| `GET` | `/api/wallet/transactions` | Historique paginé |
+| `GET` | `/api/wallet/admin/{userId}` | Wallet d'un utilisateur (ADMIN) |
+
+### POST /api/wallet/recharger
+```json
+{ "montant": 100.00, "methodePaiement": "CARTE_BANCAIRE" }
+```
+
+### POST /api/wallet/payer
+```json
+{ "commandeId": 1, "montant": 75.00 }
+```
+
+---
+
+## 17. Fidélité
+
+**Base :** `/api/fidelite` — `CLIENT`, `ADMIN`
+
+| Méthode | Endpoint | Rôle | Description |
+|---|---|---|---|
+| `GET` | `/api/fidelite` | `CLIENT`, `ADMIN` | Mes points de fidélité |
+| `GET` | `/api/fidelite/historique` | `CLIENT`, `ADMIN` | Historique des transactions |
+| `GET` | `/api/fidelite/admin/{userId}` | `ADMIN` | Points d'un utilisateur |
+
+---
+
+## 18. Notifications
+
+**Base :** `/api/notifications` — `AUTH`
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/notifications` | Mes notifications paginées |
+| `GET` | `/api/notifications/non-lues` | Notifications non lues |
+| `GET` | `/api/notifications/count` | Nombre de non lues |
+| `PATCH` | `/api/notifications/{id}/lire` | Marquer comme lue |
+| `POST` | `/api/notifications/lire-toutes` | Marquer toutes comme lues |
+
+### GET /api/notifications/count
+**Réponse :** `{ "nonLues": 3, "total": 12 }`
+
+---
+
+## 19. Device Tokens (FCM)
+
+**Base :** `/api/device-tokens` — `AUTH`
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/device-tokens/register` | Enregistrer un token FCM |
+| `DELETE` | `/api/device-tokens/{token}` | Désactiver un token |
+| `DELETE` | `/api/device-tokens/user/{userId}` | Désactiver tous les tokens d'un utilisateur |
+
+### POST /api/device-tokens/register
+```json
+{ "userId": 4, "token": "fcm_token_here", "platform": "ANDROID" }
+```
+
+---
+
+## 20. Caisse livreur
+
+**Base :** `/api/caisse`
+
+| Méthode | Endpoint | Rôle | Description |
+|---|---|---|---|
+| `GET` | `/api/caisse/ma-position` | `LIVREUR` | Consulter sa caisse |
+| `GET` | `/api/caisse/mon-historique` | `LIVREUR` | Historique de ses transactions |
+| `GET` | `/api/caisse/info-commande/{commandeId}` | `LIVREUR` | Infos paiement d'une commande |
+| `POST` | `/api/caisse/paiement-restaurant/{commandeId}` | `LIVREUR` | Confirmer le paiement au restaurant |
+| `GET` | `/api/caisse/bord-admin` | `ADMIN` | Tableau de bord caisse admin |
+| `GET` | `/api/caisse/{livreurId}/position` | `ADMIN` | Caisse d'un livreur |
+| `GET` | `/api/caisse/{livreurId}/historique` | `ADMIN` | Historique d'un livreur |
+| `POST` | `/api/caisse/avance/{livreurId}` | `ADMIN` | Accorder une avance |
+| `POST` | `/api/caisse/reconcilier` | `ADMIN` | Réconcilier la caisse |
+| `GET` | `/api/caisse/parametres` | `ADMIN` | Récupérer les paramètres globaux |
+| `PUT` | `/api/caisse/parametres` | `ADMIN` | Mettre à jour les paramètres globaux |
+| `PUT` | `/api/caisse/{livreurId}/plafond` | `ADMIN` | Définir un plafond personnalisé |
+
+### GET /api/caisse/parametres — Réponse
+```json
+{
+  "plafondCaisseLivreur": 500.00,
+  "seuilAlertePourcentage": 80,
+  "intervalleReconciliationHeures": 48,
+  "tauxCommissionPlateforme": 0.1500,
+  "periodicitePaiementRestaurantJours": 7,
+  "seuilPrixCommission": 10.00,
+  "commissionMinPourcentage": 20.00
+}
+```
+
+> **`seuilPrixCommission` :** prix en DH en-dessous duquel la commission minimum globale s'applique.
+> **`commissionMinPourcentage` :** taux (%) appliqué aux plats dont le prix ≤ seuil.
+> Au-delà du seuil, c'est le taux négocié avec le restaurant qui s'applique.
+
+### PUT /api/caisse/parametres
+```json
+{
+  "plafondCaisseLivreur": 600.00,
+  "seuilAlertePourcentage": 85,
+  "seuilPrixCommission": 15.00,
+  "commissionMinPourcentage": 25.00
+}
+```
+*(Seuls les champs fournis sont mis à jour)*
+
+### POST /api/caisse/avance/{livreurId}
+```json
+{ "montant": 200.00, "note": "Avance exceptionnelle" }
+```
+
+### POST /api/caisse/reconcilier
+```json
+{ "livreurId": 3, "montantRemis": 350.00, "note": "Réconciliation hebdomadaire" }
+```
+
+### PUT /api/caisse/{livreurId}/plafond
+**Param :** `plafond` (number)
+
+---
+
+## 21. Gains livreur
+
+**Base :** `/api/livreurs`
+
+| Méthode | Endpoint | Rôle | Description |
+|---|---|---|---|
+| `GET` | `/api/livreurs/gains` | `LIVREUR` | Mes gains paginés |
+| `GET` | `/api/livreurs/gains/summary` | `LIVREUR` | Résumé de mes gains |
+| `GET` | `/api/livreurs/{livreurId}/gains` | `ADMIN` | Gains d'un livreur |
+| `GET` | `/api/livreurs/{livreurId}/gains/summary` | `ADMIN` | Résumé gains d'un livreur |
+
+---
+
+## 22. Facturation restaurant
+
+**Base :** `/api/facturation-restaurant` — `RESTAURANT_OWNER`, `ADMIN`
+
+| Méthode | Endpoint | Rôle | Description |
+|---|---|---|---|
+| `GET` | `/api/facturation-restaurant/{restaurantId}/parametres` | `RESTAURANT_OWNER`, `ADMIN` | Paramètres de paiement |
+| `PUT` | `/api/facturation-restaurant/{restaurantId}/parametres` | `RESTAURANT_OWNER`, `ADMIN` | Mettre à jour les paramètres |
+| `GET` | `/api/facturation-restaurant/{restaurantId}/dettes` | `ADMIN` | Dettes en attente |
+| `GET` | `/api/facturation-restaurant/{restaurantId}/dettes/total` | `ADMIN` | Total des dettes |
+| `POST` | `/api/facturation-restaurant/{restaurantId}/payer` | `ADMIN` | Enregistrer un paiement |
+| `GET` | `/api/facturation-restaurant/{restaurantId}/paiements` | `RESTAURANT_OWNER`, `ADMIN` | Historique des paiements |
+| `GET` | `/api/facturation-restaurant/paiements/{paiementId}/dettes` | `RESTAURANT_OWNER`, `ADMIN` | Dettes couvertes par un paiement |
+
+### PUT /api/facturation-restaurant/{restaurantId}/parametres
+```json
+{
+  "modePaiement": "PERIODIQUE",
+  "periodicitéJours": 7,
+  "modeVersement": "VIREMENT_BANCAIRE",
+  "rib": "MA12345678901234567890",
+  "nomBeneficiaire": "Chez Fatou SARL"
+}
+```
+
+### POST /api/facturation-restaurant/{restaurantId}/payer
+**Params :** `periodeDebut` (datetime), `periodeFin` (datetime), `note`
+**Réponse 201 :** `PaiementRestaurantDTO`
+
+---
+
+## 23. Dashboard restaurant
+
+**Base :** `/api/restaurant-dashboard`
+
+| Méthode | Endpoint | Rôle | Description |
+|---|---|---|---|
+| `GET` | `/api/restaurant-dashboard/{restaurantId}` | `RESTAURANT_OWNER`, `ADMIN` | Dashboard d'un restaurant |
+| `GET` | `/api/restaurant-dashboard/mon-restaurant` | `RESTAURANT_OWNER` | Mon dashboard |
+
+**Réponse :** `RestaurantDashboardDTO` — statistiques du jour, de la semaine, commandes en cours, top plats, etc.
+
+---
+
+## 24. Employés restaurant
+
+**Base :** `/api/restaurants/{restaurantId}/employes` — `RESTAURANT_OWNER`, `ADMIN`
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/restaurants/{restaurantId}/employes` | Lister les employés |
+| `POST` | `/api/restaurants/{restaurantId}/employes` | Ajouter un employé |
+| `DELETE` | `/api/restaurants/{restaurantId}/employes/{employeId}` | Retirer un employé |
+
+### POST /api/restaurants/{restaurantId}/employes
+```json
+{ "userId": 10, "role": "CAISSIER" }
+```
+
+---
+
+## 25. Statistiques admin
+
+**Base :** `/api/admin/statistiques` — `ADMIN`
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/admin/statistiques/dashboard` | Tableau de bord global |
+| `GET` | `/api/admin/statistiques/commandes/evolution` | Évolution des commandes |
+| `GET` | `/api/admin/statistiques/commandes/par-statut` | Commandes par statut |
+| `GET` | `/api/admin/statistiques/commandes/par-mode` | Commandes par mode de réception |
+| `GET` | `/api/admin/statistiques/commandes/par-paiement` | Commandes par méthode de paiement |
+| `GET` | `/api/admin/statistiques/commandes/heures-pointe` | Heures de pointe |
+| `GET` | `/api/admin/statistiques/restaurants/top` | Top restaurants |
+| `GET` | `/api/admin/statistiques/restaurants/performance` | Performance de tous les restaurants |
+| `GET` | `/api/admin/statistiques/clients/top` | Top clients |
+| `GET` | `/api/admin/statistiques/clients/retention` | Taux de rétention |
+| `GET` | `/api/admin/statistiques/clients/par-ville` | Commandes par ville |
+| `GET` | `/api/admin/statistiques/livreurs` | Performance des livreurs |
+| `GET` | `/api/admin/statistiques/livreurs/top` | Top livreurs |
+| `GET` | `/api/admin/statistiques/plats/top` | Top plats commandés |
+| `GET` | `/api/admin/statistiques/plats/jamais-commandes` | Plats jamais commandés |
+| `GET` | `/api/admin/statistiques/plats/par-categorie` | Plats par catégorie |
+| `GET` | `/api/admin/statistiques/financier` | Rapport financier |
+| `GET` | `/api/admin/statistiques/monitoring` | Monitoring temps réel |
+| `GET` | `/api/admin/statistiques/alertes` | Alertes actives |
+
+**Params communs :** `debut` (date), `fin` (date), `periode` (JOUR/SEMAINE/MOIS)
+
+### GET /api/admin/statistiques/dashboard — Réponse
 ```json
 {
   "commandesTotalAujourdhui": 42,
-  "commandesTotalSemaine": 284,
-  "commandesTotalMois": 1120,
-  "chiffreAffairesAujourdhui": 3150.00,
-  "chiffreAffairesSemaine": 21400.00,
-  "chiffreAffairesMois": 84600.00,
-  "tauxAnnulation": 0.032,
-  "valeurMoyenneCommande": 75.50,
-  "nouveauxUsersAujourdhui": 8,
-  "nouveauxUsersSemaine": 53,
-  "nouveauxUsersMois": 210,
-  "commandesEnCours": 15,
-  "restaurantsActifs": 34,
-  "livreursActifs": 12
+  "commandesTotalSemaine": 280,
+  "commandesTotalMois": 1150,
+  "chiffreAffairesAujourdhui": 4200.00,
+  "chiffreAffairesSemaine": 28000.00,
+  "chiffreAffairesMois": 115000.00,
+  "tauxAnnulation": 3.2,
+  "valeurMoyenneCommande": 100.00,
+  "nouveauxUsersAujourdhui": 5,
+  "commandesEnCours": 8,
+  "restaurantsActifs": 12,
+  "livreursActifs": 7
 }
 ```
 
 ---
 
-### GET `/api/admin/statistiques/commandes/evolution`
-Évolution des commandes par jour ou par mois.
+## 26. Fichiers (MinIO)
 
-**Query params :**
-| Param | Type | Défaut | Description |
+**Base :** `/api/files`
+
+| Méthode | Endpoint | Rôle | Description |
 |---|---|---|---|
-| `debut` | date ISO | 1er du mois | Date de début |
-| `fin` | date ISO | Aujourd'hui | Date de fin |
-| `periode` | string | `JOUR` | `JOUR` ou `MOIS` |
+| `POST` | `/api/files/upload` | `AUTH` | Uploader un fichier |
+| `GET` | `/api/files` | *(public)* | Télécharger via query param |
+| `GET` | `/api/files/{*objectName}` | *(public)* | Télécharger via path |
+| `GET` | `/api/files/metadata/{*objectName}` | *(public)* | Métadonnées d'un fichier |
+| `GET` | `/api/files/url/{*objectName}` | *(public)* | URL publique d'un fichier |
 
-**Réponse 200 :** `EvolutionCommandesDTO[]`
-```json
-[{
-  "periode": "2025-04-01",
-  "nombreCommandes": 42,
-  "chiffreAffaires": 3150.00,
-  "commandesLivrees": 38,
-  "commandesAnnulees": 2
-}]
-```
+### POST /api/files/upload
+`Content-Type: multipart/form-data`
+**Champs :** `file` (requis), `folder` (optionnel, ex: `plats`, `logos`)
+**Réponse 201 :** `{ "objectName": "plats/uuid.jpg", "url": "http://..." }`
 
----
-
-### GET `/api/admin/statistiques/commandes/par-statut`
-Répartition des commandes par statut sur une période.
-
-**Query params :** `debut`, `fin` (défaut : mois en cours)
-**Réponse 200 :** `CommandesParStatutDTO[]`
-```json
-[{ "statut": "LIVREE", "nombre": 1050, "pourcentage": 0.937 }]
-```
+### GET /api/files
+**Params :** `objectName` (ex: `plats/uuid.jpg`), `download` (boolean)
 
 ---
 
-### GET `/api/admin/statistiques/commandes/par-mode`
-Répartition par mode de réception (`LIVRAISON` / `RETRAIT_SUR_PLACE`).
+## 27. Tracking WebSocket
 
-**Query params :** `debut`, `fin`
-**Réponse 200 :** `CommandesParModeDTO[]`
+**Protocole :** STOMP over WebSocket
+**Endpoint :** `ws://localhost:8083/ws`
 
----
-
-### GET `/api/admin/statistiques/commandes/par-paiement`
-Répartition par méthode de paiement.
-
-**Query params :** `debut`, `fin`
-**Réponse 200 :** `CommandesParPaiementDTO[]`
-
----
-
-### GET `/api/admin/statistiques/commandes/heures-pointe`
-Heures de pointe (volume de commandes par heure de la journée).
-
-**Query params :** `debut` (défaut : -30j), `fin`
-**Réponse 200 :** `HeurePointe[]`
-```json
-[{ "heure": 12, "nombreCommandes": 185 }]
-```
-
----
-
-### GET `/api/admin/statistiques/restaurants/top`
-Top restaurants triés par nombre de commandes ou chiffre d'affaires.
-
-**Query params :**
-| Param | Type | Défaut |
+| Type | Destination | Description |
 |---|---|---|
-| `limit` | int | 10 |
-| `debut`, `fin` | date ISO | mois en cours |
-| `tri` | string | `COMMANDES` → `CA` pour chiffre d'affaires |
+| Subscribe | `/topic/tracking/{commandeId}` | Recevoir les mises à jour GPS d'une commande |
+| Send | `/app/tracking.update` | Envoyer sa position GPS (livreur) |
 
-**Réponse 200 :** `TopRestaurantDTO[]`
+### Message /app/tracking.update
 ```json
-[{
-  "restaurantId": 1,
-  "nom": "Le Palais",
-  "nombreCommandes": 320,
-  "chiffreAffaires": 24000.00,
-  "appreciation": 4.7,
-  "nombreAvis": 145,
-  "tauxValidation": 0.96
-}]
+{ "commandeId": 1, "latitude": 14.6928, "longitude": -17.4467 }
+```
+
+### Message reçu sur /topic/tracking/{commandeId}
+```json
+{ "commandeId": 1, "latitude": 14.6932, "longitude": -17.4471, "timestamp": "2026-03-29T10:15:00" }
 ```
 
 ---
 
-### GET `/api/admin/statistiques/restaurants/performance`
-Indicateurs de performance de chaque restaurant sur une période.
+## 28. Campagnes de notification
 
-**Query params :** `debut`, `fin`
-**Réponse 200 :** `RestaurantPerformanceDTO[]`
+**Base :** `/api/admin/notifications` — `ADMIN`
 
----
+| Méthode | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/admin/notifications/campagne` | Envoyer une campagne push |
+| `GET` | `/api/admin/notifications/promotion/{promotionId}` | Utilisateurs notifiés pour une promo |
+| `GET` | `/api/admin/notifications/promotions` | Toutes les promotions |
 
-### GET `/api/admin/statistiques/clients/top`
-Meilleurs clients par dépense.
-
-**Query params :** `limit` (défaut 10), `debut`, `fin` (défaut : -3 mois)
-**Réponse 200 :** `ClientAnalyticsDTO[]`
-
----
-
-### GET `/api/admin/statistiques/clients/retention`
-Taux de rétention des clients.
-
-**Réponse 200 :** `RetentionDTO`
-
----
-
-### GET `/api/admin/statistiques/clients/par-ville`
-Répartition des commandes par ville.
-
-**Query params :** `debut`, `fin`
-**Réponse 200 :** `ZoneCommandesDTO[]`
-
----
-
-### GET `/api/admin/statistiques/livreurs`
-Performance de tous les livreurs sur une période.
-
-**Query params :** `debut`, `fin`
-**Réponse 200 :** `LivreurAnalyticsDTO[]`
-
----
-
-### GET `/api/admin/statistiques/livreurs/top`
-Top livreurs par performance.
-
-**Query params :** `limit` (défaut 10), `debut`, `fin`
-**Réponse 200 :** `LivreurAnalyticsDTO[]`
-
----
-
-### GET `/api/admin/statistiques/plats/top`
-Plats les plus commandés.
-
-**Query params :** `limit` (défaut 10), `debut`, `fin`
-**Réponse 200 :** `PlatAnalyticsDTO[]`
-
----
-
-### GET `/api/admin/statistiques/plats/jamais-commandes`
-Plats qui n'ont jamais été commandés.
-
-**Réponse 200 :** `PlatAnalyticsDTO[]`
-
----
-
-### GET `/api/admin/statistiques/plats/par-categorie`
-Chiffre d'affaires par catégorie de plat.
-
-**Query params :** `debut`, `fin`
-**Réponse 200 :** `PlatAnalyticsDTO[]`
-
----
-
-### GET `/api/admin/statistiques/financier`
-Rapport financier global sur une période (CA, commissions, versements).
-
-**Query params :** `debut`, `fin`
-**Réponse 200 :** `FinancierDTO`
-
----
-
-### GET `/api/admin/statistiques/monitoring`
-Données de monitoring en temps réel (commandes actives, livreurs en ligne, etc.).
-
-**Réponse 200 :** `MonitoringTempsReelDTO`
-
----
-
-### GET `/api/admin/statistiques/alertes`
-Alertes actives (plafond caisse dépassé, restaurant fermé avec commandes en cours, etc.).
-
-**Réponse 200 :** `AlerteDTO[]`
-
----
-
-## 19. Avis
-
-### POST `/api/avis`
-Soumet un avis pour un restaurant ou un livreur.
-
-**Accès :** Authentifié
-**Body :**
+### POST /api/admin/notifications/campagne
 ```json
 {
-  "restaurantId": 10,
-  "livreurId": null,
-  "commandeId": 500,
-  "note": 4,
-  "commentaire": "Très bon service, livraison rapide !"
+  "titre": "Offre spéciale !",
+  "corps": "−20% ce week-end sur toutes les commandes.",
+  "cible": "TOUS",
+  "promotionId": 5
 }
 ```
-**Réponse 201 :** `AvisDTO`
+**Réponse :** `{ "envoyes": 1200, "echecs": 3 }`
 
 ---
 
-### GET `/api/avis/{id}`
-Détail d'un avis.
+## Codes d'erreur communs
 
-**Accès :** Public
-**Réponse 200 :** `AvisDTO`
-
----
-
-### GET `/api/avis/restaurant/{restaurantId}`
-Avis d'un restaurant.
-
-**Accès :** Public
-**Réponse 200 :** `AvisDTO[]`
-
----
-
-### GET `/api/avis/livreur/{livreurId}`
-Avis d'un livreur.
-
-**Accès :** Public
-**Réponse 200 :** `AvisDTO[]`
-
----
-
-### GET `/api/avis/mes-avis`
-Avis laissés par l'utilisateur connecté.
-
-**Accès :** Authentifié
-**Réponse 200 :** `AvisDTO[]`
-
----
-
-### PATCH `/api/avis/{id}/moderation`
-Modère un avis (valider ou rejeter).
-
-**Accès :** `ADMIN`
-**Body :**
-```json
-{ "action": "VALIDER", "motif": "" }
-```
-`action` : `VALIDER` | `REJETER`
-**Réponse 200 :** `AvisDTO`
-
----
-
-### GET `/api/avis/admin/en-attente`
-Avis en attente de modération.
-
-**Accès :** `ADMIN`
-**Réponse 200 :** `AvisDTO[]`
-
----
-
-### DELETE `/api/avis/{id}`
-Supprime un avis.
-
-**Accès :** Auteur de l'avis ou `ADMIN`
-**Réponse 204**
-
----
-
-## 20. Favoris
-
-### GET `/api/favoris`
-Liste des restaurants favoris de l'utilisateur connecté.
-
-**Accès :** Authentifié
-**Réponse 200 :** `FavoriDTO[]`
-
----
-
-### POST `/api/favoris/{restaurantId}`
-Ajoute un restaurant aux favoris.
-
-**Accès :** Authentifié
-**Réponse 201 :** `FavoriDTO`
-
----
-
-### DELETE `/api/favoris/{restaurantId}`
-Retire un restaurant des favoris.
-
-**Accès :** Authentifié
-**Réponse 204**
-
----
-
-### POST `/api/favoris/{restaurantId}/toggle`
-Bascule l'état favori (ajoute si absent, retire si présent).
-
-**Accès :** Authentifié
-**Réponse 200 :**
-```json
-{ "isFavori": true, "action": "AJOUTE" }
-```
-
----
-
-### GET `/api/favoris/{restaurantId}/status`
-Indique si un restaurant est dans les favoris de l'utilisateur connecté.
-
-**Accès :** Authentifié
-**Réponse 200 :**
-```json
-{ "isFavori": false }
-```
-
----
-
-### GET `/api/favoris/{restaurantId}/count`
-Nombre total de fois qu'un restaurant a été mis en favori.
-
-**Accès :** Public
-**Réponse 200 :**
-```json
-{ "count": 342 }
-```
-
----
-
-## 21. Panier
-
-### GET `/api/panier`
-Contenu du panier de l'utilisateur connecté.
-
-**Accès :** `CLIENT`
-**Réponse 200 :** `PanierDTO`
-
----
-
-### POST `/api/panier/items`
-Ajoute un article au panier.
-
-**Accès :** `CLIENT`
-**Body :**
-```json
-{ "platId": 10, "quantite": 2, "remarque": "sans sauce" }
-```
-**Réponse 201 :** `PanierDTO`
-
----
-
-### PATCH `/api/panier/items/{itemId}`
-Modifie la quantité d'un article du panier.
-
-**Accès :** `CLIENT`
-**Query params :** `quantite=3`
-**Réponse 200 :** `PanierDTO`
-
----
-
-### DELETE `/api/panier`
-Vide le panier.
-
-**Accès :** `CLIENT`
-**Réponse 204**
-
----
-
-## 22. Menus
-
-### POST `/api/menus`
-Crée un menu (regroupement de plats).
-
-**Accès :** `RESTAURANT_OWNER`, `ADMIN`
-**Body :** `MenuCreateDTO`
-**Réponse 201 :** `MenuDTO`
-
----
-
-### GET `/api/menus/{id}`
-Détail d'un menu.
-
-**Accès :** Public
-**Réponse 200 :** `MenuDTO`
-
----
-
-### GET `/api/menus/restaurant/{restaurantId}`
-Menus d'un restaurant.
-
-**Accès :** Public
-**Réponse 200 :** `MenuDTO[]`
-
----
-
-### PATCH `/api/menus/{id}/activer`
-Active ou désactive un menu.
-
-**Accès :** `RESTAURANT_OWNER`, `ADMIN`
-**Query params :** `actif=true|false`
-**Réponse 200 :** `MenuDTO`
-
----
-
-### DELETE `/api/menus/{id}`
-Supprime un menu.
-
-**Accès :** `RESTAURANT_OWNER`, `ADMIN`
-**Réponse 204**
-
----
-
-## 23. Dashboard Restaurant
-
-### GET `/api/restaurant-dashboard/{restaurantId}`
-Tableau de bord d'un restaurant (commandes du jour, stats, top plats).
-
-**Accès :** `RESTAURANT_OWNER`, `ADMIN`
-**Réponse 200 :** `RestaurantDashboardDTO`
-
----
-
-### GET `/api/restaurant-dashboard/mon-restaurant`
-Tableau de bord du restaurant du propriétaire connecté.
-
-**Accès :** `RESTAURANT_OWNER`
-**Réponse 200 :** `RestaurantDashboardDTO`
-
----
-
-## 24. Employés Restaurant
-
-### GET `/api/restaurants/{restaurantId}/employes`
-Liste des employés d'un restaurant.
-
-**Accès :** `RESTAURANT_OWNER`, `ADMIN`
-**Réponse 200 :** `RestaurantEmployeDTO[]`
-
----
-
-### POST `/api/restaurants/{restaurantId}/employes`
-Ajoute un employé à un restaurant.
-
-**Accès :** `RESTAURANT_OWNER`, `ADMIN`
-**Body :**
-```json
-{ "userId": 55, "role": "CAISSIER" }
-```
-**Réponse 201 :** `RestaurantEmployeDTO`
-
----
-
-### DELETE `/api/restaurants/{restaurantId}/employes/{employeId}`
-Retire un employé du restaurant.
-
-**Accès :** `RESTAURANT_OWNER`, `ADMIN`
-**Réponse 204**
-
----
-
-## 25. Fichiers (Minio)
-
-### POST `/api/files/upload`
-Upload d'un fichier vers Minio.
-
-**Accès :** Authentifié
-**Content-Type :** `multipart/form-data`
-**Champs form :**
-```
-file*     fichier binaire
-folder    string (défaut : "uploads") — ex: "restaurants", "plats"
-```
-**Réponse 201 :** `FileUploadResponse`
-```json
-{
-  "objectName": "restaurants/logo-abc123.jpg",
-  "bucket": "mysugu",
-  "fileName": "logo-abc123.jpg",
-  "size": 102400,
-  "contentType": "image/jpeg",
-  "url": "http://minio:9000/mysugu/restaurants/logo-abc123.jpg",
-  "downloadUrl": "http://minio:9000/mysugu/restaurants/logo-abc123.jpg?download=true"
-}
-```
-
----
-
-### GET `/api/files/{*objectName}`
-Affiche ou télécharge un fichier par son chemin complet dans Minio.
-
-**Accès :** Public
-**Query params :**
-| Param | Type | Défaut | Description |
-|---|---|---|---|
-| `download` | boolean | false | `true` pour forcer le téléchargement |
-
-Exemples :
-- `GET /api/files/restaurants/logo-abc123.jpg` → affiche l'image inline
-- `GET /api/files/restaurants/logo-abc123.jpg?download=true` → force le téléchargement
-
----
-
-### GET `/api/files`
-Variante par query param.
-
-**Query params :** `objectName=restaurants/logo-abc123.jpg&download=false`
-
----
-
-### GET `/api/files/metadata/{*objectName}`
-Métadonnées d'un fichier sans le télécharger.
-
-**Accès :** Public
-**Réponse 200 :** `FileMetadata`
-```json
-{
-  "objectName": "restaurants/logo-abc123.jpg",
-  "bucket": "mysugu",
-  "fileName": "logo-abc123.jpg",
-  "size": 102400,
-  "contentType": "image/jpeg",
-  "url": "...",
-  "downloadUrl": "..."
-}
-```
-
----
-
-### GET `/api/files/url/{*objectName}`
-URL publique d'un fichier (sans le télécharger).
-
-**Accès :** Public
-**Réponse 200 :** `FileUrlResponse`
-
----
-
-## 26. WebSocket Tracking GPS
-
-Le tracking en temps réel utilise **STOMP over WebSocket**.
-
-### Connexion
-```
-ws://localhost:8080/ws/tracking
-```
-
-### Envoyer une mise à jour GPS (livreur)
-**Destination STOMP :** `/app/tracking.update`
-**Payload :**
-```json
-{
-  "commandeId": 500,
-  "latitude": 31.6295,
-  "longitude": -7.9811
-}
-```
-
-### Recevoir les mises à jour (client)
-**Topic à souscrire :** `/topic/tracking/{commandeId}`
-**Payload reçu :**
-```json
-{
-  "commandeId": 500,
-  "latitude": 31.6295,
-  "longitude": -7.9811,
-  "timestamp": "2025-04-01T12:34:56"
-}
-```
-
----
-
-## Codes d'erreur HTTP
-
-| Code | Signification |
+| Code HTTP | Signification |
 |---|---|
-| `400` | Requête invalide (validation, zone hors couverture, etc.) |
-| `401` | Non authentifié — token JWT absent ou expiré |
-| `403` | Accès refusé — rôle insuffisant |
-| `404` | Ressource introuvable |
-| `409` | Conflit — ressource déjà existante (ex : code promo dupliqué) |
-| `500` | Erreur interne du serveur |
+| `400 Bad Request` | Données invalides ou règle métier non respectée |
+| `401 Unauthorized` | JWT absent ou expiré |
+| `403 Forbidden` | Rôle insuffisant |
+| `404 Not Found` | Ressource introuvable |
+| `409 Conflict` | Contrainte d'unicité violée |
+| `500 Internal Server Error` | Erreur serveur inattendue |
 
-**Format standard des erreurs :**
+**Format d'erreur standard :**
 ```json
 {
+  "timestamp": "2026-03-29T10:00:00",
   "status": 400,
   "error": "Bad Request",
-  "message": "Notre service de livraison n'est pas encore disponible dans votre zone. Zones couvertes actuellement : Marrakech.",
-  "timestamp": "2025-04-01T12:00:00"
+  "message": "Le plat Thiéboudienne n'est pas disponible"
 }
 ```
-
----
-
-## Rôles et accès
-
-| Rôle | Description |
-|---|---|
-| `CLIENT` | Utilisateur final — passe des commandes |
-| `LIVREUR` | Livreur — gère ses livraisons et sa caisse |
-| `RESTAURANT_OWNER` | Propriétaire de restaurant |
-| `RESTAURANT_STAFF` | Employé de restaurant |
-| `ADMIN` | Administrateur de la plateforme — accès complet |
 
 ---
 
