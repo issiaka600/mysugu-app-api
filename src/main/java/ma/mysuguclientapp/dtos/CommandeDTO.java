@@ -31,6 +31,7 @@ public class CommandeDTO {
     private String modeReception;
     private String methodePaiement;
     private String statutPaiement;
+    private String stripeClientSecret;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime livreeAt;

@@ -1,9 +1,11 @@
 package ma.mysuguclientapp.dtos;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class GoogleTokenInfoDTO {
     private String aud;
     private String azp;
