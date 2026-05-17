@@ -1,5 +1,6 @@
 package ma.mysuguclientapp.services.interfaces;
 
+import ma.mysuguclientapp.dtos.AppleAuthRequestDTO;
 import ma.mysuguclientapp.dtos.GoogleAuthRequestDTO;
 import ma.mysuguclientapp.dtos.LoginDTO;
 import ma.mysuguclientapp.dtos.LoginResponseDTO;
@@ -19,6 +20,8 @@ public interface UserService {
     LoginResponseDTO login(LoginDTO loginDTO);
 
     LoginResponseDTO loginWithGoogle(GoogleAuthRequestDTO googleAuthRequestDTO);
+
+    LoginResponseDTO loginWithApple(AppleAuthRequestDTO appleAuthRequestDTO);
 
     UserDTO getProfile(String token);
 

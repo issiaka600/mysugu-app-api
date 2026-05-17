@@ -62,6 +62,9 @@ public class User {
     @Column(name = "livreur_disponible")
     private Boolean livreurDisponible = false;
 
+    @Column(name = "apple_sub", unique = true)
+    private String appleSub;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

@@ -3,6 +3,8 @@ package ma.mysuguclientapp.services.implementations;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import ma.mysuguclientapp.config.security.JwtTokenProvider;
+import ma.mysuguclientapp.dtos.AppleAuthRequestDTO;
+import ma.mysuguclientapp.dtos.AppleIdTokenClaimsDTO;
 import ma.mysuguclientapp.dtos.GoogleAuthRequestDTO;
 import ma.mysuguclientapp.dtos.GoogleTokenInfoDTO;
 import ma.mysuguclientapp.dtos.LocalisationDTO;
@@ -44,6 +46,7 @@ public class UserServiceImpl implements UserService {
     private final JwtTokenProvider jwtTokenProvider;
     private final MinioService minioService;
     private final GoogleAuthService googleAuthService;
+    private final AppleAuthService appleAuthService;
 
     @Override
     public UserDTO register(RegisterDTO registerDTO) {
@@ -94,6 +97,26 @@ public class UserServiceImpl implements UserService {
 
         user = userRepository.save(user);
         log.info("Connexion Google réussie pour: {}", user.getEmail());
+        return buildLoginResponse(user);
+    }
+
+    @Override
+    public LoginResponseDTO loginWithApple(AppleAuthRequestDTO appleAuthRequestDTO) {
+        AppleIdTokenClaimsDTO tokenClaims = appleAuthService.verifyIdToken(
+                appleAuthRequestDTO.getIdToken(),
+                appleAuthRequestDTO.getNonce()
+        );
+
+        User user = userRepository.findByAppleSub(tokenClaims.getSub())
+                .map(existingUser -> updateUserFromApple(existingUser, tokenClaims, appleAuthRequestDTO))
+                .orElseGet(() -> createAppleUser(tokenClaims, appleAuthRequestDTO));
+
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new UnauthorizedException("Compte désactivé");
+        }
+
+        user = userRepository.save(user);
+        log.info("Connexion Apple réussie pour: {}", user.getEmail());
         return buildLoginResponse(user);
     }
 
@@ -242,6 +265,71 @@ public class UserServiceImpl implements UserService {
         user.setRole(parseRole(googleAuthRequestDTO.getRole(), true));
         user.setIsActive(true);
         return user;
+    }
+
+    private User createAppleUser(AppleIdTokenClaimsDTO tokenClaims, AppleAuthRequestDTO appleAuthRequestDTO) {
+        String email = resolveAppleEmail(tokenClaims, appleAuthRequestDTO);
+        if (userRepository.findByEmail(email).isPresent()) {
+            throw new BadRequestException("Un compte existe déjà avec cet email. Connectez-vous avec votre méthode habituelle.");
+        }
+
+        User user = new User();
+        user.setAppleSub(tokenClaims.getSub());
+        user.setEmail(email);
+        user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+        user.setPrenom(resolveAppleFirstName(appleAuthRequestDTO));
+        user.setNom(resolveAppleLastName(appleAuthRequestDTO, email));
+        user.setTelephone(appleAuthRequestDTO.getTelephone());
+        user.setRole(parseRole(appleAuthRequestDTO.getRole(), true));
+        user.setIsActive(true);
+        user.setEmailVerified(tokenClaims.isEmailVerified());
+        return user;
+    }
+
+    private User updateUserFromApple(User user, AppleIdTokenClaimsDTO tokenClaims, AppleAuthRequestDTO appleAuthRequestDTO) {
+        if (user.getAppleSub() == null || user.getAppleSub().isBlank()) {
+            user.setAppleSub(tokenClaims.getSub());
+        }
+        if ((user.getPrenom() == null || user.getPrenom().isBlank())
+                && appleAuthRequestDTO.getPrenom() != null && !appleAuthRequestDTO.getPrenom().isBlank()) {
+            user.setPrenom(appleAuthRequestDTO.getPrenom().trim());
+        }
+        if ((user.getNom() == null || user.getNom().isBlank())
+                && appleAuthRequestDTO.getNom() != null && !appleAuthRequestDTO.getNom().isBlank()) {
+            user.setNom(appleAuthRequestDTO.getNom().trim());
+        }
+        if ((user.getTelephone() == null || user.getTelephone().isBlank())
+                && appleAuthRequestDTO.getTelephone() != null && !appleAuthRequestDTO.getTelephone().isBlank()) {
+            user.setTelephone(appleAuthRequestDTO.getTelephone());
+        }
+        if (tokenClaims.isEmailVerified()) {
+            user.setEmailVerified(true);
+        }
+        return user;
+    }
+
+    private String resolveAppleEmail(AppleIdTokenClaimsDTO tokenClaims, AppleAuthRequestDTO appleAuthRequestDTO) {
+        if (tokenClaims.getEmail() != null && !tokenClaims.getEmail().isBlank()) {
+            return tokenClaims.getEmail().trim().toLowerCase();
+        }
+        if (appleAuthRequestDTO.getEmail() != null && !appleAuthRequestDTO.getEmail().isBlank()) {
+            return appleAuthRequestDTO.getEmail().trim().toLowerCase();
+        }
+        return "apple." + tokenClaims.getSub() + "@mysuku.apple.local";
+    }
+
+    private String resolveAppleFirstName(AppleAuthRequestDTO appleAuthRequestDTO) {
+        if (appleAuthRequestDTO.getPrenom() != null && !appleAuthRequestDTO.getPrenom().isBlank()) {
+            return appleAuthRequestDTO.getPrenom().trim();
+        }
+        return "Utilisateur";
+    }
+
+    private String resolveAppleLastName(AppleAuthRequestDTO appleAuthRequestDTO, String email) {
+        if (appleAuthRequestDTO.getNom() != null && !appleAuthRequestDTO.getNom().isBlank()) {
+            return appleAuthRequestDTO.getNom().trim();
+        }
+        return email;
     }
 
     private User updateUserFromGoogle(User user, GoogleTokenInfoDTO tokenInfo, GoogleAuthRequestDTO googleAuthRequestDTO) {

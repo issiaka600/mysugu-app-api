@@ -2,6 +2,7 @@ package ma.mysuguclientapp.controllers;
 
 import lombok.RequiredArgsConstructor;
 import ma.mysuguclientapp.dtos.DisponibiliteDTO;
+import ma.mysuguclientapp.dtos.AppleAuthRequestDTO;
 import ma.mysuguclientapp.dtos.GoogleAuthRequestDTO;
 import ma.mysuguclientapp.dtos.LocationUpdateDTO;
 import ma.mysuguclientapp.dtos.LoginDTO;
@@ -38,6 +39,11 @@ public class UserController {
     @PostMapping("auth/google")
     public ResponseEntity<LoginResponseDTO> loginWithGoogle(@RequestBody GoogleAuthRequestDTO googleAuthRequestDTO) {
         return ResponseEntity.ok(userService.loginWithGoogle(googleAuthRequestDTO));
+    }
+
+    @PostMapping("auth/apple")
+    public ResponseEntity<LoginResponseDTO> loginWithApple(@RequestBody AppleAuthRequestDTO appleAuthRequestDTO) {
+        return ResponseEntity.ok(userService.loginWithApple(appleAuthRequestDTO));
     }
 
     @GetMapping("users/profile")
