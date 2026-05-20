@@ -81,6 +81,27 @@ public class EmailService {
         envoyerEmail(toEmail, sujet, message);
     }
 
+    @Async
+    public void envoyerAccuseReceptionContact(String toEmail, String nom, String sujet) {
+        String objetEmail = "MySuku - Nous avons bien recu votre message";
+        String message = "Bonjour " + (nom != null ? nom : "") + ",\n\n" +
+                "Nous avons bien recu votre message concernant : \"" + sujet + "\".\n" +
+                "Notre equipe reviendra vers vous dans les meilleurs delais.\n\n" +
+                "A bientot,\nL'equipe MySuku";
+        envoyerEmail(toEmail, objetEmail, message);
+    }
+
+    @Async
+    public void envoyerReponseContact(String toEmail, String nom, String sujetInitial, String reponse) {
+        String objetEmail = "MySuku - Reponse a votre message : " + sujetInitial;
+        String message = "Bonjour " + (nom != null ? nom : "") + ",\n\n" +
+                "Suite a votre message concernant \"" + sujetInitial + "\", voici notre reponse :\n\n" +
+                reponse + "\n\n" +
+                "Si vous avez d'autres questions, n'hesitez pas a nous recontacter.\n\n" +
+                "Cordialement,\nL'equipe MySuku";
+        envoyerEmail(toEmail, objetEmail, message);
+    }
+
     private void envoyerEmail(String to, String sujet, String message) {
         try {
             SimpleMailMessage email = new SimpleMailMessage();
