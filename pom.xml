@@ -108,6 +108,13 @@
             <version>26.0.0</version>
         </dependency>
 
+        <!-- Apple Sign In (JWT validation via JWKS) -->
+        <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
+            <version>9.37.3</version>
+        </dependency>
+
         <!-- JWT -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
