@@ -42,4 +42,6 @@ public interface CommandeRepository extends JpaRepository<Commande, Long> {
     Page<Commande> findByClientIdOrderByCreatedAtDesc(Long clientId, Pageable pageable);
 
     List<Commande> findTop5ByClientIdOrderByCreatedAtDesc(Long clientId);
+
+    Optional<Commande> findByStripePaymentIntentId(String stripePaymentIntentId);
 }

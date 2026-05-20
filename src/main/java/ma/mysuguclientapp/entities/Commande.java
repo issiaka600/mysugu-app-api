@@ -117,6 +117,9 @@ public class Commande {
     @Column(name = "reorder_from_id")
     private Long reorderFromId;
 
+    @Column(name = "stripe_payment_intent_id", length = 100)
+    private String stripePaymentIntentId;
+
     @PrePersist
     @PreUpdate
     public void applyDefaults() {

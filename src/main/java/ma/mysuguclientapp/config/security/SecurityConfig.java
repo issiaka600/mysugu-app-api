@@ -68,6 +68,13 @@ public class SecurityConfig {
                         // WebSocket endpoint
                         .requestMatchers("/ws/**").permitAll()
 
+                        // Stripe webhooks (sécurisé par vérification de signature Stripe, pas JWT)
+                        .requestMatchers(HttpMethod.POST, "/api/stripe/webhook").permitAll()
+
+                        // Formulaire de contact public — soumission ouverte, gestion admin
+                        .requestMatchers(HttpMethod.POST, "/api/contact").permitAll()
+                        .requestMatchers("/api/admin/contact-messages/**").hasRole("ADMIN")
+
                         // Routes publiques en lecture seule
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/restaurants/**").permitAll()

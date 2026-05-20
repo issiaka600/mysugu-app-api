@@ -33,6 +33,7 @@ import ma.mysuguclientapp.repositories.RestaurantRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
 import ma.mysuguclientapp.services.interfaces.CommandeService;
 import ma.mysuguclientapp.services.interfaces.NotificationService;
+import ma.mysuguclientapp.services.interfaces.StripeService;
 import ma.mysuguclientapp.util.CommandeNumberGenerator;
 import ma.mysuguclientapp.util.Constants;
 import org.springframework.data.domain.Page;
@@ -44,14 +45,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -68,6 +62,7 @@ public class CommandeServiceImpl implements CommandeService {
     private final NotificationService notificationService;
     private final AvisRepository avisRepository;
     private final CodePromoRepository codePromoRepository;
+    private final StripeService stripeService;
 
     @Override
     @Transactional(readOnly = true)
@@ -298,7 +293,24 @@ public class CommandeServiceImpl implements CommandeService {
         ligneCommandeRepository.saveAll(lignes);
         log.info("Commande creee: {} pour un montant de {} (remise: {})", savedCommande.getNumeroCommande(), savedCommande.getMontantTotal(), totalRemise);
 
-        return convertToDTO(savedCommande);
+        CommandeDTO dto = convertToDTO(savedCommande);
+
+        // Si paiement par carte bancaire, créer un PaymentIntent Stripe
+        if (savedCommande.getMethodePaiement() == MethodePaiement.CARTE_BANCAIRE) {
+            String clientSecret = stripeService.createPaymentIntent(
+                    savedCommande.getMontantFinal() != null ? savedCommande.getMontantFinal() : savedCommande.getMontantTotal(),
+                    savedCommande.getId(),
+                    savedCommande.getNumeroCommande()
+            );
+            if (clientSecret != null) {
+                String paymentIntentId = stripeService.extractPaymentIntentId(clientSecret);
+                savedCommande.setStripePaymentIntentId(paymentIntentId);
+                commandeRepository.save(savedCommande);
+                dto.setStripeClientSecret(clientSecret);
+            }
+        }
+
+        return dto;
     }
 
     @Override
@@ -311,12 +323,23 @@ public class CommandeServiceImpl implements CommandeService {
 
         if (nouveauStatut == StatutCommande.ANNULEE) {
             commande.setRaisonAnnulation(statusDTO.getRaisonAnnulation());
-            commande.setStatutPaiement(StatutPaiement.REMBOURSE);
             // Libérer le livreur si déjà assigné
             if (commande.getLivreur() != null) {
                 commande.getLivreur().setLivreurDisponible(true);
                 userRepository.save(commande.getLivreur());
             }
+            // Remboursement Stripe si le paiement par carte a déjà été capturé
+            if (commande.getMethodePaiement() == MethodePaiement.CARTE_BANCAIRE
+                    && commande.getStatutPaiement() == StatutPaiement.PAYE
+                    && commande.getStripePaymentIntentId() != null) {
+                try {
+                    stripeService.refundPaymentIntent(commande.getStripePaymentIntentId());
+                } catch (Exception e) {
+                    log.warn("Erreur lors du remboursement Stripe pour la commande {}: {}",
+                            commande.getNumeroCommande(), e.getMessage());
+                }
+            }
+            commande.setStatutPaiement(StatutPaiement.REMBOURSE);
         } else if (statusDTO.getRaisonAnnulation() != null && !statusDTO.getRaisonAnnulation().isBlank()) {
             commande.setRaisonAnnulation(statusDTO.getRaisonAnnulation());
         }
@@ -420,8 +443,8 @@ public class CommandeServiceImpl implements CommandeService {
         if (commande.getStatut() == StatutCommande.LIVREE) {
             throw new BadRequestException("Impossible d'annuler une commande deja livree");
         }
-        if (commande.getStatut() == StatutCommande.EN_COURS) {
-            throw new BadRequestException("Impossible d'annuler une commande en cours de livraison");
+        if (EnumSet.of(StatutCommande.EN_COURS, StatutCommande.EN_PREPARATION, StatutCommande.PRETE).contains(commande.getStatut())) {
+            throw new BadRequestException("Impossible d'annuler une commande en cours préparation ou de livraison.");
         }
 
         // Libérer le livreur si assigné
@@ -431,10 +454,23 @@ public class CommandeServiceImpl implements CommandeService {
         }
 
         commande.setStatut(StatutCommande.ANNULEE);
-        commande.setStatutPaiement(StatutPaiement.REMBOURSE);
         if (commande.getRaisonAnnulation() == null || commande.getRaisonAnnulation().isBlank()) {
             commande.setRaisonAnnulation("Commande annulee");
         }
+
+        // Remboursement Stripe si le paiement par carte a déjà été capturé
+        if (commande.getMethodePaiement() == MethodePaiement.CARTE_BANCAIRE
+                && commande.getStatutPaiement() == StatutPaiement.PAYE
+                && commande.getStripePaymentIntentId() != null) {
+            try {
+                stripeService.refundPaymentIntent(commande.getStripePaymentIntentId());
+            } catch (Exception e) {
+                log.warn("Erreur lors du remboursement Stripe pour la commande {}: {}",
+                        commande.getNumeroCommande(), e.getMessage());
+            }
+        }
+
+        commande.setStatutPaiement(StatutPaiement.REMBOURSE);
 
         Commande cancelledCommande = commandeRepository.save(commande);
         log.info("Commande {} annulee", commande.getNumeroCommande());
