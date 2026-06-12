@@ -39,11 +39,29 @@ public class FcmServiceImpl implements FcmService {
         if (!isFirebaseAvailable()) return;
 
         try {
+            String channelId = data != null && data.containsKey("channelId")
+                    ? data.get("channelId")
+                    : "mysuku_customer_notifications_v1";
+            String sound = data != null && data.containsKey("sound")
+                    ? data.get("sound")
+                    : "default";
+
             Message.Builder messageBuilder = Message.builder()
                     .setToken(fcmToken)
                     .setNotification(Notification.builder()
                             .setTitle(title)
                             .setBody(body)
+                            .build())
+                    .setAndroidConfig(AndroidConfig.builder()
+                            .setNotification(AndroidNotification.builder()
+                                    .setChannelId(channelId)
+                                    .setSound(sound)
+                                    .build())
+                            .build())
+                    .setApnsConfig(ApnsConfig.builder()
+                            .setAps(Aps.builder()
+                                    .setSound(sound)
+                                    .build())
                             .build());
 
             if (data != null && !data.isEmpty()) {

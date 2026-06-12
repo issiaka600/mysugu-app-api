@@ -62,7 +62,8 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/actuator/health",
                                 "/notification-test.html",
-                                "/firebase-messaging-sw.js"
+                                "/firebase-messaging-sw.js",
+                                "/api/integrations/tiktak/**"
                         ).permitAll()
 
                         // WebSocket endpoint

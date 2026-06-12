@@ -17,6 +17,7 @@ import java.util.Optional;
 
 public interface CommandeRepository extends JpaRepository<Commande, Long> {
     Optional<Commande> findByNumeroCommande(String numeroCommande);
+    Optional<Commande> findByTiktakOrderId(Long tiktakOrderId);
     Page<Commande> findByClientId(Long clientId, Pageable pageable);
     Page<Commande> findByRestaurantId(Long restaurantId, Pageable pageable);
     Page<Commande> findByStatut(StatutCommande statut, Pageable pageable);
@@ -36,7 +37,7 @@ public interface CommandeRepository extends JpaRepository<Commande, Long> {
     @Query("SELECT COALESCE(SUM(c.montantTotal), 0) FROM Commande c WHERE c.restaurant.id = :restaurantId AND c.statut = 'LIVREE' AND c.createdAt BETWEEN :debut AND :fin")
     BigDecimal sumChiffreAffairesRestaurant(Long restaurantId, LocalDateTime debut, LocalDateTime fin);
 
-    @Query("SELECT COUNT(c) FROM Commande c WHERE c.restaurant.id = :restaurantId AND c.statut IN ('EN_PREPARATION', 'CONFIRMEE')")
+    @Query("SELECT COUNT(c) FROM Commande c WHERE c.restaurant.id = :restaurantId AND c.statut IN ('EN_PREPARATION', 'CONFIRMEE', 'ASSIGNEE_LIVREUR')")
     Long countEnCoursRestaurant(Long restaurantId);
 
     Page<Commande> findByClientIdOrderByCreatedAtDesc(Long clientId, Pageable pageable);

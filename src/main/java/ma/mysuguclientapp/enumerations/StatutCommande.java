@@ -5,6 +5,7 @@ public enum StatutCommande {
     CONFIRMEE,
     EN_PREPARATION,
     PRETE,
+    ASSIGNEE_LIVREUR,
     EN_COURS,
     LIVREE,
     ANNULEE,

@@ -113,7 +113,8 @@ public class StatistiquesServiceImpl implements StatistiquesService {
     private Long countCommandesEnCours() {
         List<StatutCommande> statuts = Arrays.asList(
                 StatutCommande.EN_ATTENTE, StatutCommande.CONFIRMEE,
-                StatutCommande.EN_PREPARATION, StatutCommande.PRETE, StatutCommande.EN_COURS);
+                StatutCommande.EN_PREPARATION, StatutCommande.PRETE,
+                StatutCommande.ASSIGNEE_LIVREUR, StatutCommande.EN_COURS);
         return em.createQuery(
                 "SELECT COUNT(c) FROM Commande c WHERE c.statut IN :statuts", Long.class)
                 .setParameter("statuts", statuts).getSingleResult();
@@ -620,7 +621,8 @@ public class StatistiquesServiceImpl implements StatistiquesService {
     private List<CommandeEnCoursDTO> getCommandesEnCoursDTO() {
         List<StatutCommande> statuts = Arrays.asList(
                 StatutCommande.EN_ATTENTE, StatutCommande.CONFIRMEE,
-                StatutCommande.EN_PREPARATION, StatutCommande.PRETE, StatutCommande.EN_COURS);
+                StatutCommande.EN_PREPARATION, StatutCommande.PRETE,
+                StatutCommande.ASSIGNEE_LIVREUR, StatutCommande.EN_COURS);
 
         List<Object[]> results = em.createQuery(
                 "SELECT c.id, c.numeroCommande, c.statut, c.restaurant.nom, " +

@@ -36,6 +36,8 @@ import ma.mysuguclientapp.services.interfaces.NotificationService;
 import ma.mysuguclientapp.services.interfaces.StripeService;
 import ma.mysuguclientapp.util.CommandeNumberGenerator;
 import ma.mysuguclientapp.util.Constants;
+import ma.mysuguclientapp.services.integrations.TikTakOrderIntegrationService;
+import ma.mysuguclientapp.services.tracking.TrackingLocationStore;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -63,6 +65,8 @@ public class CommandeServiceImpl implements CommandeService {
     private final AvisRepository avisRepository;
     private final CodePromoRepository codePromoRepository;
     private final StripeService stripeService;
+    private final TikTakOrderIntegrationService tikTakOrderIntegrationService;
+    private final TrackingLocationStore trackingLocationStore;
 
     @Override
     @Transactional(readOnly = true)
@@ -132,6 +136,7 @@ public class CommandeServiceImpl implements CommandeService {
                 StatutCommande.CONFIRMEE,
                 StatutCommande.EN_PREPARATION,
                 StatutCommande.PRETE,
+                StatutCommande.ASSIGNEE_LIVREUR,
                 StatutCommande.EN_COURS
         );
 
@@ -292,7 +297,6 @@ public class CommandeServiceImpl implements CommandeService {
         Commande savedCommande = commandeRepository.save(commande);
         ligneCommandeRepository.saveAll(lignes);
         log.info("Commande creee: {} pour un montant de {} (remise: {})", savedCommande.getNumeroCommande(), savedCommande.getMontantTotal(), totalRemise);
-
         CommandeDTO dto = convertToDTO(savedCommande);
 
         // Si paiement par carte bancaire, créer un PaymentIntent Stripe
@@ -309,6 +313,8 @@ public class CommandeServiceImpl implements CommandeService {
                 dto.setStripeClientSecret(clientSecret);
             }
         }
+
+        tikTakOrderIntegrationService.pushCreatedOrder(savedCommande);
 
         return dto;
     }
@@ -401,7 +407,7 @@ public class CommandeServiceImpl implements CommandeService {
         userRepository.save(livreur);
 
         if (commande.getStatut() == StatutCommande.PRETE || commande.getStatut() == StatutCommande.EN_PREPARATION) {
-            commande.setStatut(StatutCommande.EN_COURS);
+            commande.setStatut(StatutCommande.ASSIGNEE_LIVREUR);
         }
 
         Commande updatedCommande = commandeRepository.save(commande);
@@ -419,18 +425,18 @@ public class CommandeServiceImpl implements CommandeService {
         notificationService.envoyerNotificationCommande(
                 updatedCommande.getClient().getId(),
                 updatedCommande.getNumeroCommande(),
-                TypeNotification.COMMANDE_EN_COURS,
+                TypeNotification.LIVREUR_ASSIGNE,
                 updatedCommande.getId()
         );
 
         // Notifier le restaurant que la livraison est en cours
         if (updatedCommande.getRestaurant().getOwner() != null) {
-            notificationService.envoyerNotificationCommande(
-                    updatedCommande.getRestaurant().getOwner().getId(),
-                    updatedCommande.getNumeroCommande(),
-                    TypeNotification.LIVREUR_ASSIGNE,
-                    updatedCommande.getId()
-            );
+        notificationService.envoyerNotificationCommande(
+                updatedCommande.getRestaurant().getOwner().getId(),
+                updatedCommande.getNumeroCommande(),
+                TypeNotification.LIVREUR_ASSIGNE,
+                updatedCommande.getId()
+        );
         }
 
         return convertToDTO(updatedCommande);
@@ -443,8 +449,13 @@ public class CommandeServiceImpl implements CommandeService {
         if (commande.getStatut() == StatutCommande.LIVREE) {
             throw new BadRequestException("Impossible d'annuler une commande deja livree");
         }
-        if (EnumSet.of(StatutCommande.EN_COURS, StatutCommande.EN_PREPARATION, StatutCommande.PRETE).contains(commande.getStatut())) {
-            throw new BadRequestException("Impossible d'annuler une commande en cours préparation ou de livraison.");
+        if (EnumSet.of(
+                StatutCommande.EN_COURS,
+                StatutCommande.ASSIGNEE_LIVREUR,
+                StatutCommande.EN_PREPARATION,
+                StatutCommande.PRETE
+        ).contains(commande.getStatut())) {
+            throw new BadRequestException("Impossible d'annuler une commande en cours de préparation ou de livraison.");
         }
 
         // Libérer le livreur si assigné
@@ -490,6 +501,19 @@ public class CommandeServiceImpl implements CommandeService {
         tracking.put("tempsEstime", commande.getTempsLivraisonEstime());
         tracking.put("createdAt", commande.getCreatedAt());
         tracking.put("raisonAnnulation", commande.getRaisonAnnulation());
+
+        Map<String, Object> liveGps = new HashMap<>();
+        var latestLocation = trackingLocationStore.getLatest(commande.getId());
+        if (latestLocation != null) {
+            liveGps.put("commandeId", latestLocation.getCommandeId());
+            liveGps.put("livreurId", latestLocation.getLivreurId());
+            liveGps.put("latitude", latestLocation.getLatitude());
+            liveGps.put("longitude", latestLocation.getLongitude());
+            liveGps.put("vitesse", latestLocation.getVitesse());
+            liveGps.put("statut", latestLocation.getStatut());
+            liveGps.put("timestamp", latestLocation.getTimestamp());
+        }
+        tracking.put("liveGps", liveGps.isEmpty() ? null : liveGps);
 
         Map<String, Object> restaurantInfo = new HashMap<>();
         restaurantInfo.put("id", commande.getRestaurant().getId());
@@ -680,7 +704,8 @@ public class CommandeServiceImpl implements CommandeService {
         validTransitions.put(StatutCommande.EN_PREPARATION, Arrays.asList(StatutCommande.PRETE, StatutCommande.ANNULEE));
         validTransitions.put(StatutCommande.PRETE, resolveModeReception(commande) == ModeReceptionCommande.RETRAIT_SUR_PLACE
                 ? Arrays.asList(StatutCommande.LIVREE, StatutCommande.ANNULEE)
-                : Arrays.asList(StatutCommande.EN_COURS, StatutCommande.ANNULEE));
+                : Arrays.asList(StatutCommande.ASSIGNEE_LIVREUR, StatutCommande.ANNULEE));
+        validTransitions.put(StatutCommande.ASSIGNEE_LIVREUR, Arrays.asList(StatutCommande.EN_COURS, StatutCommande.ANNULEE));
         validTransitions.put(StatutCommande.EN_COURS, List.of(StatutCommande.LIVREE));
 
         List<StatutCommande> allowedTransitions = validTransitions.get(commande.getStatut());
@@ -696,6 +721,7 @@ public class CommandeServiceImpl implements CommandeService {
             case EN_PREPARATION, PRETE -> resolveModeReception(commande) == ModeReceptionCommande.RETRAIT_SUR_PLACE
                     ? "COMMANDE_PRETE_A_RECUPERER"
                     : "EN_COURS_DE_PREPARATION";
+            case ASSIGNEE_LIVREUR -> "LIVREUR_ASSIGNE";
             case EN_COURS -> "EN_COURS_DE_LIVRAISON";
             case LIVREE -> resolveModeReception(commande) == ModeReceptionCommande.RETRAIT_SUR_PLACE
                     ? "COMMANDE_RECUPEREE"
