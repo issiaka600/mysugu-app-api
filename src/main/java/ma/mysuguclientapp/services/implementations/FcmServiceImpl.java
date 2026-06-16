@@ -61,6 +61,7 @@ public class FcmServiceImpl implements FcmService {
                     .setApnsConfig(ApnsConfig.builder()
                             .setAps(Aps.builder()
                                     .setSound(sound)
+                                    .setBadge(1)
                                     .build())
                             .build());
 

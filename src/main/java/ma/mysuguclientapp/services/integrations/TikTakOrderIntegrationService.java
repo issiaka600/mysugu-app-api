@@ -5,24 +5,31 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import ma.mysuguclientapp.dtos.integration.TikTakIdMappingDTO;
+import ma.mysuguclientapp.dtos.integration.TikTakMessageNotificationDTO;
 import ma.mysuguclientapp.dtos.integration.TikTakOrderStatusSyncDTO;
 import ma.mysuguclientapp.dtos.integration.TikTakSharedIdsDTO;
+import ma.mysuguclientapp.dtos.tracking.GpsLocationDTO;
 import ma.mysuguclientapp.entities.Commande;
 import ma.mysuguclientapp.entities.LigneCommande;
 import ma.mysuguclientapp.enumerations.StatutCommande;
+import ma.mysuguclientapp.enumerations.TypeNotification;
 import ma.mysuguclientapp.repositories.CommandeRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
+import ma.mysuguclientapp.services.interfaces.NotificationService;
+import ma.mysuguclientapp.services.tracking.TrackingLocationStore;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +42,9 @@ public class TikTakOrderIntegrationService {
 
     private final CommandeRepository commandeRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
+    private final TrackingLocationStore trackingLocationStore;
+    private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
     private final OkHttpClient httpClient = new OkHttpClient.Builder()
             .connectTimeout(Duration.ofSeconds(15))
@@ -120,6 +130,7 @@ public class TikTakOrderIntegrationService {
         Commande commande = commandeRepository.findByTiktakOrderId(dto.getTiktakOrderId())
                 .orElseThrow(() -> new IllegalArgumentException("Commande MySuku introuvable"));
 
+        StatutCommande ancienStatut = commande.getStatut();
         StatutCommande statut = mapTikTakStatus(dto.getStatus());
         if (statut != null) {
             commande.setStatut(statut);
@@ -130,7 +141,7 @@ public class TikTakOrderIntegrationService {
         }
 
         if (dto.getTiktakDeliveryManId() != null) {
-            Long mysukuLivreurId = mapId(deliveryManMap, dto.getTiktakDeliveryManId());
+            Long mysukuLivreurId = reverseMapId(deliveryManMap, dto.getTiktakDeliveryManId());
             if (mysukuLivreurId != null) {
                 userRepository.findById(mysukuLivreurId).ifPresent(commande::setLivreur);
             }
@@ -144,6 +155,70 @@ public class TikTakOrderIntegrationService {
 
         commande.setTiktakSyncStatus("STATUS_" + dto.getStatus());
         commandeRepository.save(commande);
+        saveAndBroadcastLocation(commande, dto);
+        notifyClientFromTikTakStatus(commande, ancienStatut, dto.getTiktakDeliveryManId() != null);
+    }
+
+    private void saveAndBroadcastLocation(Commande commande, TikTakOrderStatusSyncDTO dto) {
+        if (dto.getLatitude() == null || dto.getLongitude() == null) {
+            return;
+        }
+
+        Long livreurId = commande.getLivreur() != null
+                ? commande.getLivreur().getId()
+                : reverseMapId(deliveryManMap, dto.getTiktakDeliveryManId());
+        GpsLocationDTO location = GpsLocationDTO.builder()
+                .commandeId(commande.getId())
+                .livreurId(livreurId)
+                .latitude(dto.getLatitude())
+                .longitude(dto.getLongitude())
+                .vitesse(dto.getSpeed())
+                .statut(commande.getStatut() != null ? commande.getStatut().name() : dto.getStatus())
+                .timestamp(LocalDateTime.now())
+                .build();
+        trackingLocationStore.save(location);
+        messagingTemplate.convertAndSend("/topic/tracking/" + commande.getId(), location);
+    }
+
+    private void notifyClientFromTikTakStatus(Commande commande, StatutCommande ancienStatut, boolean deliveryManAssigned) {
+        if (commande.getClient() == null || commande.getClient().getId() == null) {
+            return;
+        }
+
+        if (deliveryManAssigned) {
+            notificationService.envoyerNotification(
+                    commande.getClient().getId(),
+                    "Livreur assigné",
+                    "Un livreur a accepté votre commande " + commande.getNumeroCommande() + ".",
+                    TypeNotification.LIVREUR_ASSIGNE,
+                    commande.getId(),
+                    "COMMANDE"
+            );
+            return;
+        }
+
+        if (commande.getStatut() == null || commande.getStatut() == ancienStatut) {
+            return;
+        }
+
+        TypeNotification type = switch (commande.getStatut()) {
+            case CONFIRMEE -> TypeNotification.COMMANDE_CONFIRMEE;
+            case EN_PREPARATION -> TypeNotification.COMMANDE_EN_PREPARATION;
+            case PRETE -> TypeNotification.COMMANDE_PRETE;
+            case EN_COURS -> TypeNotification.COMMANDE_EN_COURS;
+            case LIVREE -> TypeNotification.COMMANDE_LIVREE;
+            case ANNULEE -> TypeNotification.COMMANDE_ANNULEE;
+            default -> null;
+        };
+
+        if (type != null) {
+            notificationService.envoyerNotificationCommande(
+                    commande.getClient().getId(),
+                    commande.getNumeroCommande(),
+                    type,
+                    commande.getId()
+            );
+        }
     }
 
     public boolean isValidToken(String token) {
@@ -156,6 +231,36 @@ public class TikTakOrderIntegrationService {
                 parseMapping(deliveryManMap),
                 identityFallback
         );
+    }
+
+    public void notifyMessageFromTikTak(TikTakMessageNotificationDTO dto) {
+        if (dto == null || dto.getCustomerEmail() == null || dto.getCustomerEmail().isBlank()) {
+            log.warn("TikTak message notification ignored: missing customer email");
+            return;
+        }
+
+        userRepository.findByEmail(dto.getCustomerEmail().trim()).ifPresentOrElse(user -> {
+            String title = dto.getTitle() != null && !dto.getTitle().isBlank()
+                    ? dto.getTitle().trim()
+                    : "Nouveau message";
+            String message = dto.getMessage() != null && !dto.getMessage().isBlank()
+                    ? dto.getMessage().trim()
+                    : "Vous avez reçu un nouveau message.";
+            String entityType = "TIKTAK_CHAT";
+            if (dto.getSenderType() != null && !dto.getSenderType().isBlank()) {
+                entityType = entityType + "_" + dto.getSenderType().trim().toUpperCase();
+            }
+
+            notificationService.envoyerNotification(
+                    user.getId(),
+                    title,
+                    message,
+                    TypeNotification.MESSAGE,
+                    dto.getSenderId(),
+                    entityType
+            );
+        }, () -> log.warn("TikTak message notification ignored: MySuku user not found for email {}",
+                dto.getCustomerEmail()));
     }
 
     private Map<String, Object> buildCreatePayload(Commande commande, Long sellerId) {
@@ -224,6 +329,23 @@ public class TikTakOrderIntegrationService {
             }
         }
         return identityFallback ? sourceId : null;
+    }
+
+    private Long reverseMapId(String rawMap, Long targetId) {
+        if (targetId == null) return null;
+        if (rawMap != null && !rawMap.isBlank()) {
+            for (String pair : rawMap.split(",")) {
+                String[] parts = pair.split(":");
+                if (parts.length != 2) continue;
+                try {
+                    long from = Long.parseLong(parts[0].trim());
+                    long to = Long.parseLong(parts[1].trim());
+                    if (to == targetId) return from;
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        return identityFallback ? targetId : null;
     }
 
     private StatutCommande mapTikTakStatus(String status) {

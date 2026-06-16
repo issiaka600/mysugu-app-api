@@ -3,6 +3,7 @@ package ma.mysuguclientapp.controllers;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import ma.mysuguclientapp.dtos.DeviceTokenRegisterDTO;
+import ma.mysuguclientapp.config.security.JwtTokenProvider;
 import ma.mysuguclientapp.services.interfaces.DeviceTokenService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,14 +16,22 @@ import java.util.Map;
 public class DeviceTokenController {
 
     private final DeviceTokenService deviceTokenService;
+    private final JwtTokenProvider jwtTokenProvider;
 
     /**
      * Enregistre ou met à jour un token FCM pour un utilisateur.
      * À appeler depuis l'application mobile au démarrage ou lors du renouvellement du token.
      */
     @PostMapping("/register")
-    public ResponseEntity<Map<String, String>> registerToken(@Valid @RequestBody DeviceTokenRegisterDTO dto) {
-        deviceTokenService.registerToken(dto.getUserId(), dto.getToken(), dto.getPlatform());
+    public ResponseEntity<Map<String, String>> registerToken(
+            @RequestHeader("Authorization") String authorization,
+            @Valid @RequestBody DeviceTokenRegisterDTO dto
+    ) {
+        String jwt = authorization.startsWith("Bearer ")
+                ? authorization.substring(7)
+                : authorization;
+        Long userId = jwtTokenProvider.getUserIdFromToken(jwt);
+        deviceTokenService.registerToken(userId, dto.getToken(), dto.getPlatform());
         return ResponseEntity.ok(Map.of("message", "Token FCM enregistré avec succès"));
     }
 

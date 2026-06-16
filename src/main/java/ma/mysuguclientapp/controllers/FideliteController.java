@@ -11,7 +11,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -25,17 +24,17 @@ public class FideliteController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
-    public ResponseEntity<PointsFideliteDTO> getMesPoints(@AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = getUserId(userDetails);
+    public ResponseEntity<PointsFideliteDTO> getMesPoints(@AuthenticationPrincipal String email) {
+        Long userId = getUserId(email);
         return ResponseEntity.ok(fideliteService.getPoints(userId));
     }
 
     @GetMapping("/historique")
     @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
     public ResponseEntity<Page<TransactionPointsDTO>> getHistorique(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal String email,
             Pageable pageable) {
-        Long userId = getUserId(userDetails);
+        Long userId = getUserId(email);
         return ResponseEntity.ok(fideliteService.getHistoriquePoints(userId, pageable));
     }
 
@@ -45,8 +44,8 @@ public class FideliteController {
         return ResponseEntity.ok(fideliteService.getPoints(userId));
     }
 
-    private Long getUserId(UserDetails userDetails) {
-        return userRepository.findByEmail(userDetails.getUsername())
+    private Long getUserId(String email) {
+        return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED))
                 .getId();
     }

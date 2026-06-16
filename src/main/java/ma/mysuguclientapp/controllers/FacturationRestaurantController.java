@@ -14,7 +14,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -91,8 +90,8 @@ public class FacturationRestaurantController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime periodeDebut,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime periodeFin,
             @RequestParam(required = false) String note,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        Long adminId = getUserId(userDetails);
+            @AuthenticationPrincipal String email) {
+        Long adminId = getUserId(email);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(facturationService.creerPaiementPeriodique(restaurantId, adminId, periodeDebut, periodeFin, note));
     }
@@ -123,8 +122,8 @@ public class FacturationRestaurantController {
     // HELPER
     // =====================================================================
 
-    private Long getUserId(UserDetails userDetails) {
-        return userRepository.findByEmail(userDetails.getUsername())
+    private Long getUserId(String email) {
+        return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED))
                 .getId();
     }

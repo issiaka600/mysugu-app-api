@@ -7,7 +7,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -37,6 +36,12 @@ public class CodePromoController {
         return ResponseEntity.ok(codePromoService.getAllCodesPromo());
     }
 
+    @GetMapping("/disponibles")
+    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
+    public ResponseEntity<List<CodePromoDTO>> getCodesPromoDisponibles() {
+        return ResponseEntity.ok(codePromoService.getCodesPromoActifs());
+    }
+
     @PatchMapping("/{id}/activer")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CodePromoDTO> activerDesactiver(@PathVariable Long id,
@@ -55,7 +60,7 @@ public class CodePromoController {
     @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
     public ResponseEntity<ResultatCodePromoDTO> validerCodePromo(
             @RequestBody AppliquerCodePromoDTO dto,
-            @AuthenticationPrincipal UserDetails userDetails) {
+            @AuthenticationPrincipal String email) {
         // userId will be resolved from security context in service
         return ResponseEntity.ok(codePromoService.validerEtCalculer(dto, null));
     }

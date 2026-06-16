@@ -44,7 +44,12 @@ public class CategorieRestaurantServiceImpl implements CategorieRestaurantServic
     }
 
     @Override
-    public CategorieRestaurantDTO createCategorie(String nom, String description, MultipartFile image) {
+    public CategorieRestaurantDTO createCategorie(
+            String nom,
+            String description,
+            MultipartFile image,
+            MultipartFile imageTop,
+            MultipartFile imageBanner) {
         // Vérifier si le nom existe déjà
         if (categorieRepository.findByNom(nom).isPresent()) {
             throw new BadRequestException("Une catégorie avec ce nom existe déjà");
@@ -54,16 +59,9 @@ public class CategorieRestaurantServiceImpl implements CategorieRestaurantServic
         categorie.setNom(nom);
         categorie.setDescription(description);
 
-        // Upload image si fournie
-        if (image != null && !image.isEmpty()) {
-            try {
-                String imageUrl = minioService.uploadFile(image, "categories");
-                categorie.setImageUrl(imageUrl);
-            } catch (Exception e) {
-                log.error("Erreur lors de l'upload de l'image", e);
-                throw new BadRequestException("Erreur lors de l'upload de l'image");
-            }
-        }
+        categorie.setImageUrl(uploadCategorieImage(image));
+        categorie.setImageTopUrl(uploadCategorieImage(imageTop));
+        categorie.setImageBannerUrl(uploadCategorieImage(imageBanner));
 
         CategorieRestaurant savedCategorie = categorieRepository.save(categorie);
         log.info("Catégorie créée: {}", savedCategorie.getNom());
@@ -72,7 +70,13 @@ public class CategorieRestaurantServiceImpl implements CategorieRestaurantServic
     }
 
     @Override
-    public CategorieRestaurantDTO updateCategorie(Long id, String nom, String description, MultipartFile image) {
+    public CategorieRestaurantDTO updateCategorie(
+            Long id,
+            String nom,
+            String description,
+            MultipartFile image,
+            MultipartFile imageTop,
+            MultipartFile imageBanner) {
         CategorieRestaurant categorie = categorieRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Catégorie non trouvée"));
 
@@ -86,21 +90,9 @@ public class CategorieRestaurantServiceImpl implements CategorieRestaurantServic
         categorie.setNom(nom);
         categorie.setDescription(description);
 
-        // Upload nouvelle image si fournie
-        if (image != null && !image.isEmpty()) {
-            try {
-                // Supprimer l'ancienne image
-                if (categorie.getImageUrl() != null) {
-                    minioService.deleteFile(categorie.getImageUrl());
-                }
-
-                String imageUrl = minioService.uploadFile(image, "categories");
-                categorie.setImageUrl(imageUrl);
-            } catch (Exception e) {
-                log.error("Erreur lors de l'upload de l'image", e);
-                throw new BadRequestException("Erreur lors de l'upload de l'image");
-            }
-        }
+        categorie.setImageUrl(replaceCategorieImage(categorie.getImageUrl(), image));
+        categorie.setImageTopUrl(replaceCategorieImage(categorie.getImageTopUrl(), imageTop));
+        categorie.setImageBannerUrl(replaceCategorieImage(categorie.getImageBannerUrl(), imageBanner));
 
         CategorieRestaurant updatedCategorie = categorieRepository.save(categorie);
         log.info("Catégorie mise à jour: {}", updatedCategorie.getNom());
@@ -124,6 +116,20 @@ public class CategorieRestaurantServiceImpl implements CategorieRestaurantServic
                 minioService.deleteFile(categorie.getImageUrl());
             } catch (Exception e) {
                 log.warn("Erreur lors de la suppression de l'image", e);
+            }
+        }
+        if (categorie.getImageTopUrl() != null) {
+            try {
+                minioService.deleteFile(categorie.getImageTopUrl());
+            } catch (Exception e) {
+                log.warn("Erreur lors de la suppression de l'image top", e);
+            }
+        }
+        if (categorie.getImageBannerUrl() != null) {
+            try {
+                minioService.deleteFile(categorie.getImageBannerUrl());
+            } catch (Exception e) {
+                log.warn("Erreur lors de la suppression de l'image bannière", e);
             }
         }
 
@@ -151,12 +157,41 @@ public class CategorieRestaurantServiceImpl implements CategorieRestaurantServic
         dto.setNom(categorie.getNom());
         dto.setDescription(categorie.getDescription());
         dto.setImageUrl(minioService.buildPublicFileUrl(categorie.getImageUrl()));
+        dto.setImageTopUrl(minioService.buildPublicFileUrl(categorie.getImageTopUrl()));
+        dto.setImageBannerUrl(minioService.buildPublicFileUrl(categorie.getImageBannerUrl()));
 
         if (categorie.getRestaurants() != null) {
             dto.setNombreRestaurants(categorie.getRestaurants().size());
         }
 
         return dto;
+    }
+
+    private String uploadCategorieImage(MultipartFile image) {
+        if (image == null || image.isEmpty()) {
+            return null;
+        }
+        try {
+            return minioService.uploadFile(image, "categories");
+        } catch (Exception e) {
+            log.error("Erreur lors de l'upload de l'image catégorie", e);
+            throw new BadRequestException("Erreur lors de l'upload de l'image");
+        }
+    }
+
+    private String replaceCategorieImage(String currentImageUrl, MultipartFile image) {
+        if (image == null || image.isEmpty()) {
+            return currentImageUrl;
+        }
+        try {
+            if (currentImageUrl != null) {
+                minioService.deleteFile(currentImageUrl);
+            }
+            return minioService.uploadFile(image, "categories");
+        } catch (Exception e) {
+            log.error("Erreur lors du remplacement de l'image catégorie", e);
+            throw new BadRequestException("Erreur lors de l'upload de l'image");
+        }
     }
 
     private RestaurantDTO convertRestaurantToDTO(Restaurant restaurant) {

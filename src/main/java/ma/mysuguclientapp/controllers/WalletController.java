@@ -13,7 +13,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -27,33 +26,33 @@ public class WalletController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
-    public ResponseEntity<WalletDTO> getMonWallet(@AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = getUserId(userDetails);
+    public ResponseEntity<WalletDTO> getMonWallet(@AuthenticationPrincipal String email) {
+        Long userId = getUserId(email);
         return ResponseEntity.ok(walletService.getWallet(userId));
     }
 
     @PostMapping("/recharger")
     @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
-    public ResponseEntity<WalletDTO> recharger(@AuthenticationPrincipal UserDetails userDetails,
+    public ResponseEntity<WalletDTO> recharger(@AuthenticationPrincipal String email,
                                                 @RequestBody RechargeWalletDTO dto) {
-        Long userId = getUserId(userDetails);
+        Long userId = getUserId(email);
         return ResponseEntity.ok(walletService.recharger(userId, dto));
     }
 
     @PostMapping("/payer")
     @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
-    public ResponseEntity<WalletDTO> payer(@AuthenticationPrincipal UserDetails userDetails,
+    public ResponseEntity<WalletDTO> payer(@AuthenticationPrincipal String email,
                                             @RequestBody PaiementWalletDTO dto) {
-        Long userId = getUserId(userDetails);
+        Long userId = getUserId(email);
         return ResponseEntity.ok(walletService.payer(userId, dto));
     }
 
     @GetMapping("/transactions")
     @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
     public ResponseEntity<Page<TransactionWalletDTO>> getHistorique(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal String email,
             Pageable pageable) {
-        Long userId = getUserId(userDetails);
+        Long userId = getUserId(email);
         return ResponseEntity.ok(walletService.getHistoriqueTransactions(userId, pageable));
     }
 
@@ -63,8 +62,8 @@ public class WalletController {
         return ResponseEntity.ok(walletService.getWallet(userId));
     }
 
-    private Long getUserId(UserDetails userDetails) {
-        return userRepository.findByEmail(userDetails.getUsername())
+    private Long getUserId(String email) {
+        return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED))
                 .getId();
     }

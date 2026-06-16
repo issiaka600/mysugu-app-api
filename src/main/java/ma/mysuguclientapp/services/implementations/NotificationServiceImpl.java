@@ -229,6 +229,11 @@ public class NotificationServiceImpl implements NotificationService {
     private Map<String, String> buildFcmData(TypeNotification type, Long entityId, String entityType) {
         Map<String, String> data = new java.util.HashMap<>();
         data.put("type", type.name());
+        if (type == TypeNotification.MESSAGE) {
+            data.put("channelId", "mysuku_customer_messages_v1");
+            data.put("sound", "message_sound");
+            data.put("badge", "1");
+        }
         if (entityId != null) data.put("entityId", entityId.toString());
         if (entityType != null) data.put("entityType", entityType);
         return data;

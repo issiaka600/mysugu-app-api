@@ -16,7 +16,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -70,8 +69,10 @@ public class MessageContactController {
     public ResponseEntity<MessageContactDTO> repondre(
             @PathVariable Long id,
             @Valid @RequestBody MessageContactReponseDTO dto,
-            @AuthenticationPrincipal UserDetails admin) {
-        String adminEmail = admin != null ? admin.getUsername() : "admin";
+            @AuthenticationPrincipal String adminEmail) {
+        if (adminEmail == null || adminEmail.isBlank()) {
+            adminEmail = "admin";
+        }
         return ResponseEntity.ok(service.repondre(id, dto, adminEmail));
     }
 

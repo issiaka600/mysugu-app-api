@@ -8,5 +8,7 @@ public class CategorieRestaurantDTO {
     private String nom;
     private String description;
     private String imageUrl;
+    private String imageTopUrl;
+    private String imageBannerUrl;
     private Integer nombreRestaurants;
 }
