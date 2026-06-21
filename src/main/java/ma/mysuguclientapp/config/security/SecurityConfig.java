@@ -100,6 +100,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/promotions/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/promotions/**").hasRole("ADMIN")
 
+                        // Onboarding restaurateur (app mobile) : inscription publique, reste authentifié
+                        .requestMatchers(HttpMethod.POST, "/api/restaurateur/register").permitAll()
+                        .requestMatchers("/api/restaurateur/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
+
                         // Routes propriétaires de restaurant
                         .requestMatchers(HttpMethod.POST, "/api/restaurants").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/restaurants/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")

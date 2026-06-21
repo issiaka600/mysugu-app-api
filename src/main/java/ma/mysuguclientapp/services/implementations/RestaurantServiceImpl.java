@@ -13,6 +13,7 @@ import ma.mysuguclientapp.entities.Localisation;
 import ma.mysuguclientapp.entities.Restaurant;
 import ma.mysuguclientapp.entities.User;
 import ma.mysuguclientapp.entities.ZoneDeploiement;
+import ma.mysuguclientapp.enumerations.StatutRestaurant;
 import ma.mysuguclientapp.enumerations.UserRole;
 import ma.mysuguclientapp.enumerations.Vertical;
 import ma.mysuguclientapp.exceptions.BadRequestException;
@@ -46,6 +47,7 @@ public class RestaurantServiceImpl implements RestaurantService {
     private final MinioService minioService;
     private final ZoneDeploiementRepository zoneDeploiementRepository;
     private final OwnerProvisioningService ownerProvisioningService;
+    private final EmailService emailService;
 
     @Override
     @Transactional(readOnly = true)
@@ -261,6 +263,184 @@ public class RestaurantServiceImpl implements RestaurantService {
         return convertToDTO(updated, null, null);
     }
 
+    // ===================== Onboarding restaurateur =====================
+
+    @Override
+    public RestaurantDTO soumettreOnboarding(String ownerEmail, RestaurantCreateDTO dto,
+                                             MultipartFile logo, List<MultipartFile> justificatifs) {
+        User owner = userRepository.findByEmail(ownerEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Restaurateur non trouvé"));
+        if (owner.getRole() != UserRole.RESTAURANT_OWNER && owner.getRole() != UserRole.ADMIN) {
+            throw new BadRequestException("Seul un compte restaurateur peut soumettre un restaurant");
+        }
+        if (restaurantRepository.findByOwnerId(owner.getId()).isPresent()) {
+            throw new BadRequestException("Un restaurant est déjà rattaché à ce compte");
+        }
+        if (dto.getNom() == null || dto.getNom().isBlank()) {
+            throw new BadRequestException("Le nom du restaurant est obligatoire");
+        }
+
+        CategorieRestaurant categorie = null;
+        if (dto.getCategorieId() != null) {
+            categorie = categorieRepository.findById(dto.getCategorieId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Catégorie non trouvée"));
+        }
+
+        Restaurant restaurant = new Restaurant();
+        restaurant.setNom(dto.getNom());
+        restaurant.setDescription(dto.getDescription());
+        restaurant.setCategorie(categorie);
+        restaurant.setOwner(owner);
+        restaurant.setVertical(parseVertical(dto.getVertical()));
+        restaurant.setTempsLivraisonMoyen(dto.getTempsLivraisonMoyen());
+        restaurant.setHorairesOuverture(dto.getHorairesOuverture());
+        // En attente de validation admin : non actif / non visible tant que non approuvé.
+        restaurant.setIsActive(false);
+        restaurant.setStatutApprobation(StatutRestaurant.EN_ATTENTE);
+
+        applyAutoCloseSettings(restaurant, dto);
+        applyLocalisation(restaurant, dto.getLocalisation());
+        applyZoneDeploiement(restaurant, dto.getZoneDeploiementId());
+
+        if (logo != null && !logo.isEmpty()) {
+            restaurant.setLogoUrl(uploadOrThrow(logo, "restaurants/logos"));
+        }
+        restaurant.getJustificatifs().addAll(uploadJustificatifs(justificatifs));
+
+        Restaurant saved = restaurantRepository.save(restaurant);
+        log.info("Onboarding soumis: restaurant '{}' par {}", saved.getNom(), ownerEmail);
+        return convertToDTO(saved, null, null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RestaurantDTO getMonRestaurant(String ownerEmail) {
+        User owner = userRepository.findByEmail(ownerEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Restaurateur non trouvé"));
+        Restaurant restaurant = restaurantRepository.findByOwnerId(owner.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Aucun restaurant rattaché à ce compte"));
+        return convertToDTO(restaurant, null, null);
+    }
+
+    @Override
+    public RestaurantDTO ajouterJustificatifs(String ownerEmail, List<MultipartFile> justificatifs) {
+        User owner = userRepository.findByEmail(ownerEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Restaurateur non trouvé"));
+        Restaurant restaurant = restaurantRepository.findByOwnerId(owner.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Aucun restaurant rattaché à ce compte"));
+        if (justificatifs == null || justificatifs.isEmpty()) {
+            throw new BadRequestException("Aucun justificatif fourni");
+        }
+        restaurant.getJustificatifs().addAll(uploadJustificatifs(justificatifs));
+        // Repasse en attente après ajout de complément.
+        if (restaurant.getStatutApprobation() == StatutRestaurant.COMPLEMENT_REQUIS) {
+            restaurant.setStatutApprobation(StatutRestaurant.EN_ATTENTE);
+        }
+        Restaurant saved = restaurantRepository.save(restaurant);
+        return convertToDTO(saved, null, null);
+    }
+
+    // ===================== Revue admin =====================
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RestaurantDTO> getRestaurantsAReviser() {
+        return restaurantRepository.findByStatutApprobationInOrderByDateRevueAscIdAsc(
+                        List.of(StatutRestaurant.EN_ATTENTE, StatutRestaurant.COMPLEMENT_REQUIS))
+                .stream()
+                .map(r -> convertToDTO(r, null, null))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public RestaurantDTO approuverRestaurant(Long id, Long adminId) {
+        Restaurant restaurant = restaurantRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Restaurant non trouvé"));
+        restaurant.setStatutApprobation(StatutRestaurant.APPROUVE);
+        restaurant.setMotifRevue(null);
+        restaurant.setIsActive(true);
+        restaurant.setDateRevue(java.time.LocalDateTime.now());
+        restaurant.setRevuePar(adminId);
+        Restaurant saved = restaurantRepository.save(restaurant);
+        notifierRestaurateur(saved, "Votre restaurant a été approuvé",
+                "Félicitations, votre restaurant \"" + saved.getNom()
+                        + "\" a été approuvé et est désormais visible sur MySugu.");
+        log.info("Restaurant {} approuvé par admin {}", id, adminId);
+        return convertToDTO(saved, null, null);
+    }
+
+    @Override
+    public RestaurantDTO rejeterRestaurant(Long id, Long adminId, String motif) {
+        if (motif == null || motif.isBlank()) {
+            throw new BadRequestException("Un motif de rejet est obligatoire");
+        }
+        Restaurant restaurant = restaurantRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Restaurant non trouvé"));
+        restaurant.setStatutApprobation(StatutRestaurant.REJETE);
+        restaurant.setMotifRevue(motif);
+        restaurant.setIsActive(false);
+        restaurant.setDateRevue(java.time.LocalDateTime.now());
+        restaurant.setRevuePar(adminId);
+        Restaurant saved = restaurantRepository.save(restaurant);
+        notifierRestaurateur(saved, "Votre demande a été rejetée",
+                "Votre restaurant \"" + saved.getNom() + "\" n'a pas pu être validé. Motif : " + motif);
+        log.info("Restaurant {} rejeté par admin {}", id, adminId);
+        return convertToDTO(saved, null, null);
+    }
+
+    @Override
+    public RestaurantDTO demanderComplement(Long id, Long adminId, String message) {
+        if (message == null || message.isBlank()) {
+            throw new BadRequestException("Précisez les éléments demandés au restaurateur");
+        }
+        Restaurant restaurant = restaurantRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Restaurant non trouvé"));
+        restaurant.setStatutApprobation(StatutRestaurant.COMPLEMENT_REQUIS);
+        restaurant.setMotifRevue(message);
+        restaurant.setIsActive(false);
+        restaurant.setDateRevue(java.time.LocalDateTime.now());
+        restaurant.setRevuePar(adminId);
+        Restaurant saved = restaurantRepository.save(restaurant);
+        notifierRestaurateur(saved, "Justificatifs complémentaires requis",
+                "Pour valider votre restaurant \"" + saved.getNom()
+                        + "\", merci de fournir : " + message);
+        log.info("Complément demandé pour restaurant {} par admin {}", id, adminId);
+        return convertToDTO(saved, null, null);
+    }
+
+    private List<String> uploadJustificatifs(List<MultipartFile> justificatifs) {
+        List<String> objectNames = new java.util.ArrayList<>();
+        if (justificatifs == null) {
+            return objectNames;
+        }
+        for (MultipartFile f : justificatifs) {
+            if (f != null && !f.isEmpty()) {
+                objectNames.add(uploadOrThrow(f, "restaurants/justificatifs"));
+            }
+        }
+        return objectNames;
+    }
+
+    private String uploadOrThrow(MultipartFile file, String folder) {
+        try {
+            return minioService.uploadFile(file, folder);
+        } catch (Exception e) {
+            log.error("Erreur lors de l'upload du fichier ({})", folder, e);
+            throw new BadRequestException("Erreur lors de l'upload du fichier");
+        }
+    }
+
+    private void notifierRestaurateur(Restaurant restaurant, String sujet, String message) {
+        try {
+            if (restaurant.getOwner() != null && restaurant.getOwner().getEmail() != null) {
+                emailService.envoyerNotificationRevueRestaurant(
+                        restaurant.getOwner().getEmail(), sujet, message);
+            }
+        } catch (Exception e) {
+            log.warn("Notification restaurateur non envoyée: {}", e.getMessage());
+        }
+    }
+
     private void applyAutoCloseSettings(Restaurant restaurant, RestaurantCreateDTO restaurantDTO) {
         boolean autoCloseEnabled = Boolean.TRUE.equals(restaurantDTO.getAutoCloseEnabled());
         restaurant.setAutoCloseEnabled(autoCloseEnabled);
@@ -322,6 +502,18 @@ public class RestaurantServiceImpl implements RestaurantService {
         dto.setCreatedAt(restaurant.getCreatedAt());
         dto.setCommissionPourcentage(restaurant.getCommissionPourcentage());
         dto.setVertical(restaurant.getVertical() != null ? restaurant.getVertical().name() : Vertical.RESTAURANT.name());
+
+        StatutRestaurant statut = restaurant.getStatutApprobation() != null
+                ? restaurant.getStatutApprobation() : StatutRestaurant.APPROUVE;
+        dto.setStatutApprobation(statut.name());
+        dto.setMotifRevue(restaurant.getMotifRevue());
+        dto.setDateRevue(restaurant.getDateRevue());
+        if (restaurant.getJustificatifs() != null) {
+            dto.setJustificatifs(new java.util.ArrayList<>(restaurant.getJustificatifs()));
+            dto.setJustificatifsUrls(restaurant.getJustificatifs().stream()
+                    .map(minioService::buildPublicFileUrl)
+                    .collect(Collectors.toList()));
+        }
 
         if (restaurant.getOwner() != null) {
             User owner = restaurant.getOwner();

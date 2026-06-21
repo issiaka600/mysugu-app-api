@@ -214,7 +214,8 @@ public class TestDataInitializer implements CommandLineRunner {
                                 ModeDisponibilitePlat.DISPONIBLE,
                                 null,
                                 tempsPreparation,
-                                categoriePlat
+                                categoriePlat,
+                                null
                         )
                 ));
     }

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import ma.mysuguclientapp.enumerations.StatutRestaurant;
 import ma.mysuguclientapp.enumerations.Vertical;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -75,6 +76,35 @@ public class Restaurant {
     
     @Column(name = "is_active")
     private Boolean isActive = true;
+
+    /**
+     * Statut d'approbation dans le workflow d'onboarding restaurateur.
+     * Défaut {@link StatutRestaurant#APPROUVE} : les restaurants créés par l'admin
+     * (et les anciennes données) sont considérés approuvés. L'onboarding restaurateur
+     * positionne explicitement {@link StatutRestaurant#EN_ATTENTE}.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "statut_approbation")
+    private StatutRestaurant statutApprobation = StatutRestaurant.APPROUVE;
+
+    /** Motif de rejet ou détail de la demande de complément formulée par l'admin. */
+    @Column(name = "motif_revue", length = 1000)
+    private String motifRevue;
+
+    /** Date de la dernière décision de revue (approbation / rejet / demande de complément). */
+    @Column(name = "date_revue")
+    private LocalDateTime dateRevue;
+
+    /** Identifiant de l'admin ayant statué sur la demande. */
+    @Column(name = "revue_par")
+    private Long revuePar;
+
+    /** Object names (MinIO) des justificatifs fournis par le restaurateur. */
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "restaurant_justificatifs",
+            joinColumns = @JoinColumn(name = "restaurant_id"))
+    @Column(name = "object_name", length = 500)
+    private List<String> justificatifs = new ArrayList<>();
 
     @Column(name = "auto_close_enabled")
     private Boolean autoCloseEnabled = false;

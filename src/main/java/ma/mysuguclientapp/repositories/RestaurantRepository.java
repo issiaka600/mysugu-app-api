@@ -2,6 +2,7 @@ package ma.mysuguclientapp.repositories;
 
 import ma.mysuguclientapp.entities.Promotion;
 import ma.mysuguclientapp.entities.Restaurant;
+import ma.mysuguclientapp.enumerations.StatutRestaurant;
 import ma.mysuguclientapp.enumerations.Vertical;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +26,7 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Long> {
     Page<Restaurant> findByVerticalAndIsActive(Vertical vertical, Boolean isActive, Pageable pageable);
     List<Restaurant> findByIsActiveOrderByAppreciationDesc(Boolean isActive);
     List<Restaurant> findByIsActive(Boolean isActive);
+    List<Restaurant> findByStatutApprobationInOrderByDateRevueAscIdAsc(java.util.Collection<StatutRestaurant> statuts);
 
     @Query("SELECT r FROM Restaurant r WHERE r.isActive = true AND " +
             "(LOWER(r.nom) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +

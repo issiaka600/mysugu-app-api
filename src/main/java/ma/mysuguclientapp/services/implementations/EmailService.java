@@ -115,6 +115,15 @@ public class EmailService {
         envoyerEmail(toEmail, objetEmail, message);
     }
 
+    @Async
+    public void envoyerNotificationRevueRestaurant(String toEmail, String sujet, String message) {
+        String objetEmail = "MySugu - " + sujet;
+        String corps = "Bonjour,\n\n" + message + "\n\n" +
+                "Vous pouvez consulter le statut de votre restaurant depuis votre application restaurateur.\n\n" +
+                "Cordialement,\nL'equipe MySugu";
+        envoyerEmail(toEmail, objetEmail, corps);
+    }
+
     private void envoyerEmail(String to, String sujet, String message) {
         try {
             SimpleMailMessage email = new SimpleMailMessage();

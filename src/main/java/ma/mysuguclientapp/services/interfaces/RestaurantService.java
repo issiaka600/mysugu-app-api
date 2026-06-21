@@ -60,4 +60,39 @@ public interface RestaurantService {
      */
     RestaurantDTO setCommissionPourcentage(Long id, java.math.BigDecimal pourcentage);
 
+    // ===================== Onboarding restaurateur =====================
+
+    /**
+     * Soumission d'un restaurant par un restaurateur authentifié (app mobile).
+     * Le restaurant est créé au statut {@code EN_ATTENTE} et reste invisible
+     * (isActive = false) jusqu'à l'approbation de l'admin.
+     */
+    RestaurantDTO soumettreOnboarding(String ownerEmail, RestaurantCreateDTO dto,
+                                      MultipartFile logo, List<MultipartFile> justificatifs);
+
+    /**
+     * Restaurant du restaurateur authentifié, avec son statut d'approbation.
+     */
+    RestaurantDTO getMonRestaurant(String ownerEmail);
+
+    /**
+     * Ajout de justificatifs complémentaires par le restaurateur
+     * (typiquement après une demande de complément de l'admin).
+     */
+    RestaurantDTO ajouterJustificatifs(String ownerEmail, List<MultipartFile> justificatifs);
+
+    // ===================== Revue admin =====================
+
+    /** Liste des restaurants en attente de revue (EN_ATTENTE ou COMPLEMENT_REQUIS). */
+    List<RestaurantDTO> getRestaurantsAReviser();
+
+    /** Approuve un restaurant : statut APPROUVE, devient actif et visible. */
+    RestaurantDTO approuverRestaurant(Long id, Long adminId);
+
+    /** Rejette un restaurant avec un motif. */
+    RestaurantDTO rejeterRestaurant(Long id, Long adminId, String motif);
+
+    /** Demande des justificatifs complémentaires au restaurateur. */
+    RestaurantDTO demanderComplement(Long id, Long adminId, String message);
+
 }
