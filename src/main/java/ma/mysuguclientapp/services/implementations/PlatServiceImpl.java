@@ -302,6 +302,29 @@ public class PlatServiceImpl implements PlatService {
             dto.setRestaurantNom(plat.getRestaurant().getNom());
         }
 
+        if (plat.getOptionGroups() != null) {
+            dto.setOptionGroups(plat.getOptionGroups().stream().map(g -> {
+                ma.mysuguclientapp.dtos.OptionGroupDTO gd = new ma.mysuguclientapp.dtos.OptionGroupDTO();
+                gd.setId(g.getId());
+                gd.setNom(g.getNom());
+                gd.setSelectionMode(g.getSelectionMode() != null ? g.getSelectionMode().name() : null);
+                gd.setObligatoire(g.getObligatoire());
+                gd.setMinSelections(g.getMinSelections());
+                gd.setMaxSelections(g.getMaxSelections());
+                gd.setOrdre(g.getOrdre());
+                gd.setItems(g.getItems() == null ? java.util.List.of() : g.getItems().stream().map(it -> {
+                    ma.mysuguclientapp.dtos.OptionItemDTO id = new ma.mysuguclientapp.dtos.OptionItemDTO();
+                    id.setId(it.getId());
+                    id.setNom(it.getNom());
+                    id.setPrixSupplement(it.getPrixSupplement());
+                    id.setDisponible(it.getDisponible());
+                    id.setOrdre(it.getOrdre());
+                    return id;
+                }).collect(java.util.stream.Collectors.toList()));
+                return gd;
+            }).collect(java.util.stream.Collectors.toList()));
+        }
+
         return dto;
     }
 }

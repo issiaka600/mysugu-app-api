@@ -25,4 +25,5 @@ public class PlatDTO {
     private Integer tempsPreparation;
     private Long restaurantId;
     private String restaurantNom;
+    private List<OptionGroupDTO> optionGroups;
 }
