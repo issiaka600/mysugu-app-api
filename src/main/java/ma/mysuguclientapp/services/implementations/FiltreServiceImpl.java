@@ -66,6 +66,9 @@ public class FiltreServiceImpl implements FiltreService {
         if (f.getLibelle() == null || f.getLibelle().isBlank()) {
             throw new BadRequestException("Le libellé est obligatoire");
         }
+        if (f.getComportement() == null) {
+            throw new BadRequestException("Le comportement est obligatoire");
+        }
         if (f.getComportement() == FiltreComportement.CATEGORIE && f.getCategorieId() == null) {
             throw new BadRequestException("Un filtre CATEGORIE doit référencer une catégorie");
         }
