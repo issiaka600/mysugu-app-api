@@ -58,4 +58,8 @@ public class Plat {
     
     @Enumerated(EnumType.STRING)
     private CategoriePlat categoriePlat; // ENTREE, PLAT_PRINCIPAL, DESSERT, BOISSON
+
+    /** Catégorie produit libre pour les verticales non-restaurant (alimentaire/cosmétique). */
+    @Column(name = "categorie_produit")
+    private String categorieProduit;
 }

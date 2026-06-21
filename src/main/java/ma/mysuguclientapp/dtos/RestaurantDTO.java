@@ -19,6 +19,8 @@ public class RestaurantDTO {
     private LocalisationDTO localisation;
     private CategorieRestaurantDTO categorie;
     private PromotionDTO promotion;
+    /** Verticale de service : RESTAURANT, ALIMENTAIRE, COSMETIQUE */
+    private String vertical;
     private Boolean isActive;
     private Boolean autoCloseEnabled;
     private Boolean openNow;
@@ -26,6 +28,11 @@ public class RestaurantDTO {
     private LocalTime heureFermeture;
     private LocalDateTime createdAt;
     private Double distance;
+    /** Propriétaire (restaurateur) associé au restaurant */
+    private Long ownerId;
+    private String ownerNom;
+    private String ownerPrenom;
+    private String ownerEmail;
     /** Pourcentage de commission négocié avec ce restaurant (en %) */
     private java.math.BigDecimal commissionPourcentage;
 }

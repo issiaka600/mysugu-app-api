@@ -13,6 +13,7 @@ public class PlatCreateDTO {
     private BigDecimal prix;
     private List<String> ingredients;
     private String categoriePlat;
+    private String categorieProduit;
     private Long restaurantId;
     private Integer tempsPreparation;
     private String availabilityMode;

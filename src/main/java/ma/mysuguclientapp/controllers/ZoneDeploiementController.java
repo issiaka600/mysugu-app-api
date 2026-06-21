@@ -1,7 +1,10 @@
 package ma.mysuguclientapp.controllers;
 
 import lombok.RequiredArgsConstructor;
+import ma.mysuguclientapp.dtos.ZoneAttenteNotificationCreateDTO;
+import ma.mysuguclientapp.dtos.ZoneAttenteNotificationDTO;
 import ma.mysuguclientapp.dtos.ZoneDeploiementDTO;
+import ma.mysuguclientapp.services.interfaces.ZoneAttenteNotificationService;
 import ma.mysuguclientapp.services.interfaces.ZoneDeploiementService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +27,15 @@ import java.util.List;
 public class ZoneDeploiementController {
 
     private final ZoneDeploiementService zoneDeploiementService;
+    private final ZoneAttenteNotificationService zoneAttenteNotificationService;
+
+    /** Public : enregistre une demande lorsqu'un client est hors-zone. */
+    @PostMapping("/notification")
+    public ResponseEntity<ZoneAttenteNotificationDTO> enregistrerDemandeHorsZone(
+            @RequestBody ZoneAttenteNotificationCreateDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(zoneAttenteNotificationService.enregistrer(dto));
+    }
 
     /** Zones actives — accessible sans authentification (sélecteur côté client/restaurant). */
     @GetMapping("/actives")

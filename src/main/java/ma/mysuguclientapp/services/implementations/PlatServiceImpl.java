@@ -102,6 +102,7 @@ public class PlatServiceImpl implements PlatService {
         if (platDTO.getCategoriePlat() != null) {
             plat.setCategoriePlat(parseCategorie(platDTO.getCategoriePlat()));
         }
+        plat.setCategorieProduit(platDTO.getCategorieProduit());
 
         if (platDTO.getIngredients() != null) {
             plat.setIngredients(platDTO.getIngredients());
@@ -141,6 +142,7 @@ public class PlatServiceImpl implements PlatService {
             if (platDTO.getCategoriePlat() != null) {
                 plat.setCategoriePlat(parseCategorie(platDTO.getCategoriePlat()));
             }
+            plat.setCategorieProduit(platDTO.getCategorieProduit());
             if (platDTO.getIngredients() != null) {
                 plat.setIngredients(platDTO.getIngredients());
             }
@@ -294,6 +296,7 @@ public class PlatServiceImpl implements PlatService {
         if (plat.getCategoriePlat() != null) {
             dto.setCategoriePlat(plat.getCategoriePlat().name());
         }
+        dto.setCategorieProduit(plat.getCategorieProduit());
         if (plat.getRestaurant() != null) {
             dto.setRestaurantId(plat.getRestaurant().getId());
             dto.setRestaurantNom(plat.getRestaurant().getNom());

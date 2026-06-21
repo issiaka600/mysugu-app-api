@@ -2,6 +2,7 @@ package ma.mysuguclientapp.repositories;
 
 import ma.mysuguclientapp.entities.Promotion;
 import ma.mysuguclientapp.entities.Restaurant;
+import ma.mysuguclientapp.enumerations.Vertical;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -21,6 +22,7 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Long> {
     long countByZoneDeploiementId(Long zoneDeploiementId);
     Page<Restaurant> findByIsActive(Boolean isActive, Pageable pageable);
     Page<Restaurant> findByCategorieIdAndIsActive(Long categorieId, Boolean isActive, Pageable pageable);
+    Page<Restaurant> findByVerticalAndIsActive(Vertical vertical, Boolean isActive, Pageable pageable);
     List<Restaurant> findByIsActiveOrderByAppreciationDesc(Boolean isActive);
     List<Restaurant> findByIsActive(Boolean isActive);
 

@@ -2,8 +2,10 @@ package ma.mysuguclientapp.controllers;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import ma.mysuguclientapp.dtos.PlatDTO;
 import ma.mysuguclientapp.dtos.RestaurantCreateDTO;
 import ma.mysuguclientapp.dtos.RestaurantDTO;
+import ma.mysuguclientapp.services.interfaces.PlatService;
 import ma.mysuguclientapp.services.interfaces.RestaurantService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,6 +25,7 @@ import java.util.List;
 public class RestaurantController {
 
     private final RestaurantService restaurantService;
+    private final PlatService platService;
 
     /**
      * GET /api/restaurants - Obtenir tous les restaurants (avec pagination)
@@ -33,10 +36,11 @@ public class RestaurantController {
             @RequestParam(required = false) Double latitude,
             @RequestParam(required = false) Double longitude,
             @RequestParam(required = false) Double maxDistance, // en km
+            @RequestParam(required = false) String vertical,
             Pageable pageable) {
-        
+
         Page<RestaurantDTO> restaurants = restaurantService.getAllRestaurants(
-            categorieId, latitude, longitude, maxDistance, pageable);
+            categorieId, latitude, longitude, maxDistance, vertical, pageable);
         return ResponseEntity.ok(restaurants);
     }
 
@@ -140,8 +144,7 @@ public class RestaurantController {
      * GET /api/restaurants/{id}/plats - Obtenir les plats d'un restaurant
      */
     @GetMapping("/{id}/plats")
-    public ResponseEntity<List<?>> getRestaurantPlats(@PathVariable Long id) {
-        // Cette méthode sera implémentée dans PlatController
-        return ResponseEntity.ok(List.of());
+    public ResponseEntity<List<PlatDTO>> getRestaurantPlats(@PathVariable Long id) {
+        return ResponseEntity.ok(platService.getPlatsByRestaurant(id));
     }
 }

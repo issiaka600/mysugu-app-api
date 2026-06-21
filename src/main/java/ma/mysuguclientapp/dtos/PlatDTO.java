@@ -18,6 +18,7 @@ public class PlatDTO {
     private String imageUrl;
     private List<String> ingredients;
     private String categoriePlat;
+    private String categorieProduit;
     private Boolean isAvailable;
     private String availabilityMode;
     private LocalDateTime indisponibleJusqua;

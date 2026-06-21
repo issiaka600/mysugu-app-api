@@ -92,9 +92,13 @@ public class WalletServiceImpl implements WalletService {
     @Override
     @Transactional(readOnly = true)
     public Page<TransactionWalletDTO> getHistoriqueTransactions(Long userId, Pageable pageable) {
-        Wallet wallet = getOrCreateWallet(userId);
-        return transactionWalletRepository.findByWalletIdOrderByCreatedAtDesc(wallet.getId(), pageable)
-                .map(this::toTransactionDTO);
+        // Lecture seule : ne pas créer de wallet ici (sinon INSERT dans une transaction read-only).
+        // Un utilisateur sans wallet n'a simplement aucune transaction.
+        return walletRepository.findByUserId(userId)
+                .map(wallet -> transactionWalletRepository
+                        .findByWalletIdOrderByCreatedAtDesc(wallet.getId(), pageable)
+                        .map(this::toTransactionDTO))
+                .orElseGet(() -> Page.empty(pageable));
     }
 
     private Wallet getOrCreateWallet(Long userId) {

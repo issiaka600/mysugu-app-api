@@ -14,12 +14,14 @@ import ma.mysuguclientapp.entities.Restaurant;
 import ma.mysuguclientapp.entities.User;
 import ma.mysuguclientapp.entities.ZoneDeploiement;
 import ma.mysuguclientapp.enumerations.UserRole;
+import ma.mysuguclientapp.enumerations.Vertical;
 import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
 import ma.mysuguclientapp.repositories.CategoriesRestaurantRepository;
 import ma.mysuguclientapp.repositories.RestaurantRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
 import ma.mysuguclientapp.repositories.ZoneDeploiementRepository;
+import ma.mysuguclientapp.services.interfaces.OwnerProvisioningService;
 import ma.mysuguclientapp.services.interfaces.RestaurantService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -43,15 +45,22 @@ public class RestaurantServiceImpl implements RestaurantService {
     private final UserRepository userRepository;
     private final MinioService minioService;
     private final ZoneDeploiementRepository zoneDeploiementRepository;
+    private final OwnerProvisioningService ownerProvisioningService;
 
     @Override
     @Transactional(readOnly = true)
     public Page<RestaurantDTO> getAllRestaurants(Long categorieId, Double latitude,
                                                  Double longitude, Double maxDistance,
-                                                 Pageable pageable) {
-        Page<Restaurant> restaurants = categorieId != null
-                ? restaurantRepository.findByCategorieIdAndIsActive(categorieId, true, pageable)
-                : restaurantRepository.findByIsActive(true, pageable);
+                                                 String vertical, Pageable pageable) {
+        Page<Restaurant> restaurants;
+        if (categorieId != null) {
+            restaurants = restaurantRepository.findByCategorieIdAndIsActive(categorieId, true, pageable);
+        } else if ("ALL".equalsIgnoreCase(vertical)) {
+            restaurants = restaurantRepository.findByIsActive(true, pageable);
+        } else {
+            Vertical v = parseVertical(vertical);
+            restaurants = restaurantRepository.findByVerticalAndIsActive(v, true, pageable);
+        }
 
         List<RestaurantDTO> restaurantDTOs = restaurants.getContent().stream()
                 .map(restaurant -> convertToDTO(restaurant, latitude, longitude))
@@ -59,6 +68,17 @@ public class RestaurantServiceImpl implements RestaurantService {
                 .collect(Collectors.toList());
 
         return new PageImpl<>(restaurantDTOs, pageable, restaurants.getTotalElements());
+    }
+
+    private Vertical parseVertical(String value) {
+        if (value == null || value.isBlank()) {
+            return Vertical.RESTAURANT;
+        }
+        try {
+            return Vertical.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("Vertical invalide: " + value);
+        }
     }
 
     @Override
@@ -104,20 +124,14 @@ public class RestaurantServiceImpl implements RestaurantService {
                     .orElseThrow(() -> new ResourceNotFoundException("Catégorie non trouvée"));
         }
 
-        User owner = null;
-        if (restaurantDTO.getOwnerId() != null) {
-            owner = userRepository.findById(restaurantDTO.getOwnerId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Propriétaire non trouvé"));
-            if (owner.getRole() != UserRole.RESTAURANT_OWNER && owner.getRole() != UserRole.ADMIN) {
-                throw new BadRequestException("L'utilisateur doit avoir le rôle RESTAURANT_OWNER");
-            }
-        }
+        User owner = ownerProvisioningService.resolveOrCreateOwner(restaurantDTO);
 
         Restaurant restaurant = new Restaurant();
         restaurant.setNom(restaurantDTO.getNom());
         restaurant.setDescription(restaurantDTO.getDescription());
         restaurant.setCategorie(categorie);
         restaurant.setOwner(owner);
+        restaurant.setVertical(parseVertical(restaurantDTO.getVertical()));
         restaurant.setTempsLivraisonMoyen(restaurantDTO.getTempsLivraisonMoyen());
         restaurant.setHorairesOuverture(restaurantDTO.getHorairesOuverture());
         restaurant.setIsActive(true);
@@ -159,6 +173,19 @@ public class RestaurantServiceImpl implements RestaurantService {
             CategorieRestaurant categorie = categorieRepository.findById(restaurantDTO.getCategorieId())
                     .orElseThrow(() -> new ResourceNotFoundException("Catégorie non trouvée"));
             restaurant.setCategorie(categorie);
+        }
+
+        if (restaurantDTO.getVertical() != null && !restaurantDTO.getVertical().isBlank()) {
+            restaurant.setVertical(parseVertical(restaurantDTO.getVertical()));
+        }
+
+        if (restaurantDTO.getOwnerId() != null) {
+            User owner = userRepository.findById(restaurantDTO.getOwnerId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Propriétaire non trouvé"));
+            if (owner.getRole() != UserRole.RESTAURANT_OWNER && owner.getRole() != UserRole.ADMIN) {
+                throw new BadRequestException("L'utilisateur doit avoir le rôle RESTAURANT_OWNER");
+            }
+            restaurant.setOwner(owner);
         }
 
         applyLocalisation(restaurant, restaurantDTO.getLocalisation());
@@ -294,6 +321,15 @@ public class RestaurantServiceImpl implements RestaurantService {
         dto.setIsActive(openNow);
         dto.setCreatedAt(restaurant.getCreatedAt());
         dto.setCommissionPourcentage(restaurant.getCommissionPourcentage());
+        dto.setVertical(restaurant.getVertical() != null ? restaurant.getVertical().name() : Vertical.RESTAURANT.name());
+
+        if (restaurant.getOwner() != null) {
+            User owner = restaurant.getOwner();
+            dto.setOwnerId(owner.getId());
+            dto.setOwnerNom(owner.getNom());
+            dto.setOwnerPrenom(owner.getPrenom());
+            dto.setOwnerEmail(owner.getEmail());
+        }
 
         if (restaurant.getLocalisation() != null) {
             LocalisationDTO locDTO = new LocalisationDTO();

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import ma.mysuguclientapp.enumerations.Vertical;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
@@ -54,6 +55,11 @@ public class Restaurant {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "promotion_id")
     private Promotion promotion;
+
+    /** Verticale de service de ce commerçant (RESTAURANT par défaut). Null = RESTAURANT. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "vertical")
+    private Vertical vertical;
 
     /**
      * Zone de déploiement à laquelle appartient ce restaurant.

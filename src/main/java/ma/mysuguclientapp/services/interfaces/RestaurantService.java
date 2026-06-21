@@ -13,7 +13,7 @@ public interface RestaurantService {
      * Obtenir tous les restaurants avec filtres et pagination
      */
     Page<RestaurantDTO> getAllRestaurants(Long categorieId, Double latitude, Double longitude,
-                                          Double maxDistance, Pageable pageable);
+                                          Double maxDistance, String vertical, Pageable pageable);
 
     /**
      * Obtenir un restaurant par ID

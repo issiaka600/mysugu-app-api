@@ -110,6 +110,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/plats/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
 
                         .requestMatchers("/api/menus/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
+                        // Notification hors-zone — soumission publique (client sans compte)
+                        .requestMatchers(HttpMethod.POST, "/api/zones-deploiement/notification").permitAll()
                         .requestMatchers("/api/zones-deploiement/**").hasRole("ADMIN")
                         .requestMatchers("/api/restaurant-dashboard/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")
 

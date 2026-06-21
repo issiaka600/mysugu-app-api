@@ -63,6 +63,13 @@ public class WalletController {
         return ResponseEntity.ok(walletService.getWallet(userId));
     }
 
+    @GetMapping("/admin/{userId}/transactions")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Page<TransactionWalletDTO>> getHistoriqueAdmin(
+            @PathVariable Long userId, Pageable pageable) {
+        return ResponseEntity.ok(walletService.getHistoriqueTransactions(userId, pageable));
+    }
+
     private Long getUserId(UserDetails userDetails) {
         return userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED))

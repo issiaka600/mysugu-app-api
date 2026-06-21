@@ -50,6 +50,19 @@ public class EmailService {
     }
 
     @Async
+    public void envoyerInvitationRestaurateur(String toEmail, String nom, String token) {
+        String lien = frontendUrl + "/definir-mot-de-passe?token=" + token;
+        String sujet = "MySugu - Activez votre compte restaurateur";
+        String message = "Bonjour " + nom + ",\n\n" +
+                "Un compte restaurateur a été créé pour vous sur MySugu.\n\n" +
+                "Définissez votre mot de passe pour accéder à votre espace en cliquant sur le lien ci-dessous :\n" +
+                lien + "\n\n" +
+                "Ce lien est valable pendant 24 heures.\n\n" +
+                "L'équipe MySugu";
+        envoyerEmail(toEmail, sujet, message);
+    }
+
+    @Async
     public void envoyerConfirmationCommande(String toEmail, String numeroCommande, String restaurantNom) {
         String sujet = "MySugu - Commande #" + numeroCommande + " confirmée";
         String message = "Bonjour,\n\n" +
