@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "panier_items")
@@ -30,4 +32,8 @@ public class PanierItem {
 
     @Column(length = 500)
     private String remarque;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "panierItem", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PanierItemOption> options = new ArrayList<>();
 }

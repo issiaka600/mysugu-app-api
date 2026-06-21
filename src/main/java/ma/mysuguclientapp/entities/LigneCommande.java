@@ -6,6 +6,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "lignes_commande")
@@ -45,4 +47,7 @@ public class LigneCommande {
     /** Montant de commission calculé pour cette ligne (prixUnitaire × quantite × commissionPourcentage / 100) */
     @Column(name = "montant_commission", precision = 10, scale = 2)
     private BigDecimal montantCommission = BigDecimal.ZERO;
+
+    @OneToMany(mappedBy = "ligneCommande", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<LigneCommandeOption> options = new ArrayList<>();
 }
