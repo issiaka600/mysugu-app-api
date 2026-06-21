@@ -85,6 +85,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/promotions/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/menus/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/zones-deploiement/actives").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/filtres").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/files/upload").authenticated()
 
                         // Auth enhanced (email verification, forgot password — public)
