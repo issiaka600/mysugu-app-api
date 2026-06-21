@@ -215,7 +215,8 @@ public class TestDataInitializer implements CommandLineRunner {
                                 null,
                                 tempsPreparation,
                                 categoriePlat,
-                                null
+                                null,
+                                new ArrayList<>()
                         )
                 ));
     }

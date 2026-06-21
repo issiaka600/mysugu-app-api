@@ -62,4 +62,8 @@ public class Plat {
     /** Catégorie produit libre pour les verticales non-restaurant (alimentaire/cosmétique). */
     @Column(name = "categorie_produit")
     private String categorieProduit;
+
+    @OneToMany(mappedBy = "plat", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("ordre ASC")
+    private List<OptionGroup> optionGroups = new ArrayList<>();
 }
