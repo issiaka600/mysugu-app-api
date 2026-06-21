@@ -9,8 +9,19 @@ import java.util.List;
 public interface CategorieRestaurantService {
     List<CategorieRestaurantDTO> getAllCategories();
     CategorieRestaurantDTO getCategorieById(Long id);
-    CategorieRestaurantDTO createCategorie(String nom, String description, MultipartFile image);
-    CategorieRestaurantDTO updateCategorie(Long id, String nom, String description, MultipartFile image);
+    CategorieRestaurantDTO createCategorie(
+            String nom,
+            String description,
+            MultipartFile image,
+            MultipartFile imageTop,
+            MultipartFile imageBanner);
+    CategorieRestaurantDTO updateCategorie(
+            Long id,
+            String nom,
+            String description,
+            MultipartFile image,
+            MultipartFile imageTop,
+            MultipartFile imageBanner);
     void deleteCategorie(Long id);
     List<RestaurantDTO> getRestaurantsByCategorie(Long id);
 }

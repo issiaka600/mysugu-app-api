@@ -9,7 +9,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -28,8 +27,8 @@ public class AuthEnhancedController {
 
     @PostMapping("/api/auth/send-verification")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Map<String, String>> envoyerVerification(@AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = getUserId(userDetails);
+    public ResponseEntity<Map<String, String>> envoyerVerification(@AuthenticationPrincipal String email) {
+        Long userId = getUserId(email);
         authEnhancedService.envoyerEmailVerification(userId);
         return ResponseEntity.ok(Map.of("message", "Email de vérification envoyé"));
     }
@@ -72,9 +71,9 @@ public class AuthEnhancedController {
 
     @PostMapping("/api/auth/change-password")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Map<String, String>> changerMotDePasse(@AuthenticationPrincipal UserDetails userDetails,
+    public ResponseEntity<Map<String, String>> changerMotDePasse(@AuthenticationPrincipal String email,
                                                                    @RequestBody ChangePasswordDTO dto) {
-        Long userId = getUserId(userDetails);
+        Long userId = getUserId(email);
         authEnhancedService.changerMotDePasse(userId, dto);
         return ResponseEntity.ok(Map.of("message", "Mot de passe modifié avec succès"));
     }
@@ -83,42 +82,42 @@ public class AuthEnhancedController {
 
     @GetMapping("/api/users/adresses")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<AdresseLivraisonDTO>> getMesAdresses(@AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = getUserId(userDetails);
+    public ResponseEntity<List<AdresseLivraisonDTO>> getMesAdresses(@AuthenticationPrincipal String email) {
+        Long userId = getUserId(email);
         return ResponseEntity.ok(authEnhancedService.getMesAdresses(userId));
     }
 
     @PostMapping("/api/users/adresses")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<AdresseLivraisonDTO> ajouterAdresse(@AuthenticationPrincipal UserDetails userDetails,
+    public ResponseEntity<AdresseLivraisonDTO> ajouterAdresse(@AuthenticationPrincipal String email,
                                                                @RequestBody AdresseLivraisonCreateDTO dto) {
-        Long userId = getUserId(userDetails);
+        Long userId = getUserId(email);
         return ResponseEntity.status(HttpStatus.CREATED).body(authEnhancedService.ajouterAdresse(userId, dto));
     }
 
     @PutMapping("/api/users/adresses/{adresseId}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<AdresseLivraisonDTO> modifierAdresse(@AuthenticationPrincipal UserDetails userDetails,
+    public ResponseEntity<AdresseLivraisonDTO> modifierAdresse(@AuthenticationPrincipal String email,
                                                                 @PathVariable Long adresseId,
                                                                 @RequestBody AdresseLivraisonCreateDTO dto) {
-        Long userId = getUserId(userDetails);
+        Long userId = getUserId(email);
         return ResponseEntity.ok(authEnhancedService.modifierAdresse(userId, adresseId, dto));
     }
 
     @DeleteMapping("/api/users/adresses/{adresseId}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Void> supprimerAdresse(@AuthenticationPrincipal UserDetails userDetails,
+    public ResponseEntity<Void> supprimerAdresse(@AuthenticationPrincipal String email,
                                                   @PathVariable Long adresseId) {
-        Long userId = getUserId(userDetails);
+        Long userId = getUserId(email);
         authEnhancedService.supprimerAdresse(userId, adresseId);
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/api/users/adresses/{adresseId}/default")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<AdresseLivraisonDTO> setAdresseParDefaut(@AuthenticationPrincipal UserDetails userDetails,
+    public ResponseEntity<AdresseLivraisonDTO> setAdresseParDefaut(@AuthenticationPrincipal String email,
                                                                     @PathVariable Long adresseId) {
-        Long userId = getUserId(userDetails);
+        Long userId = getUserId(email);
         return ResponseEntity.ok(authEnhancedService.definirAdresseParDefaut(userId, adresseId));
     }
 
@@ -126,14 +125,14 @@ public class AuthEnhancedController {
 
     @DeleteMapping("/api/users/compte")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Map<String, String>> supprimerMonCompte(@AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = getUserId(userDetails);
+    public ResponseEntity<Map<String, String>> supprimerMonCompte(@AuthenticationPrincipal String email) {
+        Long userId = getUserId(email);
         authEnhancedService.supprimerCompte(userId);
         return ResponseEntity.ok(Map.of("message", "Votre compte a été supprimé conformément au RGPD"));
     }
 
-    private Long getUserId(UserDetails userDetails) {
-        return userRepository.findByEmail(userDetails.getUsername())
+    private Long getUserId(String email) {
+        return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED))
                 .getId();
     }

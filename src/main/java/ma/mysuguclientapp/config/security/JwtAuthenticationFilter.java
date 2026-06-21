@@ -41,16 +41,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt) && !isBlacklisted(jwt)) {
                 String email = tokenProvider.getEmailFromToken(jwt);
+                Long userId = tokenProvider.getUserIdFromToken(jwt);
                 String role = tokenProvider.getRoleFromToken(jwt);
 
                 // Vérifier que l'utilisateur existe et est actif
-                userRepository.findByEmail(email).ifPresent(user -> {
+                var userLookup = userId != null
+                        ? userRepository.findById(userId)
+                        : userRepository.findByEmail(email);
+                userLookup.ifPresent(user -> {
                     if (user.getIsActive()) {
                         SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role);
                         
                         UsernamePasswordAuthenticationToken authentication =
                                 new UsernamePasswordAuthenticationToken(
-                                        email,
+                                        user.getEmail(),
                                         null,
                                         Collections.singletonList(authority)
                                 );
@@ -58,7 +62,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(authentication);
                         
-                        log.debug("Authentication set for user: {}", email);
+                        log.debug("Authentication set for user: {}", user.getEmail());
                     }
                 });
             }

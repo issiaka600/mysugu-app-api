@@ -47,7 +47,7 @@ public class Commande {
     
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private StatutCommande statut; // EN_ATTENTE, CONFIRMEE, EN_PREPARATION, EN_COURS, LIVREE, ANNULEE
+    private StatutCommande statut; // EN_ATTENTE, CONFIRMEE, EN_PREPARATION, PRETE, ASSIGNEE_LIVREUR, EN_COURS, LIVREE, ANNULEE
     
     @Embedded
     @AttributeOverrides({
@@ -116,6 +116,12 @@ public class Commande {
 
     @Column(name = "reorder_from_id")
     private Long reorderFromId;
+
+    @Column(name = "tiktak_order_id", unique = true)
+    private Long tiktakOrderId;
+
+    @Column(name = "tiktak_sync_status", length = 50)
+    private String tiktakSyncStatus;
 
     @Column(name = "stripe_payment_intent_id", length = 100)
     private String stripePaymentIntentId;

@@ -8,6 +8,7 @@ public interface CodePromoService {
     CodePromoDTO creerCodePromo(CodePromoCreateDTO dto);
     CodePromoDTO getCodePromo(Long id);
     List<CodePromoDTO> getAllCodesPromo();
+    List<CodePromoDTO> getCodesPromoActifs();
     CodePromoDTO activerDesactiver(Long id, boolean actif);
     void supprimerCodePromo(Long id);
     ResultatCodePromoDTO validerEtCalculer(AppliquerCodePromoDTO dto, Long userId);

@@ -44,9 +44,16 @@ public class CategorieRestaurantController {
     public ResponseEntity<CategorieRestaurantDTO> createCategorie(
             @Valid @RequestParam String nom,
             @RequestParam(required = false) String description,
-            @RequestParam(required = false) MultipartFile image) {
+            @RequestParam(required = false) MultipartFile image,
+            @RequestParam(required = false) MultipartFile imageTop,
+            @RequestParam(required = false) MultipartFile imageBanner) {
         
-        CategorieRestaurantDTO created = categorieService.createCategorie(nom, description, image);
+        CategorieRestaurantDTO created = categorieService.createCategorie(
+                nom,
+                description,
+                image,
+                imageTop,
+                imageBanner);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
@@ -58,9 +65,17 @@ public class CategorieRestaurantController {
             @PathVariable Long id,
             @RequestParam String nom,
             @RequestParam(required = false) String description,
-            @RequestParam(required = false) MultipartFile image) {
+            @RequestParam(required = false) MultipartFile image,
+            @RequestParam(required = false) MultipartFile imageTop,
+            @RequestParam(required = false) MultipartFile imageBanner) {
         
-        CategorieRestaurantDTO updated = categorieService.updateCategorie(id, nom, description, image);
+        CategorieRestaurantDTO updated = categorieService.updateCategorie(
+                id,
+                nom,
+                description,
+                image,
+                imageTop,
+                imageBanner);
         return ResponseEntity.ok(updated);
     }
 

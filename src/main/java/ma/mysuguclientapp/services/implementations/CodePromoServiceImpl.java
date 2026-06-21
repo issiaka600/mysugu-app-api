@@ -63,6 +63,20 @@ public class CodePromoServiceImpl implements CodePromoService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<CodePromoDTO> getCodesPromoActifs() {
+        LocalDateTime now = LocalDateTime.now();
+        return codePromoRepository.findByIsActiveTrue().stream()
+                .filter(promo -> promo.getDateDebut() == null || !promo.getDateDebut().isAfter(now))
+                .filter(promo -> promo.getDateFin() == null || !promo.getDateFin().isBefore(now))
+                .filter(promo -> promo.getUsageMax() == null ||
+                        promo.getUsageCount() == null ||
+                        promo.getUsageCount() < promo.getUsageMax())
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     @Transactional
     public CodePromoDTO activerDesactiver(Long id, boolean actif) {
         CodePromo promo = findById(id);

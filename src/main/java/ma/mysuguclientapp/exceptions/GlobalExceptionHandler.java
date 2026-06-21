@@ -1,9 +1,11 @@
 package ma.mysuguclientapp.exceptions;
 
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -11,14 +13,13 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
-import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
 @RestControllerAdvice
-@Slf4j
 public class GlobalExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     /**
      * Gestion des ressources non trouvées (404)
@@ -28,16 +29,12 @@ public class GlobalExceptionHandler {
             ResourceNotFoundException ex, WebRequest request) {
         
         log.error("Ressource non trouvée: {}", ex.getMessage());
-        
-        ErrorResponse errorResponse = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.NOT_FOUND.value())
-                .error("Not Found")
-                .message(ex.getMessage())
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
-
-        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+        return new ResponseEntity<>(buildError(
+                HttpStatus.NOT_FOUND,
+                "Not Found",
+                ex.getMessage(),
+                request),
+                HttpStatus.NOT_FOUND);
     }
 
     /**
@@ -48,16 +45,12 @@ public class GlobalExceptionHandler {
             BadRequestException ex, WebRequest request) {
         
         log.error("Requête invalide: {}", ex.getMessage());
-        
-        ErrorResponse errorResponse = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.BAD_REQUEST.value())
-                .error("Bad Request")
-                .message(ex.getMessage())
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
-
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(buildError(
+                HttpStatus.BAD_REQUEST,
+                "Bad Request",
+                ex.getMessage(),
+                request),
+                HttpStatus.BAD_REQUEST);
     }
 
     /**
@@ -68,16 +61,12 @@ public class GlobalExceptionHandler {
             Exception ex, WebRequest request) {
         
         log.error("Erreur d'authentification: {}", ex.getMessage());
-        
-        ErrorResponse errorResponse = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.UNAUTHORIZED.value())
-                .error("Unauthorized")
-                .message(ex.getMessage())
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
-
-        return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
+        return new ResponseEntity<>(buildError(
+                HttpStatus.UNAUTHORIZED,
+                "Unauthorized",
+                ex.getMessage(),
+                request),
+                HttpStatus.UNAUTHORIZED);
     }
 
     /**
@@ -88,16 +77,12 @@ public class GlobalExceptionHandler {
             AccessDeniedException ex, WebRequest request) {
         
         log.error("Accès refusé: {}", ex.getMessage());
-        
-        ErrorResponse errorResponse = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.FORBIDDEN.value())
-                .error("Forbidden")
-                .message("Vous n'avez pas les permissions nécessaires pour accéder à cette ressource")
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
-
-        return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
+        return new ResponseEntity<>(buildError(
+                HttpStatus.FORBIDDEN,
+                "Forbidden",
+                "Vous n'avez pas les permissions nécessaires pour accéder à cette ressource",
+                request),
+                HttpStatus.FORBIDDEN);
     }
 
     /**
@@ -115,16 +100,12 @@ public class GlobalExceptionHandler {
         });
 
         log.error("Erreurs de validation: {}", errors);
-
-        ErrorResponse errorResponse = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.BAD_REQUEST.value())
-                .error("Validation Failed")
-                .message("Erreurs de validation")
-                .path(request.getDescription(false).replace("uri=", ""))
-                .validationErrors(errors)
-                .build();
-
+        ErrorResponse errorResponse = buildError(
+                HttpStatus.BAD_REQUEST,
+                "Validation Failed",
+                "Erreurs de validation",
+                request);
+        errorResponse.setValidationErrors(errors);
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
@@ -136,16 +117,12 @@ public class GlobalExceptionHandler {
             MaxUploadSizeExceededException ex, WebRequest request) {
         
         log.error("Fichier trop volumineux: {}", ex.getMessage());
-        
-        ErrorResponse errorResponse = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.CONTENT_TOO_LARGE.value())
-                .error("Payload Too Large")
-                .message("Le fichier chargé est trop volumineux. Taille maximale: 10MB")
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
-
-        return new ResponseEntity<>(errorResponse, HttpStatus.CONTENT_TOO_LARGE);
+        return new ResponseEntity<>(buildError(
+                HttpStatus.CONTENT_TOO_LARGE,
+                "Payload Too Large",
+                "Le fichier chargé est trop volumineux. Taille maximale: 10MB",
+                request),
+                HttpStatus.CONTENT_TOO_LARGE);
     }
 
     /**
@@ -156,16 +133,23 @@ public class GlobalExceptionHandler {
             Exception ex, WebRequest request) {
         
         log.error("Erreur interne du serveur", ex);
-        
-        ErrorResponse errorResponse = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .error("Internal Server Error")
-                .message("Une erreur inattendue s'est produite")
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
+        return new ResponseEntity<>(buildError(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Internal Server Error",
+                "Une erreur inattendue s'est produite",
+                request),
+                HttpStatus.INTERNAL_SERVER_ERROR);
+    }
 
-        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+    private ErrorResponse buildError(HttpStatus status, String error, String message, WebRequest request) {
+        return new ErrorResponse(
+                LocalDateTime.now(),
+                status.value(),
+                error,
+                message,
+                request.getDescription(false).replace("uri=", ""),
+                null
+        );
     }
 
 }

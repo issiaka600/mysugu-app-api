@@ -1,10 +1,8 @@
 package ma.mysuguclientapp.services.implementations;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import ma.mysuguclientapp.dtos.cart.AjouterItemDTO;
-import ma.mysuguclientapp.dtos.cart.PanierDTO;
-import ma.mysuguclientapp.dtos.cart.PanierItemDTO;
 import ma.mysuguclientapp.entities.Panier;
 import ma.mysuguclientapp.entities.PanierItem;
 import ma.mysuguclientapp.entities.Plat;
@@ -12,42 +10,51 @@ import ma.mysuguclientapp.entities.User;
 import ma.mysuguclientapp.repositories.PanierRepository;
 import ma.mysuguclientapp.repositories.PlatRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class PanierServiceImpl {
+    private static final Logger log = LoggerFactory.getLogger(PanierServiceImpl.class);
 
     private final PanierRepository panierRepository;
     private final PlatRepository platRepository;
     private final UserRepository userRepository;
 
+    public PanierServiceImpl(
+            PanierRepository panierRepository,
+            PlatRepository platRepository,
+            UserRepository userRepository) {
+        this.panierRepository = panierRepository;
+        this.platRepository = platRepository;
+        this.userRepository = userRepository;
+    }
+
     @Transactional(readOnly = true)
-    public PanierDTO getPanier(Long userId) {
+    public Map<String, Object> getPanier(Long userId) {
         Panier panier = panierRepository.findByUserId(userId).orElse(null);
         if (panier == null) return emptyPanier();
         return toDTO(panier);
     }
 
     @Transactional
-    public PanierDTO ajouterItem(Long userId, AjouterItemDTO dto) {
+    public Map<String, Object> ajouterItem(Long userId, AjouterItemDTO dto) {
         Plat plat = platRepository.findById(dto.getPlatId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plat introuvable"));
+                .orElseThrow(() -> new IllegalArgumentException("Plat introuvable"));
 
         if (!Boolean.TRUE.equals(plat.getIsAvailable())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ce plat n'est pas disponible");
+            throw new IllegalArgumentException("Ce plat n'est pas disponible");
         }
 
         Panier panier = panierRepository.findByUserId(userId).orElseGet(() -> {
             User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilisateur introuvable"));
+                    .orElseThrow(() -> new IllegalArgumentException("Utilisateur introuvable"));
             return Panier.builder().user(user).montantTotal(BigDecimal.ZERO).build();
         });
 
@@ -83,12 +90,12 @@ public class PanierServiceImpl {
     }
 
     @Transactional
-    public PanierDTO modifierQuantite(Long userId, Long itemId, Integer quantite) {
+    public Map<String, Object> modifierQuantite(Long userId, Long itemId, Integer quantite) {
         Panier panier = getPanierOrThrow(userId);
         PanierItem item = panier.getItems().stream()
                 .filter(i -> i.getId().equals(itemId))
                 .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Item introuvable"));
+                .orElseThrow(() -> new IllegalArgumentException("Item introuvable"));
 
         if (quantite <= 0) {
             panier.getItems().remove(item);
@@ -122,41 +129,55 @@ public class PanierServiceImpl {
 
     private Panier getPanierOrThrow(Long userId) {
         return panierRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Panier introuvable"));
+                .orElseThrow(() -> new IllegalArgumentException("Panier introuvable"));
     }
 
-    private PanierDTO emptyPanier() {
-        PanierDTO dto = new PanierDTO();
-        dto.setMontantTotal(BigDecimal.ZERO);
-        dto.setNombreItems(0);
+    private Map<String, Object> emptyPanier() {
+        Map<String, Object> dto = new LinkedHashMap<>();
+        dto.put("id", null);
+        dto.put("restaurantId", null);
+        dto.put("restaurantNom", null);
+        dto.put("items", Collections.emptyList());
+        dto.put("montantTotal", BigDecimal.ZERO);
+        dto.put("nombreItems", 0);
+        dto.put("updatedAt", null);
         return dto;
     }
 
-    private PanierDTO toDTO(Panier panier) {
-        PanierDTO dto = new PanierDTO();
-        dto.setId(panier.getId());
-        dto.setMontantTotal(panier.getMontantTotal());
-        dto.setUpdatedAt(panier.getUpdatedAt());
+    private Map<String, Object> toDTO(Panier panier) {
+        Map<String, Object> dto = new LinkedHashMap<>();
+        dto.put("id", panier.getId());
+        dto.put("montantTotal", panier.getMontantTotal());
+        dto.put("updatedAt", panier.getUpdatedAt());
         if (panier.getRestaurant() != null) {
-            dto.setRestaurantId(panier.getRestaurant().getId());
-            dto.setRestaurantNom(panier.getRestaurant().getNom());
+            dto.put("restaurantId", panier.getRestaurant().getId());
+            dto.put("restaurantNom", panier.getRestaurant().getNom());
+        } else {
+            dto.put("restaurantId", null);
+            dto.put("restaurantNom", null);
         }
-        dto.setItems(panier.getItems().stream().map(this::toItemDTO).collect(Collectors.toList()));
-        dto.setNombreItems(panier.getItems().stream().mapToInt(PanierItem::getQuantite).sum());
+        dto.put("items", panier.getItems().stream()
+                .filter(item -> item != null && item.getPlat() != null && item.getQuantite() != null)
+                .map(this::toItemDTO)
+                .collect(Collectors.toList()));
+        dto.put("nombreItems", panier.getItems().stream()
+                .filter(item -> item != null && item.getQuantite() != null)
+                .mapToInt(PanierItem::getQuantite)
+                .sum());
         return dto;
     }
 
-    private PanierItemDTO toItemDTO(PanierItem item) {
-        PanierItemDTO dto = new PanierItemDTO();
-        dto.setId(item.getId());
-        dto.setQuantite(item.getQuantite());
-        dto.setPrixUnitaire(item.getPrixUnitaire());
-        dto.setSousTotal(item.getPrixUnitaire().multiply(BigDecimal.valueOf(item.getQuantite())));
-        dto.setRemarque(item.getRemarque());
+    private Map<String, Object> toItemDTO(PanierItem item) {
+        Map<String, Object> dto = new LinkedHashMap<>();
+        dto.put("id", item.getId());
+        dto.put("quantite", item.getQuantite());
+        dto.put("prixUnitaire", item.getPrixUnitaire());
+        dto.put("sousTotal", item.getPrixUnitaire().multiply(BigDecimal.valueOf(item.getQuantite())));
+        dto.put("remarque", item.getRemarque());
         if (item.getPlat() != null) {
-            dto.setPlatId(item.getPlat().getId());
-            dto.setPlatNom(item.getPlat().getNom());
-            dto.setPlatImageUrl(item.getPlat().getImageUrl());
+            dto.put("platId", item.getPlat().getId());
+            dto.put("platNom", item.getPlat().getNom());
+            dto.put("platImageUrl", item.getPlat().getImageUrl());
         }
         return dto;
     }

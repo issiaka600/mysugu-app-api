@@ -11,7 +11,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -25,16 +24,16 @@ public class GainsLivreurController {
 
     @GetMapping("/gains")
     @PreAuthorize("hasRole('LIVREUR')")
-    public ResponseEntity<Page<GainsLivreurDTO>> getMesGains(@AuthenticationPrincipal UserDetails userDetails,
+    public ResponseEntity<Page<GainsLivreurDTO>> getMesGains(@AuthenticationPrincipal String email,
                                                               Pageable pageable) {
-        Long livreurId = getUserId(userDetails);
+        Long livreurId = getUserId(email);
         return ResponseEntity.ok(gainsService.getHistoriqueGains(livreurId, pageable));
     }
 
     @GetMapping("/gains/summary")
     @PreAuthorize("hasRole('LIVREUR')")
-    public ResponseEntity<GainsSummaryDTO> getMesSummary(@AuthenticationPrincipal UserDetails userDetails) {
-        Long livreurId = getUserId(userDetails);
+    public ResponseEntity<GainsSummaryDTO> getMesSummary(@AuthenticationPrincipal String email) {
+        Long livreurId = getUserId(email);
         return ResponseEntity.ok(gainsService.getSummary(livreurId));
     }
 
@@ -50,8 +49,8 @@ public class GainsLivreurController {
         return ResponseEntity.ok(gainsService.getSummary(livreurId));
     }
 
-    private Long getUserId(UserDetails userDetails) {
-        return userRepository.findByEmail(userDetails.getUsername())
+    private Long getUserId(String email) {
+        return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED))
                 .getId();
     }

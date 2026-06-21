@@ -74,7 +74,6 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     environment: dev
-
     steps:
       - name: Deploy on server (docker pull + run)
         uses: appleboy/ssh-action@v1.2.5

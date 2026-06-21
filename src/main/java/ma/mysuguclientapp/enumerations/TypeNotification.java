@@ -8,6 +8,7 @@ public enum TypeNotification {
     COMMANDE_LIVREE,
     COMMANDE_ANNULEE,
     LIVREUR_ASSIGNE,
+    MESSAGE,
     AVIS_MODERE,
     PROMOTION,
     SYSTEME
