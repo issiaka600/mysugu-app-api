@@ -67,6 +67,7 @@ public class CommandeServiceImpl implements CommandeService {
     private final StripeService stripeService;
     private final TikTakOrderIntegrationService tikTakOrderIntegrationService;
     private final TrackingLocationStore trackingLocationStore;
+    private final ma.mysuguclientapp.services.interfaces.OptionSelectionService optionSelectionService;
 
     @Override
     @Transactional(readOnly = true)
@@ -188,13 +189,26 @@ public class CommandeServiceImpl implements CommandeService {
                 throw new BadRequestException("Le plat " + plat.getNom() + " n'est pas disponible");
             }
 
+            ma.mysuguclientapp.services.interfaces.OptionSelectionService.Selection sel =
+                    optionSelectionService.resolve(plat, ligneDTO.getOptionItemIds());
+            java.math.BigDecimal prixUnitaireLigne = plat.getPrix().add(sel.getSupplementTotal());
+
             LigneCommande ligne = new LigneCommande();
             ligne.setPlat(plat);
             ligne.setQuantite(ligneDTO.getQuantite());
-            ligne.setPrixUnitaire(plat.getPrix());
-            ligne.setMontantTotal(plat.getPrix().multiply(BigDecimal.valueOf(ligneDTO.getQuantite())));
+            ligne.setPrixUnitaire(prixUnitaireLigne);
+            ligne.setMontantTotal(prixUnitaireLigne.multiply(java.math.BigDecimal.valueOf(ligneDTO.getQuantite())));
             ligne.setRemarque(ligneDTO.getRemarque());
             ligne.setCommande(commande);
+            for (ma.mysuguclientapp.entities.OptionItem oi : sel.getItems()) {
+                ma.mysuguclientapp.entities.LigneCommandeOption snap = new ma.mysuguclientapp.entities.LigneCommandeOption();
+                snap.setLigneCommande(ligne);
+                snap.setOptionItemId(oi.getId());
+                snap.setOptionGroupNom(oi.getGroup() != null ? oi.getGroup().getNom() : null);
+                snap.setOptionNom(oi.getNom());
+                snap.setPrixSupplement(oi.getPrixSupplement());
+                ligne.getOptions().add(snap);
+            }
             lignes.add(ligne);
             montantTotal = montantTotal.add(ligne.getMontantTotal());
         }
@@ -1092,6 +1106,16 @@ public class CommandeServiceImpl implements CommandeService {
 
         dto.setCommissionPourcentage(ligne.getCommissionPourcentage());
         dto.setMontantCommission(ligne.getMontantCommission());
+        if (ligne.getOptions() != null) {
+            dto.setOptions(ligne.getOptions().stream().map(o -> {
+                ma.mysuguclientapp.dtos.OptionChoisieDTO od = new ma.mysuguclientapp.dtos.OptionChoisieDTO();
+                od.setOptionItemId(o.getOptionItemId());
+                od.setOptionGroupNom(o.getOptionGroupNom());
+                od.setOptionNom(o.getOptionNom());
+                od.setPrixSupplement(o.getPrixSupplement());
+                return od;
+            }).collect(java.util.stream.Collectors.toList()));
+        }
         return dto;
     }
 }
