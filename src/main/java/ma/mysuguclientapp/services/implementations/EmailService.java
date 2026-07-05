@@ -36,6 +36,17 @@ public class EmailService {
     }
 
     @Async
+    public void envoyerCodeOtp(String toEmail, String otp) {
+        String sujet = "MySugu - Votre code de vérification";
+        String message = "Bonjour,\n\n" +
+                "Voici votre code de vérification : " + otp + "\n\n" +
+                "Ce code est valable pendant 10 minutes.\n\n" +
+                "Si vous n'avez pas fait cette demande, vous pouvez ignorer cet email.\n\n" +
+                "L'équipe MySugu";
+        envoyerEmail(toEmail, sujet, message);
+    }
+
+    @Async
     public void envoyerReinitialisationMotDePasse(String toEmail, String token) {
         String lien = frontendUrl + "/reset-password?token=" + token;
         String sujet = "MySugu - Réinitialisation de votre mot de passe";

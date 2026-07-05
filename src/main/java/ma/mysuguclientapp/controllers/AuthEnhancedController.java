@@ -53,6 +53,23 @@ public class AuthEnhancedController {
         return ResponseEntity.ok(Map.of("message", "Mot de passe réinitialisé avec succès"));
     }
 
+    // ===== OTP (alternative mobile au lien email) =====
+
+    @PostMapping("/api/auth/send-otp")
+    public ResponseEntity<Map<String, String>> envoyerOtp(@RequestBody ForgotPasswordDTO dto) {
+        authEnhancedService.demanderCodeOtp(dto);
+        return ResponseEntity.ok(Map.of("message", "Si votre email est enregistré, vous recevrez un code de vérification"));
+    }
+
+    @PostMapping("/api/auth/verify-otp")
+    public ResponseEntity<Map<String, String>> verifierOtp(@RequestBody VerifyOtpDTO dto) {
+        String resetToken = authEnhancedService.verifierOtp(dto);
+        return ResponseEntity.ok(Map.of(
+                "message", "Code vérifié avec succès",
+                "resetToken", resetToken
+        ));
+    }
+
     // ===== Token Management =====
 
     @PostMapping("/api/auth/refresh")
