@@ -28,6 +28,15 @@ public class GainsLivreurServiceImpl {
 
     @Transactional
     public GainsLivreur enregistrerGains(Commande commande) {
+        // Idempotent : une commande ne génère les gains qu'une seule fois (OneToOne commande).
+        if (commande.getId() != null && gainsLivreurRepository.existsByCommandeId(commande.getId())) {
+            log.debug("Gains déjà enregistrés pour la commande {}, skip", commande.getId());
+            return null;
+        }
+        if (commande.getLivreur() == null) {
+            log.warn("enregistrerGains: commande {} sans livreur, skip", commande.getId());
+            return null;
+        }
         BigDecimal fraisLivraison = commande.getFraisLivraison() != null ? commande.getFraisLivraison() : BigDecimal.ZERO;
         BigDecimal commission = fraisLivraison.multiply(COMMISSION_PLATEFORME_RATE).setScale(2, RoundingMode.HALF_UP);
         BigDecimal montantNet = fraisLivraison.subtract(commission);
@@ -48,6 +57,33 @@ public class GainsLivreurServiceImpl {
     public Page<GainsLivreurDTO> getHistoriqueGains(Long livreurId, Pageable pageable) {
         return gainsLivreurRepository.findByLivreurIdOrderByCreatedAtDesc(livreurId, pageable)
                 .map(this::toDTO);
+    }
+
+    /**
+     * Somme de TOUS les gains nets d'un livreur. Base du current_balance legacy, qui vaut
+     * (total gains nets − total retraits approuvés) — voir DeliveryManInfoService. Ce modèle
+     * gère correctement les retraits partiels (techspec §7).
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal getTotalGainsNet(Long livreurId) {
+        return gainsLivreurRepository.sumMontantNetByLivreur(livreurId);
+    }
+
+    /**
+     * Marque payés tous les gains non payés d'un livreur (appelé à l'approbation d'un retrait).
+     * @return nombre de lignes de gains marquées payées.
+     */
+    @Transactional
+    public int marquerGainsPayes(Long livreurId) {
+        java.util.List<GainsLivreur> gains =
+                gainsLivreurRepository.findByLivreurIdAndEstPayeFalseOrderByCreatedAtAsc(livreurId);
+        LocalDateTime now = LocalDateTime.now();
+        gains.forEach(g -> {
+            g.setEstPaye(true);
+            g.setPayeAt(now);
+        });
+        gainsLivreurRepository.saveAll(gains);
+        return gains.size();
     }
 
     @Transactional(readOnly = true)

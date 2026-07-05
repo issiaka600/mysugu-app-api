@@ -52,6 +52,10 @@ public class Avis {
     @Column(name = "raison_rejet")
     private String raisonRejet;
 
+    // Legacy livreur (shim Tiktak) : le livreur peut "sauvegarder" un avis (6valley `reviews.is_saved`).
+    @Column(name = "sauvegarde")
+    private Boolean sauvegarde = false;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

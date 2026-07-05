@@ -17,6 +17,10 @@ public interface AvisRepository extends JpaRepository<Avis, Long> {
 
     List<Avis> findByLivreurIdAndStatutOrderByCreatedAtDesc(Long livreurId, StatutAvis statut);
 
+    // Legacy livreur (review-list)
+    List<Avis> findByLivreurIdOrderByCreatedAtDesc(Long livreurId);
+    List<Avis> findByLivreurIdAndSauvegardeOrderByCreatedAtDesc(Long livreurId, Boolean sauvegarde);
+
     List<Avis> findByAuteurIdOrderByCreatedAtDesc(Long auteurId);
 
     List<Avis> findByStatutOrderByCreatedAtDesc(StatutAvis statut);

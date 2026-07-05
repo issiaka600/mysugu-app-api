@@ -63,7 +63,10 @@ public class SecurityConfig {
                                 "/actuator/health",
                                 "/notification-test.html",
                                 "/firebase-messaging-sw.js",
-                                "/api/integrations/tiktak/**"
+                                "/api/integrations/tiktak/**",
+                                // Legacy shim livreur (app Tiktak/moso) : auth publique + config au splash
+                                "/api/v2/delivery-man/auth/**",
+                                "/api/v1/config"
                         ).permitAll()
 
                         // WebSocket endpoint
@@ -182,6 +185,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/caisse/*/position").hasRole("ADMIN")
                         .requestMatchers("/api/caisse/*/historique").hasRole("ADMIN")
                         .requestMatchers("/api/caisse/*/plafond").hasRole("ADMIN")
+
+                        // Legacy shim livreur (app Tiktak/moso) : tout le reste du namespace exige LIVREUR.
+                        // (auth/** et /api/v1/config sont déjà en permitAll plus haut.)
+                        .requestMatchers("/api/v2/delivery-man/**").hasRole("LIVREUR")
 
                         // Facturation restaurant
                         .requestMatchers("/api/facturation-restaurant/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")

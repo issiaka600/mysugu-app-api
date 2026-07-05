@@ -38,6 +38,21 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * ResponseStatusException (403/404/409/422 volontaires des controllers legacy livreur ET du
+     * code natif, ex. CaisseServiceImpl). Renvoie le statut voulu avec {"message": raison}.
+     * SANS ce handler, le handler generique Exception plus bas les transformerait en 500 —
+     * ce qui casserait le contrat cote app Tiktak (qui attend 403/404/409 + message).
+     */
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleResponseStatus(
+            org.springframework.web.server.ResponseStatusException ex) {
+        log.warn("ResponseStatusException: {} - {}", ex.getStatusCode(), ex.getReason());
+        Map<String, Object> body = new HashMap<>();
+        body.put("message", ex.getReason() != null ? ex.getReason() : "Erreur");
+        return ResponseEntity.status(ex.getStatusCode()).body(body);
+    }
+
+    /**
      * Gestion des requêtes invalides (400)
      */
     @ExceptionHandler(BadRequestException.class)

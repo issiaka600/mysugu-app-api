@@ -45,4 +45,17 @@ public interface CommandeRepository extends JpaRepository<Commande, Long> {
     List<Commande> findTop5ByClientIdOrderByCreatedAtDesc(Long clientId);
 
     Optional<Commande> findByStripePaymentIntentId(String stripePaymentIntentId);
+
+    // --- Legacy livreur (shim Tiktak) ---
+    long countByLivreurId(Long livreurId);
+    long countByLivreurIdAndStatut(Long livreurId, StatutCommande statut);
+    long countByLivreurIdAndStatutIn(Long livreurId, List<StatutCommande> statuts);
+    long countByLivreurIdAndEnPauseTrue(Long livreurId);
+    List<Commande> findByStatutInAndLivreurIsNullOrderByCreatedAtAsc(List<StatutCommande> statuts);
+    List<Commande> findByLivreurIdAndStatutInOrderByCreatedAtDesc(Long livreurId, List<StatutCommande> statuts);
+
+    /** Verrou pessimiste pour la revendication FCFS d'une commande (POST /accept). */
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Commande c WHERE c.id = :id")
+    Optional<Commande> findByIdForUpdate(Long id);
 }

@@ -27,4 +27,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     long countByRole(UserRole role);
     long countByRoleAndIsActive(UserRole role, Boolean isActive);
+
+    // --- Legacy livreur (shim Tiktak) : login/reset par téléphone ---
+    List<User> findByTelephoneAndRole(String telephone, UserRole role);
+    List<User> findByTelephone(String telephone);
 }
