@@ -61,6 +61,15 @@ public class CommandeServiceImpl implements CommandeService {
     private final LigneCommandeRepository ligneCommandeRepository;
     private final ParametresCaisseRepository parametresCaisseRepository;
     private final CaisseServiceImpl caisseService;
+    private final GainsLivreurServiceImpl gainsLivreurService;
+
+    /**
+     * Auto-dispatch (trouverMeilleurLivreur) activé ? Défaut false = modèle FCFS
+     * de l'app Tiktak : la commande est diffusée aux livreurs dispo qui la revendiquent
+     * via /accept (techspec §8). Mettre à true pour réactiver l'auto-assignation native.
+     */
+    @org.springframework.beans.factory.annotation.Value("${dispatch.auto.enabled:false}")
+    private boolean autoDispatchEnabled;
     private final NotificationService notificationService;
     private final AvisRepository avisRepository;
     private final CodePromoRepository codePromoRepository;
@@ -386,6 +395,17 @@ public class CommandeServiceImpl implements CommandeService {
             }
         }
 
+        // Modèle argent legacy (shim Tiktak, techspec §7) : à chaque livraison, on enregistre
+        // les gains nets du livreur (85% des frais). Alimente current_balance (retirable).
+        // enregistrerGains est idempotent (OneToOne commande) et sûr si pas de livreur.
+        if (nouveauStatut == StatutCommande.LIVREE && updatedCommande.getLivreur() != null) {
+            try {
+                gainsLivreurService.enregistrerGains(updatedCommande);
+            } catch (Exception e) {
+                log.warn("Erreur lors de l'enregistrement des gains livreur pour commande {}: {}", commande.getNumeroCommande(), e.getMessage());
+            }
+        }
+
         if (nouveauStatut == StatutCommande.CONFIRMEE) {
             envoyerNotificationsConfirmation(updatedCommande);
         }
@@ -581,9 +601,13 @@ public class CommandeServiceImpl implements CommandeService {
                     TypeNotification.COMMANDE_CONFIRMEE, commandeId, "COMMANDE");
         }
 
-        // 3. Auto-assignation si mode LIVRAISON
+        // 3. Assignation si mode LIVRAISON.
+        //    FCFS (défaut) : pas d'auto-assignation, on diffuse à tous les livreurs dispo
+        //    qui revendiquent via /accept. Auto-dispatch : on assigne le meilleur livreur.
         if (estLivraison) {
-            Optional<User> meilleurLivreur = trouverMeilleurLivreur(commande.getRestaurant());
+            Optional<User> meilleurLivreur = autoDispatchEnabled
+                    ? trouverMeilleurLivreur(commande.getRestaurant())
+                    : Optional.empty();
 
             if (meilleurLivreur.isPresent()) {
                 User livreur = meilleurLivreur.get();

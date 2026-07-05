@@ -34,7 +34,30 @@ public class User {
     private String prenom;
     
     private String telephone;
-    
+
+    // --- Legacy livreur (shim Tiktak) : login par indicatif + téléphone ---
+    // L'app 6valley authentifie le livreur avec {country_code, phone, password}.
+    // MySugu n'avait que `telephone` (email-only login) → on ajoute l'indicatif
+    // pour permettre la résolution (country_code, telephone) -> User LIVREUR.
+    @Column(name = "country_code")
+    private String countryCode;
+
+    @Column(name = "app_language")
+    private String appLanguage;
+
+    // Coordonnées bancaires du livreur (écran "bank-info" de l'app).
+    @Column(name = "bank_name")
+    private String bankName;
+
+    @Column(name = "branch")
+    private String branch;
+
+    @Column(name = "account_no")
+    private String accountNo;
+
+    @Column(name = "holder_name")
+    private String holderName;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role; // CLIENT, LIVREUR, ADMIN, RESTAURANT_OWNER

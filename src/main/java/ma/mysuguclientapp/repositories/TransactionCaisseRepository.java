@@ -20,4 +20,17 @@ public interface TransactionCaisseRepository extends JpaRepository<TransactionCa
            "WHERE t.caisseLivreur.id = :caisseId AND t.type = :type " +
            "AND (:depuis IS NULL OR t.createdAt >= :depuis)")
     BigDecimal sumMontantByTypeEtPeriode(Long caisseId, TypeTransactionCaisse type, LocalDateTime depuis);
+
+    /** Somme all-time par type (total_deposit legacy). Sans param date pour eviter le
+     *  "could not determine data type of parameter" de Postgres sur un bind null. */
+    @Query("SELECT COALESCE(SUM(t.montant), 0) FROM TransactionCaisse t " +
+           "WHERE t.caisseLivreur.id = :caisseId AND t.type = :type")
+    BigDecimal sumMontantByCaisseAndType(Long caisseId, TypeTransactionCaisse type);
+
+    // --- Legacy livreur (collected_cash_history = remises plateforme) ---
+    Page<TransactionCaisse> findByCaisseLivreurIdAndTypeOrderByCreatedAtDesc(
+            Long caisseId, TypeTransactionCaisse type, Pageable pageable);
+
+    Page<TransactionCaisse> findByCaisseLivreurIdAndTypeAndCreatedAtBetweenOrderByCreatedAtDesc(
+            Long caisseId, TypeTransactionCaisse type, LocalDateTime debut, LocalDateTime fin, Pageable pageable);
 }

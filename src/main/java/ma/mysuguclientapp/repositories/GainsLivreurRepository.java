@@ -24,4 +24,20 @@ public interface GainsLivreurRepository extends JpaRepository<GainsLivreur, Long
 
     @Query("SELECT COUNT(g) FROM GainsLivreur g WHERE g.livreur.id = :livreurId")
     Long countByLivreurId(Long livreurId);
+
+    // --- Modèle argent legacy (shim Tiktak, techspec §7) ---
+
+    /** Somme de TOUS les gains nets d'un livreur (base du current_balance = gains − retraits approuvés). */
+    @Query("SELECT COALESCE(SUM(g.montantNet), 0) FROM GainsLivreur g WHERE g.livreur.id = :livreurId")
+    BigDecimal sumMontantNetByLivreur(Long livreurId);
+
+    /** (Conserve) somme des gains nets non encore payés — vestigial depuis le modèle current_balance = gains − retraits. */
+    @Query("SELECT COALESCE(SUM(g.montantNet), 0) FROM GainsLivreur g WHERE g.livreur.id = :livreurId AND g.estPaye = false")
+    BigDecimal sumMontantNetNonPayeByLivreur(Long livreurId);
+
+    /** Gains non payés d'un livreur, plus anciens d'abord — pour les marquer payés lors d'un retrait approuvé. */
+    java.util.List<GainsLivreur> findByLivreurIdAndEstPayeFalseOrderByCreatedAtAsc(Long livreurId);
+
+    /** Empêche le double-enregistrement des gains sur une même commande (OneToOne). */
+    boolean existsByCommandeId(Long commandeId);
 }

@@ -126,6 +126,30 @@ public class Commande {
     @Column(name = "stripe_payment_intent_id", length = 100)
     private String stripePaymentIntentId;
 
+    // --- Legacy livreur (shim Tiktak, techspec §5/§6) ---
+
+    /** Code OTP de vérification de livraison (6valley `orders.verification_code`). */
+    @Column(name = "code_verification_livraison", length = 10)
+    private String codeVerificationLivraison;
+
+    /** Livraison vérifiée par OTP (6valley `orders.verification_status`). */
+    @Column(name = "livraison_verifiee")
+    private Boolean livraisonVerifiee = false;
+
+    /** Commande mise en pause par le livreur (6valley `orders.is_pause`) + cause. */
+    @Column(name = "en_pause")
+    private Boolean enPause = false;
+
+    @Column(name = "cause_pause", length = 1000)
+    private String causePause;
+
+    /** Date de livraison prévue rééchelonnée (6valley `orders.expected_delivery_date`) + cause. */
+    @Column(name = "date_livraison_prevue")
+    private LocalDateTime dateLivraisonPrevue;
+
+    @Column(name = "cause_report", length = 1000)
+    private String causeReport;
+
     @PrePersist
     @PreUpdate
     public void applyDefaults() {

@@ -184,8 +184,13 @@ public class CaisseServiceImpl {
         if (commande.getLivreur() == null) return null;
 
         CaisseLivreur caisse = getOrCreateCaisse(commande.getLivreur().getId());
-        BigDecimal totalClient = commande.getMontantTotal()
-                .add(commande.getFraisLivraison() != null ? commande.getFraisLivraison() : BigDecimal.ZERO);
+        // cash_in_hand = ce que le client paie RÉELLEMENT au livreur = montantFinal
+        // (food + frais de livraison − remise). Correction du bug historique qui ajoutait
+        // montantTotal + fraisLivraison (double-comptage des frais) et ignorait la remise.
+        // Voir TIKTAK_LIVREUR_MIGRATION_TECHSPEC.md §7. montantTotal inclut déjà fraisLivraison.
+        BigDecimal totalClient = commande.getMontantFinal() != null
+                ? commande.getMontantFinal()
+                : commande.getMontantTotal();
 
         BigDecimal soldeAvant = caisse.getSoldeCourant();
         caisse.setSoldeCourant(soldeAvant.add(totalClient));
@@ -240,15 +245,18 @@ public class CaisseServiceImpl {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Admin introuvable"));
 
         BigDecimal soldeCourant = caisse.getSoldeCourant();
+        // Gains dus = informatif seulement. Depuis le découplage (techspec §7), le livreur remet
+        // 100% du cash COD à la réconciliation et retire ses gains SÉPARÉMENT (virement bancaire
+        // via DemandeRetrait). La réconciliation ne nette PLUS les gains et ne les marque PLUS
+        // payés — sinon current_balance serait vidé sans retrait. marquerGainsPaies() est
+        // désormais appelé uniquement à l'approbation d'un retrait.
         BigDecimal gainsDus = calculerGainsDus(dto.getLivreurId());
-        BigDecimal montantDuCalcule = soldeCourant.subtract(gainsDus).max(BigDecimal.ZERO);
+        BigDecimal montantDuCalcule = soldeCourant.max(BigDecimal.ZERO); // tout le cash détenu est dû
         BigDecimal montantRemis = dto.getMontantRemis() != null ? dto.getMontantRemis() : montantDuCalcule;
         BigDecimal ecart = montantDuCalcule.subtract(montantRemis);
 
-        // Enregistrer la remise
+        // Réconciliation = pur encaissement de cash : après remise, la caisse repart à zéro.
         BigDecimal soldeAvant = caisse.getSoldeCourant();
-        caisse.setSoldeCourant(soldeAvant.subtract(montantRemis).subtract(gainsDus.min(soldeCourant.subtract(montantRemis).max(BigDecimal.ZERO))));
-        // Plus simplement : après réconciliation, solde = 0 si tout est réglé
         caisse.setSoldeCourant(BigDecimal.ZERO);
         caisse.setTotalCollecteSession(BigDecimal.ZERO);
         caisse.setDerniereReconciliation(LocalDateTime.now());
@@ -256,21 +264,11 @@ public class CaisseServiceImpl {
         caisse.setAlerteIntervalleEnvoyee(false);
         caisseLivreurRepository.save(caisse);
 
-        // Transaction remise
+        // Transaction remise = le "dépôt" 6valley (surfacé par collected_cash_history / total_deposit).
         enregistrerTransaction(caisse, TypeTransactionCaisse.REMISE_PLATEFORME,
                 montantRemis, soldeAvant,
                 "Réconciliation caisse" + (dto.getNote() != null ? " - " + dto.getNote() : ""),
                 null, admin);
-
-        // Transaction versement gains
-        if (gainsDus.compareTo(BigDecimal.ZERO) > 0) {
-            enregistrerTransaction(caisse, TypeTransactionCaisse.VERSEMENT_GAINS,
-                    gainsDus, BigDecimal.ZERO,
-                    "Versement gains au livreur lors réconciliation", null, admin);
-
-            // Marquer les gains comme payés
-            marquerGainsPaies(dto.getLivreurId());
-        }
 
         String message = ecart.compareTo(BigDecimal.ZERO) == 0
                 ? "Réconciliation parfaite."
