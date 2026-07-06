@@ -36,4 +36,9 @@ public class CommandeDTO {
     private LocalDateTime updatedAt;
     private LocalDateTime livreeAt;
     private LocalDateTime scheduledAt;
+    private LocalDateTime dateLivraisonPrevue;
+    private String causeReport;
+    private String livreurTiersNom;
+    private String livreurTiersTelephone;
+    private String livreurTiersEntreprise;
 }

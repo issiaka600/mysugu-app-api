@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import ma.mysuguclientapp.dtos.AvisCreateDTO;
 import ma.mysuguclientapp.dtos.AvisDTO;
 import ma.mysuguclientapp.dtos.ModerationAvisDTO;
+import ma.mysuguclientapp.enumerations.StatutAvis;
 import ma.mysuguclientapp.services.interfaces.AvisService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,6 +35,20 @@ public class AvisController {
     @GetMapping("/restaurant/{restaurantId}")
     public ResponseEntity<List<AvisDTO>> getAvisRestaurant(@PathVariable Long restaurantId) {
         return ResponseEntity.ok(avisService.getAvisRestaurant(restaurantId));
+    }
+
+    /**
+     * GET /api/avis/restaurant/{restaurantId}/status?statut=EN_ATTENTE
+     * Vue vendeur/admin filtrée par statut (contrairement à l'endpoint public ci-dessus
+     * qui ne montre que les avis approuvés). Accès réservé à l'ADMIN ou au propriétaire
+     * du restaurant (vérifié dans le service).
+     */
+    @GetMapping("/restaurant/{restaurantId}/status")
+    public ResponseEntity<List<AvisDTO>> getAvisRestaurantParStatut(
+            @RequestHeader("Authorization") String token,
+            @PathVariable Long restaurantId,
+            @RequestParam(required = false) StatutAvis statut) {
+        return ResponseEntity.ok(avisService.getAvisRestaurantParStatut(token, restaurantId, statut));
     }
 
     @GetMapping("/livreur/{livreurId}")

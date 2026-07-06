@@ -15,30 +15,34 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LigneCommande {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "commande_id", nullable = false)
     private Commande commande;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "plat_id", nullable = false)
     private Plat plat;
-    
+
     @Column(nullable = false)
     private Integer quantite;
-    
+
     @Column(nullable = false)
     private BigDecimal prixUnitaire;
-    
+
     @Column(nullable = false)
     private BigDecimal montantTotal;
-    
+
     @Column(length = 500)
     private String remarque; // Instructions spéciales pour ce plat
+
+    /** Quantité réellement livrée (renseignée par le vendeur/livreur), différente de "quantite" en cas d'écart */
+    @Column(name = "quantite_livree")
+    private Integer quantiteLivree;
 
     /** Taux de commission appliqué à cette ligne (en %), capturé au moment de la commande */
     @Column(name = "commission_pourcentage", precision = 5, scale = 2)

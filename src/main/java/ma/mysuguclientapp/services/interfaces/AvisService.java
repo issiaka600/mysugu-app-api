@@ -3,6 +3,7 @@ package ma.mysuguclientapp.services.interfaces;
 import ma.mysuguclientapp.dtos.AvisCreateDTO;
 import ma.mysuguclientapp.dtos.AvisDTO;
 import ma.mysuguclientapp.dtos.ModerationAvisDTO;
+import ma.mysuguclientapp.enumerations.StatutAvis;
 
 import java.util.List;
 
@@ -10,6 +11,7 @@ public interface AvisService {
     AvisDTO soumettreAvis(String accessToken, AvisCreateDTO dto);
     AvisDTO getAvisById(Long id);
     List<AvisDTO> getAvisRestaurant(Long restaurantId);
+    List<AvisDTO> getAvisRestaurantParStatut(String accessToken, Long restaurantId, StatutAvis statut);
     List<AvisDTO> getAvisLivreur(Long livreurId);
     List<AvisDTO> getMesAvis(String accessToken);
     AvisDTO moderAvis(Long avisId, ModerationAvisDTO dto);

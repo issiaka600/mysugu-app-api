@@ -3,6 +3,10 @@ package ma.mysuguclientapp.services.interfaces;
 import ma.mysuguclientapp.dtos.CommandeCreateDTO;
 import ma.mysuguclientapp.dtos.CommandeDTO;
 import ma.mysuguclientapp.dtos.CommandeUpdateStatusDTO;
+import ma.mysuguclientapp.dtos.AssignThirdPartyDeliveryDTO;
+import ma.mysuguclientapp.dtos.UpdatePaymentStatusDTO;
+import ma.mysuguclientapp.dtos.DeliveryChargeDateUpdateDTO;
+import ma.mysuguclientapp.dtos.OrderWiseProductUploadDTO;
 import ma.mysuguclientapp.enumerations.StatutCommande;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +26,18 @@ public interface CommandeService {
     CommandeDTO updateCommandeStatus(Long id, CommandeUpdateStatusDTO commandeUpdateStatusDTO);
     CommandeDTO assignLivreur(Long id, Long livreurId);
     CommandeDTO cancelCommande(Long id);
-//    CommandeDTO getCommandeTracking(Long id);
+    //    CommandeDTO getCommandeTracking(Long id);
     Map<String, Object> getCommandeTracking(Long id);
+
+    // Livraison par un tiers (coursier externe hors plateforme)
+    CommandeDTO assignThirdPartyDelivery(Long id, AssignThirdPartyDeliveryDTO dto);
+
+    // Mise à jour du statut de paiement
+    CommandeDTO updatePaymentStatus(Long id, UpdatePaymentStatusDTO dto);
+
+    // Mise à jour des frais de livraison et/ou de la date programmée
+    CommandeDTO updateDeliveryChargeAndDate(Long id, DeliveryChargeDateUpdateDTO dto);
+
+    // Déclaration des quantités réellement livrées (version simplifiée du POS legacy)
+    CommandeDTO uploadOrderWiseProducts(Long id, OrderWiseProductUploadDTO dto);
 }

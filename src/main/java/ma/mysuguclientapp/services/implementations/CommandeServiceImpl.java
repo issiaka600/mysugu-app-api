@@ -6,6 +6,10 @@ import ma.mysuguclientapp.dtos.CategorieRestaurantDTO;
 import ma.mysuguclientapp.dtos.CommandeCreateDTO;
 import ma.mysuguclientapp.dtos.CommandeDTO;
 import ma.mysuguclientapp.dtos.CommandeUpdateStatusDTO;
+import ma.mysuguclientapp.dtos.AssignThirdPartyDeliveryDTO;
+import ma.mysuguclientapp.dtos.UpdatePaymentStatusDTO;
+import ma.mysuguclientapp.dtos.DeliveryChargeDateUpdateDTO;
+import ma.mysuguclientapp.dtos.OrderWiseProductUploadDTO;
 import ma.mysuguclientapp.dtos.LigneCommandeCreateDTO;
 import ma.mysuguclientapp.dtos.LigneCommandeDTO;
 import ma.mysuguclientapp.dtos.LocalisationDTO;
@@ -465,15 +469,119 @@ public class CommandeServiceImpl implements CommandeService {
 
         // Notifier le restaurant que la livraison est en cours
         if (updatedCommande.getRestaurant().getOwner() != null) {
+            notificationService.envoyerNotificationCommande(
+                    updatedCommande.getRestaurant().getOwner().getId(),
+                    updatedCommande.getNumeroCommande(),
+                    TypeNotification.LIVREUR_ASSIGNE,
+                    updatedCommande.getId()
+            );
+        }
+
+        return convertToDTO(updatedCommande);
+    }
+
+    @Override
+    public CommandeDTO assignThirdPartyDelivery(Long id, AssignThirdPartyDeliveryDTO dto) {
+        Commande commande = findCommande(id);
+
+        if (dto.getNom() == null || dto.getNom().isBlank()) {
+            throw new BadRequestException("Le nom du livreur tiers est requis");
+        }
+
+        // Si un livreur interne était assigné, on le libère car la livraison passe à un tiers
+        if (commande.getLivreur() != null) {
+            User ancienLivreur = commande.getLivreur();
+            ancienLivreur.setLivreurDisponible(true);
+            userRepository.save(ancienLivreur);
+            commande.setLivreur(null);
+        }
+
+        commande.setLivreurTiersNom(dto.getNom());
+        commande.setLivreurTiersTelephone(dto.getTelephone());
+        commande.setLivreurTiersEntreprise(dto.getEntreprise());
+
+        if (commande.getStatut() == StatutCommande.PRETE || commande.getStatut() == StatutCommande.EN_PREPARATION) {
+            commande.setStatut(StatutCommande.ASSIGNEE_LIVREUR);
+        }
+
+        Commande updatedCommande = commandeRepository.save(commande);
+        log.info("Livreur tiers '{}' assigne a la commande {}", dto.getNom(), commande.getNumeroCommande());
+
         notificationService.envoyerNotificationCommande(
-                updatedCommande.getRestaurant().getOwner().getId(),
+                updatedCommande.getClient().getId(),
                 updatedCommande.getNumeroCommande(),
                 TypeNotification.LIVREUR_ASSIGNE,
                 updatedCommande.getId()
         );
-        }
 
         return convertToDTO(updatedCommande);
+    }
+
+    @Override
+    public CommandeDTO updatePaymentStatus(Long id, UpdatePaymentStatusDTO dto) {
+        Commande commande = findCommande(id);
+
+        if (dto.getStatutPaiement() == null) {
+            throw new BadRequestException("Le statut de paiement est requis");
+        }
+
+        StatutPaiement ancienStatut = commande.getStatutPaiement();
+        commande.setStatutPaiement(dto.getStatutPaiement());
+        Commande updatedCommande = commandeRepository.save(commande);
+
+        log.info("Statut de paiement de la commande {} mis a jour: {} -> {}",
+                commande.getNumeroCommande(), ancienStatut, dto.getStatutPaiement());
+
+        return convertToDTO(updatedCommande);
+    }
+
+    @Override
+    public CommandeDTO updateDeliveryChargeAndDate(Long id, DeliveryChargeDateUpdateDTO dto) {
+        Commande commande = findCommande(id);
+
+        if (dto.getFraisLivraison() != null) {
+            commande.setFraisLivraison(dto.getFraisLivraison());
+        }
+        if (dto.getDateLivraisonPrevue() != null) {
+            commande.setDateLivraisonPrevue(dto.getDateLivraisonPrevue());
+            commande.setCauseReport(dto.getCauseReport());
+        }
+
+        Commande updatedCommande = commandeRepository.save(commande);
+        log.info("Frais/date de livraison mis a jour pour la commande {}", commande.getNumeroCommande());
+
+        return convertToDTO(updatedCommande);
+    }
+
+    @Override
+    public CommandeDTO uploadOrderWiseProducts(Long id, OrderWiseProductUploadDTO dto) {
+        Commande commande = findCommande(id);
+
+        if (dto.getLignes() == null || dto.getLignes().isEmpty()) {
+            throw new BadRequestException("La liste des lignes livrées est requise");
+        }
+
+        for (OrderWiseProductUploadDTO.LigneLivreeDTO ligneDTO : dto.getLignes()) {
+            LigneCommande ligne = ligneCommandeRepository.findById(ligneDTO.getLigneCommandeId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Ligne de commande introuvable: " + ligneDTO.getLigneCommandeId()));
+
+            if (!ligne.getCommande().getId().equals(commande.getId())) {
+                throw new BadRequestException(
+                        "La ligne " + ligneDTO.getLigneCommandeId() + " n'appartient pas a cette commande");
+            }
+
+            if (ligneDTO.getQuantiteLivree() != null && ligneDTO.getQuantiteLivree() < 0) {
+                throw new BadRequestException("La quantite livree ne peut pas etre negative");
+            }
+
+            ligne.setQuantiteLivree(ligneDTO.getQuantiteLivree());
+            ligneCommandeRepository.save(ligne);
+        }
+
+        log.info("Quantites livrees enregistrees pour la commande {}", commande.getNumeroCommande());
+
+        return convertToDTO(findCommande(id));
     }
 
     @Override
@@ -829,7 +937,7 @@ public class CommandeServiceImpl implements CommandeService {
         if (distanceKm > zone.getRayonKm().doubleValue()) {
             throw new BadRequestException(
                     "Notre service de livraison n'est pas encore disponible dans votre zone. "
-                    + "Zones couvertes actuellement : " + zone.getNom() + ".");
+                            + "Zones couvertes actuellement : " + zone.getNom() + ".");
         }
 
         log.debug("Adresse validée dans la zone '{}' (distance {}km / rayon {}km)",
@@ -1012,6 +1120,11 @@ public class CommandeServiceImpl implements CommandeService {
         dto.setUpdatedAt(commande.getUpdatedAt());
         dto.setLivreeAt(commande.getLivreeAt());
         dto.setScheduledAt(commande.getScheduledAt());
+        dto.setDateLivraisonPrevue(commande.getDateLivraisonPrevue());
+        dto.setCauseReport(commande.getCauseReport());
+        dto.setLivreurTiersNom(commande.getLivreurTiersNom());
+        dto.setLivreurTiersTelephone(commande.getLivreurTiersTelephone());
+        dto.setLivreurTiersEntreprise(commande.getLivreurTiersEntreprise());
 
         if (commande.getMethodePaiement() != null) {
             dto.setMethodePaiement(commande.getMethodePaiement().name());
@@ -1113,6 +1226,7 @@ public class CommandeServiceImpl implements CommandeService {
         dto.setPrixUnitaire(ligne.getPrixUnitaire());
         dto.setMontantTotal(ligne.getMontantTotal());
         dto.setRemarque(ligne.getRemarque());
+        dto.setQuantiteLivree(ligne.getQuantiteLivree());
 
         if (ligne.getPlat() != null) {
             PlatDTO platDTO = new PlatDTO();
