@@ -9,6 +9,10 @@ public interface AuthEnhancedService {
     void verifierEmail(VerifyEmailDTO dto);
     void demanderReinitialisationMotDePasse(ForgotPasswordDTO dto);
     void reinitialiserMotDePasse(ResetPasswordDTO dto);
+
+    // OTP (code à 6 chiffres, alternative mobile au lien email)
+    void demanderCodeOtp(ForgotPasswordDTO dto);
+    String verifierOtp(VerifyOtpDTO dto);
     RefreshTokenResponseDTO rafraichirToken(RefreshTokenRequestDTO dto);
     void logout(String accessToken, LogoutDTO dto);
     void changerMotDePasse(Long userId, ChangePasswordDTO dto);

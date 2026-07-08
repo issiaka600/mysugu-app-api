@@ -37,6 +37,10 @@ public class AuthEnhancedServiceImpl implements AuthEnhancedService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
+    private static final String TYPE_OTP = "PASSWORD_RESET_OTP";
+    private static final String TYPE_RESET = "PASSWORD_RESET";
+    private final java.security.SecureRandom secureRandom = new java.security.SecureRandom();
+
     @Override
     @Transactional
     public void envoyerEmailVerification(Long userId) {
@@ -105,6 +109,52 @@ public class AuthEnhancedServiceImpl implements AuthEnhancedService {
 
         // Revoke all refresh tokens
         refreshTokenRepository.revokeAllUserTokens(user.getId(), LocalDateTime.now());
+    }
+
+    @Override
+    @Transactional
+    public void demanderCodeOtp(ForgotPasswordDTO dto) {
+        userRepository.findByEmail(dto.getEmail()).ifPresent(user -> {
+            String otp = String.format("%06d", secureRandom.nextInt(1_000_000));
+            TokenVerification tv = TokenVerification.builder()
+                    .user(user)
+                    .token(otp)
+                    .type(TYPE_OTP)
+                    .expiresAt(LocalDateTime.now().plusMinutes(10))
+                    .build();
+            tokenVerificationRepository.save(tv);
+            emailService.envoyerCodeOtp(user.getEmail(), otp);
+        });
+        // On répond toujours succès, même si l'email n'existe pas (anti-énumération)
+    }
+
+    @Override
+    @Transactional
+    public String verifierOtp(VerifyOtpDTO dto) {
+        User user = userRepository.findByEmail(dto.getEmail())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Code invalide"));
+
+        TokenVerification tv = tokenVerificationRepository.findByTokenAndType(dto.getOtp(), TYPE_OTP)
+                .filter(t -> t.getUser().getId().equals(user.getId()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Code invalide"));
+
+        if (tv.isExpired()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Code expiré");
+        if (tv.isUsed()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Code déjà utilisé");
+
+        tv.setUsedAt(LocalDateTime.now());
+        tokenVerificationRepository.save(tv);
+
+        // Génère un token de réinitialisation à usage unique, à utiliser avec /api/auth/reset-password
+        String resetToken = UUID.randomUUID().toString();
+        TokenVerification resetTv = TokenVerification.builder()
+                .user(user)
+                .token(resetToken)
+                .type(TYPE_RESET)
+                .expiresAt(LocalDateTime.now().plusMinutes(15))
+                .build();
+        tokenVerificationRepository.save(resetTv);
+
+        return resetToken;
     }
 
     @Override
