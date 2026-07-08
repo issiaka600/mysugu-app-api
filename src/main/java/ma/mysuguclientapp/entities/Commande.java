@@ -22,41 +22,41 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Commande {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
+
     @Column(unique = true, nullable = false)
     private String numeroCommande;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "client_id", nullable = false)
     private User client;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "restaurant_id", nullable = false)
     private Restaurant restaurant;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "livreur_id")
     private User livreur;
-    
+
     @OneToMany(mappedBy = "commande", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<LigneCommande> lignesCommande = new ArrayList<>();
-    
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatutCommande statut; // EN_ATTENTE, CONFIRMEE, EN_PREPARATION, PRETE, ASSIGNEE_LIVREUR, EN_COURS, LIVREE, ANNULEE
-    
+
     @Embedded
     @AttributeOverrides({
-        @AttributeOverride(name = "latitude", column = @Column(name = "livraison_latitude")),
-        @AttributeOverride(name = "longitude", column = @Column(name = "livraison_longitude")),
-        @AttributeOverride(name = "adresse", column = @Column(name = "livraison_adresse")),
-        @AttributeOverride(name = "ville", column = @Column(name = "livraison_ville")),
-        @AttributeOverride(name = "codePostal", column = @Column(name = "livraison_code_postal")),
-        @AttributeOverride(name = "pays", column = @Column(name = "livraison_pays"))
+            @AttributeOverride(name = "latitude", column = @Column(name = "livraison_latitude")),
+            @AttributeOverride(name = "longitude", column = @Column(name = "livraison_longitude")),
+            @AttributeOverride(name = "adresse", column = @Column(name = "livraison_adresse")),
+            @AttributeOverride(name = "ville", column = @Column(name = "livraison_ville")),
+            @AttributeOverride(name = "codePostal", column = @Column(name = "livraison_code_postal")),
+            @AttributeOverride(name = "pays", column = @Column(name = "livraison_pays"))
     })
     private Localisation adresseLivraison;
 
@@ -77,30 +77,30 @@ public class Commande {
     private String codePromoUtilise;
 
     private BigDecimal fraisLivraison;
-    
+
     @Column(name = "temps_livraison_estime")
     private Integer tempsLivraisonEstime; // en minutes
-    
+
     @Column(length = 500)
     private String commentaire;
 
     @Column(name = "raison_annulation", length = 1000)
     private String raisonAnnulation;
-    
+
     @Enumerated(EnumType.STRING)
     private MethodePaiement methodePaiement; // CARTE, ESPECES, MOBILE_MONEY
-    
+
     @Enumerated(EnumType.STRING)
     private StatutPaiement statutPaiement; // EN_ATTENTE, PAYE, REMBOURSE
-    
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
-    
+
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-    
+
     @Column(name = "livree_at")
     private LocalDateTime livreeAt;
 
@@ -149,6 +149,16 @@ public class Commande {
 
     @Column(name = "cause_report", length = 1000)
     private String causeReport;
+
+    // ===== Livraison par un tiers (hors plateforme, ex: coursier externe) =====
+    @Column(name = "livreur_tiers_nom", length = 150)
+    private String livreurTiersNom;
+
+    @Column(name = "livreur_tiers_telephone", length = 30)
+    private String livreurTiersTelephone;
+
+    @Column(name = "livreur_tiers_entreprise", length = 150)
+    private String livreurTiersEntreprise;
 
     @PrePersist
     @PreUpdate

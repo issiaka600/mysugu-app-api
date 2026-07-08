@@ -91,6 +91,24 @@ public class AvisServiceImpl implements AvisService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<AvisDTO> getAvisRestaurantParStatut(String accessToken, Long restaurantId, StatutAvis statut) {
+        User user = getUserFromToken(accessToken);
+        Restaurant restaurant = restaurantRepository.findById(restaurantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Restaurant non trouve avec l'ID: " + restaurantId));
+
+        boolean estProprietaire = restaurant.getOwner() != null && restaurant.getOwner().getId().equals(user.getId());
+        boolean estAdmin = user.getRole() == ma.mysuguclientapp.enumerations.UserRole.ADMIN;
+        if (!estAdmin && !estProprietaire) {
+            throw new UnauthorizedException("Vous n'avez pas accès aux avis de ce restaurant");
+        }
+
+        StatutAvis filtre = statut != null ? statut : StatutAvis.APPROUVE;
+        return avisRepository.findByRestaurantIdAndStatutOrderByCreatedAtDesc(restaurantId, filtre)
+                .stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<AvisDTO> getAvisLivreur(Long livreurId) {
         return avisRepository.findByLivreurIdAndStatutOrderByCreatedAtDesc(livreurId, StatutAvis.APPROUVE)
                 .stream().map(this::toDTO).collect(Collectors.toList());

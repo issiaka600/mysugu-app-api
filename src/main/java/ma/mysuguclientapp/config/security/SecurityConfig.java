@@ -152,6 +152,7 @@ public class SecurityConfig {
 
                         // Avis (client soumettre, public lire)
                         .requestMatchers(HttpMethod.POST, "/api/avis").hasRole("CLIENT")
+                        .requestMatchers(HttpMethod.GET, "/api/avis/restaurant/*/status").hasAnyRole("ADMIN", "RESTAURANT_OWNER")
                         .requestMatchers(HttpMethod.GET, "/api/avis/**").permitAll()
                         .requestMatchers("/api/avis/*/moderer").hasRole("ADMIN")
 
