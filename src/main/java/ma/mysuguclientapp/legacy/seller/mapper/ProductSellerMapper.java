@@ -55,6 +55,10 @@ public class ProductSellerMapper {
         // Confirmed against the live app model: unit_price is the field actually read by the
         // vendor app; price kept alongside for tolerant/older parsers (umbrella §4).
         m.put("unit_price", dto.getPrix());
+        // product_model.dart reads purchase_price via .toDouble() with NO null-check (crashes
+        // if the key is absent) — this envelope is shared by 3c (products) and 3g (POS), so a
+        // benign non-null value is required defensively (umbrella §4 never-crash invariant).
+        m.put("purchase_price", dto.getPrix());
         String image = dto.getImageUrl();
         m.put("image", image);
         m.put("thumbnail", image);
