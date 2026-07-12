@@ -22,7 +22,19 @@ public class ConversationService {
 
     @Transactional
     public MessageUnifie append(ParticipantRef from, ParticipantRef to, String contenu, List<String> attachments) {
-        ConversationUnifiee c = findOrCreate(from, to);
+        return append(from, to, contenu, attachments, null);
+    }
+
+    /**
+     * Comme {@link #append(ParticipantRef, ParticipantRef, String, List)}, avec en plus un
+     * {@code commandeId} optionnel à rattacher à la conversation. N'est appliqué que si la
+     * conversation est nouvellement créée (une conversation existante conserve son commandeId
+     * d'origine, jamais écrasé par un message ultérieur).
+     */
+    @Transactional
+    public MessageUnifie append(ParticipantRef from, ParticipantRef to, String contenu, List<String> attachments,
+                                 Long commandeId) {
+        ConversationUnifiee c = findOrCreate(from, to, commandeId);
         MessageUnifie m = msgs.save(MessageUnifie.builder()
                 .conversationId(c.getId())
                 .expediteurType(from.type()).expediteurId(from.id())
@@ -89,12 +101,13 @@ public class ConversationService {
         return convs.findByParties(p[0].type(), p[0].id(), p[1].type(), p[1].id());
     }
 
-    private ConversationUnifiee findOrCreate(ParticipantRef x, ParticipantRef y) {
+    private ConversationUnifiee findOrCreate(ParticipantRef x, ParticipantRef y, Long commandeId) {
         return find(x, y).orElseGet(() -> {
             ParticipantRef[] p = ParticipantRef.canonical(x, y);
             return convs.save(ConversationUnifiee.builder()
                 .partyAType(p[0].type()).partyAId(p[0].id())
-                .partyBType(p[1].type()).partyBId(p[1].id()).build());
+                .partyBType(p[1].type()).partyBId(p[1].id())
+                .commandeId(commandeId).build());
         });
     }
 }

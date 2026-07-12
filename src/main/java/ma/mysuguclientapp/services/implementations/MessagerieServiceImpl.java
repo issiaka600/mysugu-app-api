@@ -110,7 +110,7 @@ public class MessagerieServiceImpl implements MessagerieService {
                 : resoudreDestinataireNouvelleConversation(me, dto);
 
         List<String> attachments = dto.getImageUrl() != null ? List.of(dto.getImageUrl()) : List.of();
-        MessageUnifie saved = chat.append(me, other, dto.getContenu(), attachments);
+        MessageUnifie saved = chat.append(me, other, dto.getContenu(), attachments, dto.getCommandeId());
 
         return toMessageDTO(saved, me);
     }

@@ -11,6 +11,7 @@ import ma.mysuguclientapp.entities.User;
 import ma.mysuguclientapp.entities.chat.ParticipantRef;
 import ma.mysuguclientapp.enumerations.ParticipantType;
 import ma.mysuguclientapp.enumerations.UserRole;
+import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
 import ma.mysuguclientapp.repositories.MessageUnifieRepository;
 import ma.mysuguclientapp.repositories.RestaurantRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
@@ -31,6 +32,7 @@ import java.util.Optional;
 import static ma.mysuguclientapp.enumerations.ParticipantType.CUSTOMER;
 import static ma.mysuguclientapp.enumerations.ParticipantType.RESTAURANT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -62,6 +64,8 @@ class MessagerieServiceUnifiedTest {
                 jwtTokenProvider, messageUnifieRepository);
     }
 
+    private static final Long OWNER_ID = 20L;
+
     private User client() {
         User u = new User();
         u.setId(CLIENT_ID);
@@ -70,6 +74,14 @@ class MessagerieServiceUnifiedTest {
         u.setPrenom("Issiaka");
         u.setAvatar("avatar.png");
         u.setRole(UserRole.CLIENT);
+        return u;
+    }
+
+    private User owner() {
+        User u = new User();
+        u.setId(OWNER_ID);
+        u.setEmail("owner@test.mysugu");
+        u.setRole(UserRole.RESTAURANT_OWNER);
         return u;
     }
 
@@ -86,6 +98,11 @@ class MessagerieServiceUnifiedTest {
         when(userRepository.findByEmail("client@test.mysugu")).thenReturn(Optional.of(client()));
     }
 
+    private void mockOwnerAuth() {
+        when(jwtTokenProvider.getEmailFromToken("sometoken")).thenReturn("owner@test.mysugu");
+        when(userRepository.findByEmail("owner@test.mysugu")).thenReturn(Optional.of(owner()));
+    }
+
     @Test
     void envoyerMessage_delegates_to_conversationService_append_with_correct_participant_refs() {
         mockClientAuth();
@@ -98,7 +115,7 @@ class MessagerieServiceUnifiedTest {
                 .createdAt(LocalDateTime.now())
                 .build();
         when(chat.append(new ParticipantRef(CUSTOMER, CLIENT_ID), new ParticipantRef(RESTAURANT, RESTAURANT_ID),
-                "hi", List.of())).thenReturn(saved);
+                "hi", List.of(), null)).thenReturn(saved);
         when(resolver.userInfo(CLIENT_ID)).thenReturn(userInfoMap("Issiaka", "Traore", "avatar.png"));
 
         MessageChatCreateDTO dto = new MessageChatCreateDTO();
@@ -108,7 +125,7 @@ class MessagerieServiceUnifiedTest {
         MessageChatDTO result = service.envoyerMessage(TOKEN, dto);
 
         verify(chat).append(new ParticipantRef(CUSTOMER, CLIENT_ID), new ParticipantRef(RESTAURANT, RESTAURANT_ID),
-                "hi", List.of());
+                "hi", List.of(), null);
         assertThat(result.getId()).isEqualTo(1L);
         assertThat(result.getConversationId()).isEqualTo(99L);
         assertThat(result.getContenu()).isEqualTo("hi");
@@ -154,6 +171,62 @@ class MessagerieServiceUnifiedTest {
         assertThat(dto.getCommandeId()).isEqualTo(5L);
         assertThat(dto.getDernierMessage()).isEqualTo("salut");
         assertThat(dto.getNombreNonLus()).isEqualTo(2L);
+    }
+
+    @Test
+    void envoyerMessage_passes_commandeId_through_to_conversationService_append_on_new_conversation() {
+        mockClientAuth();
+        when(restaurantRepository.findById(RESTAURANT_ID)).thenReturn(Optional.of(restaurant()));
+
+        Long commandeId = 42L;
+        MessageUnifie saved = MessageUnifie.builder()
+                .id(1L).conversationId(99L)
+                .expediteurType(CUSTOMER).expediteurId(CLIENT_ID)
+                .contenu("hi").attachments(List.of()).seen(false)
+                .createdAt(LocalDateTime.now())
+                .build();
+        when(chat.append(new ParticipantRef(CUSTOMER, CLIENT_ID), new ParticipantRef(RESTAURANT, RESTAURANT_ID),
+                "hi", List.of(), commandeId)).thenReturn(saved);
+        when(resolver.userInfo(CLIENT_ID)).thenReturn(userInfoMap("Issiaka", "Traore", "avatar.png"));
+
+        MessageChatCreateDTO dto = new MessageChatCreateDTO();
+        dto.setRestaurantId(RESTAURANT_ID);
+        dto.setContenu("hi");
+        dto.setCommandeId(commandeId);
+
+        service.envoyerMessage(TOKEN, dto);
+
+        verify(chat).append(new ParticipantRef(CUSTOMER, CLIENT_ID), new ParticipantRef(RESTAURANT, RESTAURANT_ID),
+                "hi", List.of(), commandeId);
+    }
+
+    @Test
+    void restaurant_owner_principal_resolves_to_restaurant_participant_ref_via_findByOwnerId() {
+        mockOwnerAuth();
+        when(restaurantRepository.findByOwnerId(OWNER_ID)).thenReturn(Optional.of(restaurant()));
+        when(chat.conversationsFor(new ParticipantRef(RESTAURANT, RESTAURANT_ID), CUSTOMER)).thenReturn(List.of());
+
+        List<ConversationDTO> result = service.getConversations(TOKEN);
+
+        assertThat(result).isEmpty();
+        verify(restaurantRepository).findByOwnerId(OWNER_ID);
+        verify(chat).conversationsFor(new ParticipantRef(RESTAURANT, RESTAURANT_ID), CUSTOMER);
+    }
+
+    @Test
+    void getMessages_on_conversation_the_principal_is_not_a_member_of_throws_resourceNotFound() {
+        mockClientAuth();
+
+        ConversationUnifiee foreignConv = ConversationUnifiee.builder()
+                .id(77L)
+                .partyAType(CUSTOMER).partyAId(999L)
+                .partyBType(RESTAURANT).partyBId(RESTAURANT_ID)
+                .build();
+        ParticipantRef me = new ParticipantRef(CUSTOMER, CLIENT_ID);
+        when(chat.conversationsFor(me, RESTAURANT)).thenReturn(List.of(foreignConv));
+
+        assertThatThrownBy(() -> service.getMessages(TOKEN, 12345L))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     private Map<String, Object> userInfoMap(String fName, String lName, String image) {
