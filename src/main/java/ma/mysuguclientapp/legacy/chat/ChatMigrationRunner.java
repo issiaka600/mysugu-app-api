@@ -68,7 +68,11 @@ public class ChatMigrationRunner implements ApplicationRunner {
                 case "customer" -> ParticipantType.CUSTOMER;
                 case "seller" -> ParticipantType.RESTAURANT;
                 case "admin" -> ParticipantType.ADMIN;
-                default -> ParticipantType.CUSTOMER;
+                default -> {
+                    log.warn("Unmapped interlocuteurType '{}' on MessageLivreur id={}; defaulting to CUSTOMER",
+                            ml.getInterlocuteurType(), ml.getId());
+                    yield ParticipantType.CUSTOMER;
+                }
             };
             Long livreurId = ml.getLivreur() != null ? ml.getLivreur().getId() : null;
             if (livreurId == null) {
