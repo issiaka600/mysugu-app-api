@@ -60,4 +60,17 @@ public class SellerFinanceController {
         Page<PaiementRestaurantDTO> page = facturationService.getHistoriquePaiements(restaurantId, Pageable.unpaged());
         return mapper.transactionList(page.getContent(), restaurantId);
     }
+
+    /**
+     * GET withdraw-method-list : STUB bénin, une ligne par valeur de l'enum natif
+     * {@link ma.mysuguclientapp.enumerations.ModeVersementRestaurant} (pas de méthodes de retrait
+     * configurables réellement — spec 3f §3 GAP). Réponse = TABLEAU JSON NU (confirmé 3f.0 contre
+     * {@code wallet_controller.dart::getWithdrawMethods}). Jamais 500.
+     * STUB: no native seller wallet/withdraw/refund (spec 3f SCOPE DECISION, umbrella §4).
+     */
+    @GetMapping("/withdraw-method-list")
+    public List<Map<String, Object>> withdrawMethodList(@AuthenticationPrincipal String email) {
+        sellerContext.requireOwner(email);
+        return mapper.withdrawMethodList();
+    }
 }
