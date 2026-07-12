@@ -6,6 +6,7 @@ import ma.mysuguclientapp.dtos.LocationUpdateDTO;
 import ma.mysuguclientapp.dtos.RestaurantDTO;
 import ma.mysuguclientapp.dtos.UserDTO;
 import ma.mysuguclientapp.dtos.UserUpdateDTO;
+import ma.mysuguclientapp.entities.Restaurant;
 import ma.mysuguclientapp.legacy.seller.SellerContext;
 import ma.mysuguclientapp.legacy.seller.mapper.SellerProfileMapper;
 import ma.mysuguclientapp.legacy.seller.mapper.ShopMapper;
@@ -108,5 +109,36 @@ public class SellerShopProfileController {
         RestaurantDTO updated = restaurantService.updateRestaurant(restaurantId,
                 shopMapper.toRestaurantUpdate(current, name, address, deliveryTime), logo);
         return shopMapper.toShopInfo(updated);
+    }
+
+    /**
+     * POST temporary-close (_method:put) {status} : fermeture temporaire de la boutique.
+     * L'app envoie {@code status=1} pour fermer, {@code status=0} pour rouvrir.
+     * // GAP: mapped to Restaurant.isActive (umbrella §4). isActive = (status != 1).
+     * Enveloppe 6valley bénigne — jamais 404/500 (hors 404 légitime "aucun restaurant").
+     */
+    @PostMapping("/temporary-close")
+    public Map<String, Object> temporaryClose(@AuthenticationPrincipal String email,
+                                              @RequestBody(required = false) Map<String, Object> body) {
+        Restaurant resto = sellerContext.currentRestaurant(email);
+        int status = intVal(body != null ? body.get("status") : null); // 1 = fermer, 0 = rouvrir
+        boolean desiredActive = status != 1;
+        if (!Boolean.valueOf(desiredActive).equals(resto.getIsActive())) {
+            restaurantService.toggleRestaurantStatus(resto.getId()); // set isActive via toggle natif
+        }
+        return Map.of(
+                "message", "Statut de la boutique mis à jour.",
+                "temporary_close", !desiredActive);
+    }
+
+    private static int intVal(Object o) {
+        if (o == null) {
+            return 0;
+        }
+        try {
+            return (int) Double.parseDouble(o.toString());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 }
