@@ -66,7 +66,9 @@ public class SecurityConfig {
                                 "/api/integrations/tiktak/**",
                                 // Legacy shim livreur (app Tiktak/moso) : auth publique + config au splash
                                 "/api/v2/delivery-man/auth/**",
-                                "/api/v1/config"
+                                "/api/v1/config",
+                                // Legacy shim client (app MySuKu) : login/register publics
+                                "/api/v1/auth/**"
                         ).permitAll()
 
                         // WebSocket endpoint
