@@ -74,4 +74,65 @@ public class SellerCouponController {
                 .toList();
         return mapper.listEnvelope(coupons, total, limit, offset);
     }
+
+    /**
+     * POST coupon/update/{id} ({@code _method:put}) : édite un coupon du vendeur authentifié.
+     * Appartenance TOUJOURS vérifiée via {@link #requireOwnedCoupon} avant écriture — coupon d'un
+     * AUTRE vendeur -> 404 (jamais de mutation cross-vendeur). Délègue à
+     * {@link CodePromoService#mettreAJour}.
+     */
+    @PostMapping({"/update/{id}", "/update/{id}/"})
+    public Map<String, Object> update(@AuthenticationPrincipal String email,
+                                      @PathVariable Long id,
+                                      @RequestBody Map<String, Object> form) {
+        User owner = sellerContext.requireOwner(email);
+        requireOwnedCoupon(id, owner); // 404 si le coupon n'appartient pas au vendeur
+        CodePromoCreateDTO dto = mapper.toCreateDTO(form);
+        codePromoService.mettreAJour(id, dto);
+        return mapper.success("Coupon mis à jour.");
+    }
+
+    /**
+     * POST coupon/status-update/{id} {status} : bascule isActive via
+     * {@link CodePromoService#activerDesactiver}. {@code status=1} => actif, {@code 0} => inactif.
+     * Appartenance TOUJOURS vérifiée avant écriture — coupon d'un AUTRE vendeur -> 404.
+     */
+    @PostMapping({"/status-update/{id}", "/status-update/{id}/"})
+    public Map<String, Object> statusUpdate(@AuthenticationPrincipal String email,
+                                            @PathVariable Long id,
+                                            @RequestBody(required = false) Map<String, Object> body) {
+        User owner = sellerContext.requireOwner(email);
+        requireOwnedCoupon(id, owner); // 404 si le coupon n'appartient pas au vendeur
+        int status = body != null && body.get("status") != null
+                ? Integer.parseInt(body.get("status").toString().trim()) : 0;
+        codePromoService.activerDesactiver(id, status == 1);
+        return mapper.success("Statut du coupon mis à jour.");
+    }
+
+    /**
+     * DELETE|POST coupon/delete/{id} ({@code _method:delete}) : supprime un coupon du vendeur
+     * authentifié. Appartenance TOUJOURS vérifiée avant suppression — coupon d'un AUTRE vendeur
+     * -> 404 (jamais de suppression cross-vendeur).
+     */
+    @RequestMapping(value = {"/delete/{id}", "/delete/{id}/"}, method = {RequestMethod.DELETE, RequestMethod.POST})
+    public Map<String, Object> delete(@AuthenticationPrincipal String email, @PathVariable Long id) {
+        User owner = sellerContext.requireOwner(email);
+        requireOwnedCoupon(id, owner); // 404 si le coupon n'appartient pas au vendeur
+        codePromoService.supprimerCodePromo(id);
+        return mapper.success("Coupon supprimé.");
+    }
+
+    /**
+     * Charge le coupon par id et vérifie qu'il a été créé par le vendeur authentifié. Sinon 404
+     * (jamais de fuite/mutation cross-vendeur) — garde réutilisée par update/status/delete
+     * (miroir de {@code ownedOrder}/{@code ownedPlat} des tranches précédentes).
+     */
+    private CodePromo requireOwnedCoupon(Long id, User owner) {
+        CodePromo promo = codePromoRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Coupon non trouvé"));
+        if (promo.getCreatedBy() == null || !promo.getCreatedBy().getId().equals(owner.getId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Coupon non trouvé");
+        }
+        return promo;
+    }
 }
