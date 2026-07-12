@@ -54,6 +54,13 @@ public class OrderSellerController {
         return orderMapper.toListEnvelope(commandes, limit, offset);
     }
 
+    /** GET orders/{id} : détail (order-details, liste de lignes) d'une commande du vendeur. */
+    @GetMapping("/{id}")
+    public List<Map<String, Object>> details(@AuthenticationPrincipal String email, @PathVariable Long id) {
+        CommandeDTO commande = ownedOrder(email, id);
+        return orderMapper.toOrderDetails(commande);
+    }
+
     /**
      * Résout la commande par id et vérifie qu'elle appartient au restaurant du vendeur
      * authentifié. Sinon 404 (jamais de fuite cross-restaurant) — garde réutilisée par tous les
