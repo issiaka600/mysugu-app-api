@@ -11,6 +11,7 @@ import ma.mysuguclientapp.enumerations.StatutCommande;
 import ma.mysuguclientapp.enumerations.StatutPaiement;
 import ma.mysuguclientapp.enumerations.UserRole;
 import ma.mysuguclientapp.repositories.CommandeRepository;
+import ma.mysuguclientapp.repositories.NotificationRepository;
 import ma.mysuguclientapp.repositories.PlatRepository;
 import ma.mysuguclientapp.repositories.RestaurantRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
@@ -56,6 +57,7 @@ class OrderAssignTest {
     @Autowired RestaurantRepository restoRepo;
     @Autowired PlatRepository platRepo;
     @Autowired CommandeRepository commandeRepo;
+    @Autowired NotificationRepository notificationRepo;
     @Autowired PasswordEncoder encoder;
 
     private final String owner1Email = "ord-asgn1-" + System.nanoTime() + "@test.mysugu";
@@ -99,6 +101,13 @@ class OrderAssignTest {
         platRepo.findById(plat2Id).ifPresent(platRepo::delete);
         restoRepo.findById(resto1Id).ifPresent(restoRepo::delete);
         restoRepo.findById(resto2Id).ifPresent(restoRepo::delete);
+        // assignLivreur/assignThirdPartyDelivery send Notification rows to livreur/client/owner —
+        // purge them first, otherwise deleting the users below violates the FK. (deleteByDestinataireIdIn
+        // is @Modifying and needs an owning transaction the test doesn't have — use deleteAll instead.)
+        for (Long userId : List.of(clientId, livreurId, owner1Id, owner2Id)) {
+            notificationRepo.deleteAll(notificationRepo.findByDestinataireIdOrderByCreatedAtDesc(
+                    userId, org.springframework.data.domain.Pageable.unpaged()).getContent());
+        }
         userRepo.findById(clientId).ifPresent(userRepo::delete);
         userRepo.findById(livreurId).ifPresent(userRepo::delete);
         userRepo.findById(owner1Id).ifPresent(userRepo::delete);
