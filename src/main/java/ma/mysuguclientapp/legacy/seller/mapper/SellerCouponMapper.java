@@ -2,6 +2,7 @@ package ma.mysuguclientapp.legacy.seller.mapper;
 
 import ma.mysuguclientapp.dtos.commerce.CodePromoCreateDTO;
 import ma.mysuguclientapp.dtos.commerce.CodePromoDTO;
+import ma.mysuguclientapp.dtos.commerce.ResultatCodePromoDTO;
 import ma.mysuguclientapp.enumerations.TypeReduction;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -87,6 +88,21 @@ public class SellerCouponMapper {
     /** Accusé d'écriture 6valley. */
     public Map<String, Object> success(String message) {
         return Map.of("message", message);
+    }
+
+    /**
+     * {@link ResultatCodePromoDTO} natif -> JSON discount 6valley lu par le POS
+     * (cart_controller.dart : {@code coupon_discount_amount}). {@code is_valid}/{@code message}
+     * ajoutés pour un rendu bénin côté app (code invalide -> montant 0, pas d'erreur).
+     */
+    public Map<String, Object> toCheckResult(ResultatCodePromoDTO res) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("coupon_discount_amount", dbl(res.getMontantReduit()));
+        m.put("total_amount", dbl(res.getMontantFinal()));
+        m.put("is_valid", res.isValide());
+        m.put("message", res.getMessage());
+        m.put("coupon_code", res.getCodePromo());
+        return m;
     }
 
     private TypeReduction toTypeReduction(String discountType) {

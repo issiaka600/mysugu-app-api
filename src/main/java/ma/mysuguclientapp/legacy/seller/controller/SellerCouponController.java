@@ -2,8 +2,10 @@ package ma.mysuguclientapp.legacy.seller.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import ma.mysuguclientapp.dtos.commerce.AppliquerCodePromoDTO;
 import ma.mysuguclientapp.dtos.commerce.CodePromoCreateDTO;
 import ma.mysuguclientapp.dtos.commerce.CodePromoDTO;
+import ma.mysuguclientapp.dtos.commerce.ResultatCodePromoDTO;
 import ma.mysuguclientapp.entities.CodePromo;
 import ma.mysuguclientapp.entities.User;
 import ma.mysuguclientapp.legacy.seller.SellerContext;
@@ -120,6 +122,43 @@ public class SellerCouponController {
         requireOwnedCoupon(id, owner); // 404 si le coupon n'appartient pas au vendeur
         codePromoService.supprimerCodePromo(id);
         return mapper.success("Coupon supprimé.");
+    }
+
+    /**
+     * GET|POST coupon/check-coupon : valide un code et calcule la remise en déléguant à
+     * {@link CodePromoService#validerEtCalculer} (le natif ne connaît que POST /valider — le POS
+     * 6valley POST {@code {code,user_id,order_amount}}, spec §2). Code invalide/expiré -> forme
+     * bénigne (montant 0), jamais 500. {@code order_amount} défaut 0.
+     */
+    @RequestMapping(value = "/check-coupon", method = {RequestMethod.GET, RequestMethod.POST})
+    public Map<String, Object> checkCoupon(@AuthenticationPrincipal String email,
+                                           @RequestParam(value = "code", required = false) String codeParam,
+                                           @RequestParam(value = "order_amount", required = false) java.math.BigDecimal orderAmountParam,
+                                           @RequestBody(required = false) Map<String, Object> body) {
+        sellerContext.requireOwner(email); // 403 si non-vendeur
+        String code = codeParam;
+        java.math.BigDecimal orderAmount = orderAmountParam;
+        if (body != null) {
+            if (code == null && body.get("code") != null) {
+                code = body.get("code").toString();
+            }
+            if (orderAmount == null && body.get("order_amount") != null) {
+                orderAmount = new java.math.BigDecimal(body.get("order_amount").toString().trim());
+            }
+        }
+        if (orderAmount == null) {
+            orderAmount = java.math.BigDecimal.ZERO;
+        }
+        if (code == null || code.isBlank()) {
+            return mapper.toCheckResult(ResultatCodePromoDTO.builder()
+                    .valide(false).message("Code promo invalide ou expiré")
+                    .montantOriginal(orderAmount).montantFinal(orderAmount).build());
+        }
+        AppliquerCodePromoDTO dto = new AppliquerCodePromoDTO();
+        dto.setCode(code);
+        dto.setMontantCommande(orderAmount);
+        ResultatCodePromoDTO res = codePromoService.validerEtCalculer(dto, null);
+        return mapper.toCheckResult(res);
     }
 
     /**
