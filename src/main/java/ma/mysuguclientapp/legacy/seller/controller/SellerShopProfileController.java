@@ -3,10 +3,13 @@ package ma.mysuguclientapp.legacy.seller.controller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import ma.mysuguclientapp.dtos.LocationUpdateDTO;
+import ma.mysuguclientapp.dtos.RestaurantDTO;
 import ma.mysuguclientapp.dtos.UserDTO;
 import ma.mysuguclientapp.dtos.UserUpdateDTO;
 import ma.mysuguclientapp.legacy.seller.SellerContext;
 import ma.mysuguclientapp.legacy.seller.mapper.SellerProfileMapper;
+import ma.mysuguclientapp.legacy.seller.mapper.ShopMapper;
+import ma.mysuguclientapp.services.interfaces.RestaurantService;
 import ma.mysuguclientapp.services.interfaces.UserService;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -32,7 +35,9 @@ public class SellerShopProfileController {
 
     private final SellerContext sellerContext;
     private final UserService userService;
+    private final RestaurantService restaurantService;
     private final SellerProfileMapper sellerProfileMapper;
+    private final ShopMapper shopMapper;
 
     /** GET seller-info : profil du vendeur authentifié, forme 6valley. */
     @GetMapping("/seller-info")
@@ -75,5 +80,13 @@ public class SellerShopProfileController {
             result = userService.updateLocation(authorization, loc);
         }
         return sellerProfileMapper.toSellerInfo(result);
+    }
+
+    /** GET shop-info : boutique du vendeur (son Restaurant), forme 6valley. */
+    @GetMapping("/shop-info")
+    public Map<String, Object> shopInfo(@AuthenticationPrincipal String email) {
+        sellerContext.currentRestaurant(email); // 403 non-vendeur / 404 sans restaurant
+        RestaurantDTO resto = restaurantService.getMonRestaurant(email);
+        return shopMapper.toShopInfo(resto);
     }
 }
