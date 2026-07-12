@@ -2,6 +2,7 @@ package ma.mysuguclientapp.legacy.seller.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import ma.mysuguclientapp.dtos.PlatCreateDTO;
 import ma.mysuguclientapp.dtos.PlatDTO;
 import ma.mysuguclientapp.entities.Restaurant;
 import ma.mysuguclientapp.legacy.seller.SellerContext;
@@ -10,10 +11,13 @@ import ma.mysuguclientapp.services.interfaces.PlatService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.util.Map;
 
 /**
@@ -49,6 +53,89 @@ public class SellerProductController {
     public Map<String, Object> detail(@AuthenticationPrincipal String email, @PathVariable Long id) {
         PlatDTO plat = ownedPlat(email, id);
         return mapper.toSixValley(plat);
+    }
+
+    /**
+     * POST products/add (multipart) : crée un produit sous le restaurant du vendeur
+     * authentifié. {@code restaurantId} est TOUJOURS forcé côté serveur (jamais depuis le
+     * corps) — pas de création cross-tenant. Champs 6valley sans équivalent natif (tax, sku,
+     * brand_id, meta_*, colors) acceptés implicitement et ignorés (non liés).
+     */
+    @PostMapping(value = "/add", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Map<String, Object> add(@AuthenticationPrincipal String email,
+                                    @RequestParam(value = "name", required = false) String name,
+                                    @RequestParam(value = "details", required = false) String details,
+                                    @RequestParam(value = "price", required = false) BigDecimal price,
+                                    @RequestParam(value = "unit_price", required = false) BigDecimal unitPrice,
+                                    @RequestParam(value = "category_id", required = false) Long categoryId,
+                                    @RequestParam(value = "image", required = false) MultipartFile image) {
+        Restaurant restaurant = sellerContext.currentRestaurant(email);
+        PlatCreateDTO dto = toPlatCreateDTO(restaurant.getId(), name, details, price, unitPrice, categoryId);
+        platService.createPlat(dto, image);
+        return mapper.success("Produit ajouté.");
+    }
+
+    /**
+     * POST products/update (multipart, {@code _method:put} toléré) : met à jour un produit du
+     * vendeur authentifié. L'id est lu du formulaire mais l'appartenance est TOUJOURS vérifiée
+     * via {@link #ownedPlat} avant écriture — un Plat d'un AUTRE restaurant -> 404 (jamais de
+     * mutation cross-tenant).
+     */
+    @PostMapping(value = "/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Map<String, Object> update(@AuthenticationPrincipal String email,
+                                       @RequestParam(value = "id") Long id,
+                                       @RequestParam(value = "name", required = false) String name,
+                                       @RequestParam(value = "details", required = false) String details,
+                                       @RequestParam(value = "price", required = false) BigDecimal price,
+                                       @RequestParam(value = "unit_price", required = false) BigDecimal unitPrice,
+                                       @RequestParam(value = "category_id", required = false) Long categoryId,
+                                       @RequestParam(value = "image", required = false) MultipartFile image) {
+        Restaurant restaurant = sellerContext.currentRestaurant(email);
+        ownedPlat(email, id); // 404 si le produit n'appartient pas au vendeur
+        PlatCreateDTO dto = toPlatCreateDTO(restaurant.getId(), name, details, price, unitPrice, categoryId);
+        platService.updatePlat(id, dto, image);
+        return mapper.success("Produit mis à jour.");
+    }
+
+    /**
+     * POST products/delete {id} : supprime un produit du vendeur authentifié. Appartenance
+     * TOUJOURS vérifiée avant suppression — un Plat d'un AUTRE restaurant -> 404 (jamais de
+     * suppression cross-tenant).
+     */
+    @PostMapping("/delete")
+    public Map<String, Object> delete(@AuthenticationPrincipal String email,
+                                       @RequestBody Map<String, Object> body) {
+        Long id = toLong(body.get("id"));
+        ownedPlat(email, id); // 404 si le produit n'appartient pas au vendeur
+        platService.deletePlat(id);
+        return mapper.success("Produit supprimé.");
+    }
+
+    private PlatCreateDTO toPlatCreateDTO(Long restaurantId, String name, String details,
+                                          BigDecimal price, BigDecimal unitPrice, Long categoryId) {
+        PlatCreateDTO dto = new PlatCreateDTO();
+        dto.setRestaurantId(restaurantId); // toujours forcé côté serveur, jamais depuis le corps
+        dto.setNom(name);
+        dto.setDescription(details);
+        dto.setPrix(price != null ? price : unitPrice);
+        if (categoryId != null) {
+            ma.mysuguclientapp.enumerations.CategoriePlat c = mapper.categoryFromId(categoryId);
+            if (c != null) {
+                dto.setCategoriePlat(c.name());
+            }
+        }
+        return dto;
+    }
+
+    private static Long toLong(Object o) {
+        if (o == null) {
+            return null;
+        }
+        try {
+            return Long.parseLong(o.toString().trim());
+        } catch (NumberFormatException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "id invalide");
+        }
     }
 
     /**
