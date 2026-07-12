@@ -5,8 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import ma.mysuguclientapp.dtos.AssignThirdPartyDeliveryDTO;
 import ma.mysuguclientapp.dtos.CommandeDTO;
 import ma.mysuguclientapp.dtos.CommandeUpdateStatusDTO;
+import ma.mysuguclientapp.dtos.UpdatePaymentStatusDTO;
 import ma.mysuguclientapp.entities.Restaurant;
 import ma.mysuguclientapp.enumerations.StatutCommande;
+import ma.mysuguclientapp.enumerations.StatutPaiement;
 import ma.mysuguclientapp.legacy.seller.SellerContext;
 import ma.mysuguclientapp.legacy.seller.dto.ErrorsResponse;
 import ma.mysuguclientapp.legacy.seller.mapper.OrderSellerMapper;
@@ -127,6 +129,31 @@ public class OrderSellerController {
         dto.setNom(serviceName != null ? serviceName.toString() : null);
         commandeService.assignThirdPartyDelivery(orderId, dto);
         return Map.of("message", "Livreur tiers assigné.");
+    }
+
+    /**
+     * POST orders/update-payment-status ({@code order_id, payment_status}) : met à jour le
+     * statut de paiement natif via le mapping 6valley -> StatutPaiement (spec §3b). Appartenance
+     * TOUJOURS vérifiée avant écriture — une commande d'un AUTRE restaurant -> 404 (jamais de
+     * mutation cross-tenant).
+     */
+    @PostMapping("/update-payment-status")
+    public ResponseEntity<?> updatePaymentStatus(@AuthenticationPrincipal String email,
+                                                  @RequestBody Map<String, Object> body) {
+        Long orderId = toLong(body.get("order_id"));
+        ownedOrder(email, orderId); // 404 si la commande n'appartient pas au vendeur
+        Object paymentStatus = body.get("payment_status");
+        StatutPaiement statutPaiement;
+        try {
+            statutPaiement = statusMapper.fromSixValleyPayment(paymentStatus != null ? paymentStatus.toString() : null);
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.badRequest()
+                    .body(ErrorsResponse.of("payment-status-001", e.getReason()));
+        }
+        UpdatePaymentStatusDTO dto = new UpdatePaymentStatusDTO();
+        dto.setStatutPaiement(statutPaiement);
+        commandeService.updatePaymentStatus(orderId, dto);
+        return ResponseEntity.ok(Map.of("message", "Statut de paiement mis à jour."));
     }
 
     /**
