@@ -28,6 +28,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -223,6 +224,42 @@ public class OrderSellerController {
                 return null;
             }
         }
+    }
+
+    /**
+     * GET orders/{id}/live-tracking : adapte le tracking natif
+     * ({@link CommandeService#getCommandeTracking}, alimenté par {@code TrackingLocationStore})
+     * vers la forme 6valley {@code {latitude, longitude, ...}}. Appartenance TOUJOURS vérifiée
+     * avant lecture — une commande d'un AUTRE restaurant -> 404. Jamais de 500 : si aucune
+     * position n'est connue, réponse bénigne avec {@code latitude}/{@code longitude} à
+     * {@code null}.
+     */
+    @GetMapping("/{id}/live-tracking")
+    public Map<String, Object> liveTracking(@AuthenticationPrincipal String email, @PathVariable Long id) {
+        ownedOrder(email, id); // 404 si la commande n'appartient pas au vendeur
+
+        Map<String, Object> tracking;
+        try {
+            tracking = commandeService.getCommandeTracking(id);
+        } catch (Exception e) {
+            // Jamais 500 sur le tracking (spec §6) : réponse bénigne si le natif échoue.
+            tracking = Map.of();
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        Object liveGps = tracking != null ? tracking.get("liveGps") : null;
+        if (liveGps instanceof Map<?, ?> gps) {
+            result.put("latitude", gps.get("latitude"));
+            result.put("longitude", gps.get("longitude"));
+            result.put("updated_at", gps.get("timestamp"));
+        } else {
+            // Aucune position connue -> forme bénigne (nulls), jamais 500 (spec §6).
+            result.put("latitude", null);
+            result.put("longitude", null);
+            result.put("updated_at", null);
+        }
+        result.put("order_id", id);
+        return result;
     }
 
     /**
