@@ -6,207 +6,155 @@ import ma.mysuguclientapp.config.security.JwtTokenProvider;
 import ma.mysuguclientapp.dtos.ConversationDTO;
 import ma.mysuguclientapp.dtos.MessageChatCreateDTO;
 import ma.mysuguclientapp.dtos.MessageChatDTO;
-import ma.mysuguclientapp.entities.Commande;
-import ma.mysuguclientapp.entities.Conversation;
-import ma.mysuguclientapp.entities.MessageChat;
+import ma.mysuguclientapp.entities.ConversationUnifiee;
+import ma.mysuguclientapp.entities.MessageUnifie;
 import ma.mysuguclientapp.entities.Restaurant;
 import ma.mysuguclientapp.entities.User;
-import ma.mysuguclientapp.enumerations.TypeNotification;
+import ma.mysuguclientapp.entities.chat.ParticipantRef;
+import ma.mysuguclientapp.enumerations.ParticipantType;
 import ma.mysuguclientapp.enumerations.UserRole;
 import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
 import ma.mysuguclientapp.exceptions.UnauthorizedException;
-import ma.mysuguclientapp.repositories.CommandeRepository;
-import ma.mysuguclientapp.repositories.ConversationRepository;
-import ma.mysuguclientapp.repositories.MessageChatRepository;
+import ma.mysuguclientapp.repositories.MessageUnifieRepository;
 import ma.mysuguclientapp.repositories.RestaurantRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
+import ma.mysuguclientapp.services.chat.ConversationService;
+import ma.mysuguclientapp.services.chat.ParticipantResolver;
 import ma.mysuguclientapp.services.interfaces.MessagerieService;
-import ma.mysuguclientapp.services.interfaces.NotificationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
+import static ma.mysuguclientapp.enumerations.ParticipantType.CUSTOMER;
+import static ma.mysuguclientapp.enumerations.ParticipantType.RESTAURANT;
+
+/**
+ * Module MESSAGERIE / CHAT (acheteur <-> vendeur), rebranché (Task 6) sur le store unifié
+ * ({@link ConversationService}) : mêmes routes/DTOs qu'avant (contrat MySuKu inchangé), mais lit
+ * et écrit désormais dans la même table que le chat livreur (migration Task 4, façade livreur
+ * rebranchée en Task 5) — FCM et « vu » gérés par le service unifié (plus de notification
+ * dupliquée ici).
+ * <p>
+ * L'identité « moi » est résolue depuis le rôle de l'utilisateur authentifié : CLIENT devient un
+ * {@link ParticipantType#CUSTOMER}, RESTAURANT_OWNER devient son unique {@link ParticipantType#RESTAURANT}
+ * (via {@code findByOwnerId}). Le canal ne connaît que les paires CUSTOMER↔RESTAURANT.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 @Transactional
 public class MessagerieServiceImpl implements MessagerieService {
 
-    private final ConversationRepository conversationRepository;
-    private final MessageChatRepository messageChatRepository;
+    private final ConversationService chat;
+    private final ParticipantResolver resolver;
     private final RestaurantRepository restaurantRepository;
-    private final CommandeRepository commandeRepository;
     private final UserRepository userRepository;
     private final JwtTokenProvider jwtTokenProvider;
-    private final NotificationService notificationService;
+    /** Lecture seule, pour la recherche par mot-clé (ne doit jamais marquer les messages comme vus). */
+    private final MessageUnifieRepository messageUnifieRepository;
 
     @Override
     @Transactional(readOnly = true)
     public List<ConversationDTO> getConversations(String accessToken) {
         User user = getUserFromToken(accessToken);
-        List<Conversation> conversations = getConversationsPourUtilisateur(user);
-        return conversations.stream().map(c -> toConversationDTO(c, user.getId())).collect(Collectors.toList());
+        ParticipantRef me = resolveMe(user);
+        return chat.conversationsFor(me, counterpartType(me)).stream()
+                .map(c -> toConversationDTO(c, me))
+                .toList();
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ConversationDTO> rechercherConversations(String accessToken, String motCle) {
         User user = getUserFromToken(accessToken);
-        List<Conversation> mesConversations = getConversationsPourUtilisateur(user);
+        ParticipantRef me = resolveMe(user);
+        List<ConversationUnifiee> mesConversations = chat.conversationsFor(me, counterpartType(me));
 
         if (motCle == null || motCle.isBlank() || mesConversations.isEmpty()) {
-            return mesConversations.stream().map(c -> toConversationDTO(c, user.getId())).collect(Collectors.toList());
+            return mesConversations.stream().map(c -> toConversationDTO(c, me)).toList();
         }
 
-        List<Long> mesIds = mesConversations.stream().map(Conversation::getId).toList();
-        Map<Long, Conversation> parId = mesConversations.stream()
-                .collect(Collectors.toMap(Conversation::getId, c -> c));
-
-        List<MessageChat> messagesTrouves = messageChatRepository
-                .findByConversationIdInAndContenuContainingIgnoreCaseOrderByCreatedAtDesc(mesIds, motCle);
-
-        Set<Long> conversationsTrouvees = new LinkedHashSet<>();
-        for (MessageChat m : messagesTrouves) {
-            conversationsTrouvees.add(m.getConversation().getId());
-        }
-
-        return conversationsTrouvees.stream()
-                .map(id -> toConversationDTO(parId.get(id), user.getId()))
-                .collect(Collectors.toList());
+        String needle = motCle.toLowerCase();
+        return mesConversations.stream()
+                .filter(c -> messageUnifieRepository.findByConversationIdOrderByCreatedAtAsc(c.getId()).stream()
+                        .anyMatch(m -> m.getContenu() != null && m.getContenu().toLowerCase().contains(needle)))
+                .map(c -> toConversationDTO(c, me))
+                .toList();
     }
 
     @Override
     public List<MessageChatDTO> getMessages(String accessToken, Long conversationId) {
         User user = getUserFromToken(accessToken);
-        Conversation conversation = findConversation(conversationId);
-        verifierParticipant(conversation, user);
+        ParticipantRef me = resolveMe(user);
+        ConversationUnifiee conversation = findMyConversation(me, conversationId);
+        ParticipantRef other = chat.otherParty(conversation, me);
 
-        List<MessageChat> messages = messageChatRepository.findByConversationIdOrderByCreatedAtAsc(conversationId);
+        List<MessageUnifie> messages = chat.thread(me, other); // marque les messages reçus comme vus
 
-        // Marquer comme lus les messages reçus (pas envoyés par le lecteur courant)
-        messages.stream()
-                .filter(m -> !m.getExpediteur().getId().equals(user.getId()) && !Boolean.TRUE.equals(m.getLu()))
-                .forEach(m -> {
-                    m.setLu(true);
-                    messageChatRepository.save(m);
-                });
-
-        return messages.stream().map(m -> toMessageDTO(m, user.getId())).collect(Collectors.toList());
+        return messages.stream().map(m -> toMessageDTO(m, me)).toList();
     }
 
     @Override
     public MessageChatDTO envoyerMessage(String accessToken, MessageChatCreateDTO dto) {
         User user = getUserFromToken(accessToken);
+        ParticipantRef me = resolveMe(user);
 
         if ((dto.getContenu() == null || dto.getContenu().isBlank()) && dto.getImageUrl() == null) {
             throw new BadRequestException("Le message ne peut pas être vide");
         }
 
-        Conversation conversation = dto.getConversationId() != null
-                ? resoudreConversationExistante(dto.getConversationId(), user)
-                : creerOuRecupererConversation(dto, user);
+        ParticipantRef other = dto.getConversationId() != null
+                ? chat.otherParty(findMyConversation(me, dto.getConversationId()), me)
+                : resoudreDestinataireNouvelleConversation(me, dto);
 
-        MessageChat message = MessageChat.builder()
-                .conversation(conversation)
-                .expediteur(user)
-                .contenu(dto.getContenu())
-                .imageUrl(dto.getImageUrl())
-                .lu(false)
-                .build();
-        MessageChat saved = messageChatRepository.save(message);
+        List<String> attachments = dto.getImageUrl() != null ? List.of(dto.getImageUrl()) : List.of();
+        MessageUnifie saved = chat.append(me, other, dto.getContenu(), attachments);
 
-        conversation.setDernierMessage(dto.getContenu() != null ? dto.getContenu() : "[Image]");
-        conversation.setDernierMessageAt(LocalDateTime.now());
-        conversation.setDernierExpediteurId(user.getId());
-        conversationRepository.save(conversation);
-
-        notifierAutrePartie(conversation, user, dto.getContenu());
-
-        return toMessageDTO(saved, user.getId());
+        return toMessageDTO(saved, me);
     }
 
     // =====================================================================
     // Helpers
     // =====================================================================
 
-    private List<Conversation> getConversationsPourUtilisateur(User user) {
-        if (user.getRole() == UserRole.RESTAURANT_OWNER) {
-            return conversationRepository.findByRestaurant_Owner_IdOrderByDernierMessageAtDesc(user.getId());
+    /** CLIENT -> CUSTOMER(user.id) ; RESTAURANT_OWNER -> RESTAURANT(son restaurant, 1 par owner). */
+    private ParticipantRef resolveMe(User user) {
+        if (user.getRole() == UserRole.CLIENT) {
+            return new ParticipantRef(CUSTOMER, user.getId());
         }
-        return conversationRepository.findByClientIdOrderByDernierMessageAtDesc(user.getId());
+        if (user.getRole() == UserRole.RESTAURANT_OWNER) {
+            Restaurant restaurant = restaurantRepository.findByOwnerId(user.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Aucun restaurant associé à cet utilisateur"));
+            return new ParticipantRef(RESTAURANT, restaurant.getId());
+        }
+        throw new UnauthorizedException("Ce rôle n'a pas accès à la messagerie vendeur");
     }
 
-    private Conversation resoudreConversationExistante(Long conversationId, User user) {
-        Conversation conversation = findConversation(conversationId);
-        verifierParticipant(conversation, user);
-        return conversation;
+    private ParticipantType counterpartType(ParticipantRef me) {
+        return me.type() == CUSTOMER ? RESTAURANT : CUSTOMER;
     }
 
-    private Conversation creerOuRecupererConversation(MessageChatCreateDTO dto, User user) {
+    private ConversationUnifiee findMyConversation(ParticipantRef me, Long conversationId) {
+        return chat.conversationsFor(me, counterpartType(me)).stream()
+                .filter(c -> c.getId().equals(conversationId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Conversation non trouvee avec l'ID: " + conversationId));
+    }
+
+    private ParticipantRef resoudreDestinataireNouvelleConversation(ParticipantRef me, MessageChatCreateDTO dto) {
         // Seul un client peut démarrer une nouvelle conversation ; le vendeur répond dans un fil existant.
-        if (user.getRole() != UserRole.CLIENT) {
+        if (me.type() != CUSTOMER) {
             throw new BadRequestException("Seul un client peut démarrer une nouvelle conversation. " +
                     "Le vendeur doit fournir un conversationId pour répondre.");
         }
         if (dto.getRestaurantId() == null) {
             throw new BadRequestException("restaurantId est requis pour démarrer une nouvelle conversation");
         }
-
-        Restaurant restaurant = restaurantRepository.findById(dto.getRestaurantId())
+        restaurantRepository.findById(dto.getRestaurantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Restaurant non trouve avec l'ID: " + dto.getRestaurantId()));
-
-        return conversationRepository.findByClientIdAndRestaurantId(user.getId(), dto.getRestaurantId())
-                .orElseGet(() -> {
-                    Conversation.ConversationBuilder builder = Conversation.builder()
-                            .client(user)
-                            .restaurant(restaurant);
-                    if (dto.getCommandeId() != null) {
-                        Commande commande = commandeRepository.findById(dto.getCommandeId()).orElse(null);
-                        builder.commande(commande);
-                    }
-                    return conversationRepository.save(builder.build());
-                });
-    }
-
-    private void verifierParticipant(Conversation conversation, User user) {
-        boolean estClient = conversation.getClient().getId().equals(user.getId());
-        boolean estProprietaire = conversation.getRestaurant().getOwner() != null
-                && conversation.getRestaurant().getOwner().getId().equals(user.getId());
-        if (!estClient && !estProprietaire) {
-            throw new UnauthorizedException("Vous ne faites pas partie de cette conversation");
-        }
-    }
-
-    private void notifierAutrePartie(Conversation conversation, User expediteur, String contenu) {
-        boolean expediteurEstClient = conversation.getClient().getId().equals(expediteur.getId());
-        Long destinataireId = expediteurEstClient
-                ? (conversation.getRestaurant().getOwner() != null ? conversation.getRestaurant().getOwner().getId() : null)
-                : conversation.getClient().getId();
-
-        if (destinataireId == null) {
-            return; // restaurant sans propriétaire assigné : pas de destinataire à notifier
-        }
-
-        notificationService.envoyerNotification(
-                destinataireId,
-                "Nouveau message",
-                contenu != null ? contenu : "Vous avez reçu une image",
-                TypeNotification.MESSAGE,
-                conversation.getId(),
-                "CONVERSATION"
-        );
-    }
-
-    private Conversation findConversation(Long id) {
-        return conversationRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Conversation non trouvee avec l'ID: " + id));
+        return new ParticipantRef(RESTAURANT, dto.getRestaurantId());
     }
 
     private User getUserFromToken(String bearerToken) {
@@ -217,35 +165,48 @@ public class MessagerieServiceImpl implements MessagerieService {
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouve"));
     }
 
-    private ConversationDTO toConversationDTO(Conversation conv, Long lecteurId) {
+    private ConversationDTO toConversationDTO(ConversationUnifiee conv, ParticipantRef me) {
+        ParticipantRef other = chat.otherParty(conv, me);
+        ParticipantRef clientRef = me.type() == CUSTOMER ? me : other;
+        ParticipantRef restaurantRef = me.type() == RESTAURANT ? me : other;
+
+        var clientInfo = resolver.userInfo(clientRef.id());
+        var restaurantInfo = resolver.restaurantInfo(restaurantRef.id());
+
         ConversationDTO dto = new ConversationDTO();
         dto.setId(conv.getId());
-        dto.setClientId(conv.getClient().getId());
-        dto.setClientNom(conv.getClient().getNom());
-        dto.setClientPrenom(conv.getClient().getPrenom());
-        dto.setClientAvatar(conv.getClient().getAvatar());
-        dto.setRestaurantId(conv.getRestaurant().getId());
-        dto.setRestaurantNom(conv.getRestaurant().getNom());
-        dto.setRestaurantLogo(conv.getRestaurant().getLogoUrl());
-        dto.setCommandeId(conv.getCommande() != null ? conv.getCommande().getId() : null);
+        dto.setClientId(clientRef.id());
+        dto.setClientNom((String) clientInfo.get("l_name"));
+        dto.setClientPrenom((String) clientInfo.get("f_name"));
+        dto.setClientAvatar((String) clientInfo.get("image"));
+        dto.setRestaurantId(restaurantRef.id());
+        dto.setRestaurantNom((String) restaurantInfo.get("f_name"));
+        dto.setRestaurantLogo((String) restaurantInfo.get("image"));
+        dto.setCommandeId(conv.getCommandeId());
         dto.setDernierMessage(conv.getDernierMessage());
         dto.setDernierMessageAt(conv.getDernierMessageAt());
         dto.setCreatedAt(conv.getCreatedAt());
-        dto.setNombreNonLus(messageChatRepository.countByConversationIdAndLuFalseAndExpediteurIdNot(conv.getId(), lecteurId));
+        dto.setNombreNonLus(chat.unseenCount(conv, me));
         return dto;
     }
 
-    private MessageChatDTO toMessageDTO(MessageChat m, Long lecteurId) {
+    private MessageChatDTO toMessageDTO(MessageUnifie m, ParticipantRef me) {
+        boolean expediteurEstRestaurant = m.getExpediteurType() == RESTAURANT;
+        var senderInfo = expediteurEstRestaurant
+                ? resolver.restaurantInfo(m.getExpediteurId())
+                : resolver.userInfo(m.getExpediteurId());
+
         MessageChatDTO dto = new MessageChatDTO();
         dto.setId(m.getId());
-        dto.setConversationId(m.getConversation().getId());
-        dto.setExpediteurId(m.getExpediteur().getId());
-        dto.setExpediteurNom(m.getExpediteur().getNom());
-        dto.setExpediteurPrenom(m.getExpediteur().getPrenom());
+        dto.setConversationId(m.getConversationId());
+        dto.setExpediteurId(m.getExpediteurId());
+        // userInfo: f_name=prenom, l_name=nom. restaurantInfo: f_name=nom (raison sociale), l_name="".
+        dto.setExpediteurNom((String) senderInfo.get(expediteurEstRestaurant ? "f_name" : "l_name"));
+        dto.setExpediteurPrenom((String) senderInfo.get(expediteurEstRestaurant ? "l_name" : "f_name"));
         dto.setContenu(m.getContenu());
-        dto.setImageUrl(m.getImageUrl());
-        dto.setLu(m.getLu());
-        dto.setEnvoyeParMoi(m.getExpediteur().getId().equals(lecteurId));
+        dto.setImageUrl(m.getAttachments() == null || m.getAttachments().isEmpty() ? null : m.getAttachments().get(0));
+        dto.setLu(m.isSeen());
+        dto.setEnvoyeParMoi(m.getExpediteurType() == me.type() && java.util.Objects.equals(m.getExpediteurId(), me.id()));
         dto.setCreatedAt(m.getCreatedAt());
         return dto;
     }
