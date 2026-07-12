@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ma.mysuguclientapp.entities.User;
 import ma.mysuguclientapp.enumerations.UserRole;
+import ma.mysuguclientapp.repositories.RestaurantRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
 import ma.mysuguclientapp.services.implementations.EmailService;
 import ma.mysuguclientapp.services.implementations.MinioService;
@@ -40,6 +41,7 @@ class SellerRegistrationTest {
     @LocalServerPort int port;
 
     @Autowired UserRepository userRepo;
+    @Autowired RestaurantRepository restoRepo;
     @Autowired PasswordEncoder encoder;
 
     @MockitoBean MinioService minioService;
@@ -50,7 +52,10 @@ class SellerRegistrationTest {
 
     @AfterEach
     void cleanup() {
-        userRepo.findByEmail(email).ifPresent(userRepo::delete);
+        userRepo.findByEmail(email).ifPresent(owner -> {
+            restoRepo.findByOwnerId(owner.getId()).ifPresent(restoRepo::delete);
+            userRepo.delete(owner);
+        });
     }
 
     @Test
@@ -61,6 +66,11 @@ class SellerRegistrationTest {
 
         User created = userRepo.findByEmail(email).orElseThrow();
         assertThat(created.getRole()).isEqualTo(UserRole.RESTAURANT_OWNER);
+
+        // Gap 3a fermé : la boutique est créée à l'inscription à partir des champs shop_*,
+        // pour que currentRestaurant résolve immédiatement (statut EN_ATTENTE, non actif).
+        assertThat(restoRepo.findByOwnerId(created.getId())).isPresent();
+        assertThat(restoRepo.findByOwnerId(created.getId()).orElseThrow().getNom()).isEqualTo("Chez Foo");
     }
 
     @Test
