@@ -44,4 +44,18 @@ public class SellerStatsController {
         RestaurantDashboardDTO dto = dashboardService.getDashboard(restaurant.getId());
         return mapper.orderStatistics(dto, statisticsType);
     }
+
+    /**
+     * GET get-earning-statitics?type= (orthographe 6valley volontairement conservée) : série de
+     * gains synthétisée à partir des buckets CA du restaurant du vendeur authentifié (spec §3.2,
+     * approximation documentée dans {@link SellerStatsMapper#earningStatistics}). Type
+     * absent/inconnu -> "today" (jamais 500).
+     */
+    @GetMapping("/get-earning-statitics")
+    public Map<String, Object> earningStatistics(@AuthenticationPrincipal String email,
+                                                 @RequestParam(value = "type", required = false) String type) {
+        Restaurant restaurant = sellerContext.currentRestaurant(email);
+        RestaurantDashboardDTO dto = dashboardService.getDashboard(restaurant.getId());
+        return mapper.earningStatistics(dto, type, restaurant.getCommissionPourcentage());
+    }
 }

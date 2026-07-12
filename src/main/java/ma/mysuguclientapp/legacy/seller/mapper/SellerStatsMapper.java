@@ -3,7 +3,10 @@ package ma.mysuguclientapp.legacy.seller.mapper;
 import ma.mysuguclientapp.dtos.restaurant.RestaurantDashboardDTO;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -50,6 +53,68 @@ public class SellerStatsMapper {
         m.put("failed", 0);
         m.put("total", total);
         return m;
+    }
+
+    /**
+     * GET get-earning-statitics?type= -> objet gains 6valley. mysugu n'a pas d'historique CA
+     * jour-par-jour/mois-par-mois pour un restaurant : la série est TOUJOURS synthétisée à
+     * partir des 4 buckets du dashboard (aujourd'hui/semaine/mois/total), quel que soit
+     * {@code type} (spec §3.2 — approximation documentée, jamais de faux points de série
+     * fabriqués). Clés {@code seller_earn}/{@code commission_earn} (tableaux MAD, longueur 4)
+     * confirmées via Tiktak-vendor-app-moso (bank_info_controller.dart::getDashboardRevenueData,
+     * 3j.0) — l'app lit ces clés au premier niveau, PAS un nesting {@code series.*} (correction
+     * par rapport à la conception initiale de la spec). {@code type} accepte les deux
+     * conventions observées : {@code this_year/this_month/this_week} (spec) ET
+     * {@code yearEarn/MonthEarn/WeekEarn} (valeurs réellement envoyées par
+     * {@code BankInfoController.setRevenueFilterName}). Inconnu/absent -> "today".
+     * {@code commissionRatePercent} = {@code Restaurant.commissionPourcentage} (peut être null
+     * -> 0, mysugu n'a pas de commission par défaut) ; montants MAD, aucune conversion.
+     */
+    public Map<String, Object> earningStatistics(RestaurantDashboardDTO dto, String type, BigDecimal commissionRatePercent) {
+        BigDecimal today = nzBd(dto.getChiffreAffairesAujourdhui());
+        BigDecimal week = nzBd(dto.getChiffreAffairesSemaine());
+        BigDecimal month = nzBd(dto.getChiffreAffairesMois());
+        BigDecimal total = nzBd(dto.getTotalChiffreAffaires());
+        BigDecimal rate = commissionRatePercent != null ? commissionRatePercent : BigDecimal.ZERO;
+
+        BigDecimal scalar = switch (normalizeEarningType(type)) {
+            case "this_year" -> total; // pas de bucket annuel natif -> CA global (approximation)
+            case "this_month" -> month;
+            case "this_week" -> week;
+            default -> today;
+        };
+
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("total_earning", total);
+        m.put("this_year", total);
+        m.put("commission_earning", commission(total, rate));
+        m.put("earning", scalar);
+        // APPROX: 6valley earning series synthesized from dashboard buckets (spec §3.2).
+        m.put("seller_earn", List.of(today, week, month, total));
+        m.put("commission_earn", List.of(
+                commission(today, rate), commission(week, rate),
+                commission(month, rate), commission(total, rate)));
+        return m;
+    }
+
+    private String normalizeEarningType(String type) {
+        if (type == null || type.isBlank()) {
+            return "today";
+        }
+        return switch (type.trim().toLowerCase()) {
+            case "this_year", "yearearn", "year" -> "this_year";
+            case "this_month", "monthearn", "month" -> "this_month";
+            case "this_week", "weekearn", "week" -> "this_week";
+            default -> "today";
+        };
+    }
+
+    private static BigDecimal commission(BigDecimal amount, BigDecimal ratePercent) {
+        return amount.multiply(ratePercent).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+    }
+
+    private static BigDecimal nzBd(BigDecimal v) {
+        return v != null ? v : BigDecimal.ZERO;
     }
 
     private String normalizeOrderType(String statisticsType) {
