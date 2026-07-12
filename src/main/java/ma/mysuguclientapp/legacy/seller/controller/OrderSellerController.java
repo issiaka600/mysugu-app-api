@@ -2,16 +2,20 @@ package ma.mysuguclientapp.legacy.seller.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import ma.mysuguclientapp.dtos.AssignThirdPartyDeliveryDTO;
 import ma.mysuguclientapp.dtos.CommandeDTO;
+import ma.mysuguclientapp.dtos.CommandeUpdateStatusDTO;
 import ma.mysuguclientapp.entities.Restaurant;
 import ma.mysuguclientapp.enumerations.StatutCommande;
 import ma.mysuguclientapp.legacy.seller.SellerContext;
+import ma.mysuguclientapp.legacy.seller.dto.ErrorsResponse;
 import ma.mysuguclientapp.legacy.seller.mapper.OrderSellerMapper;
 import ma.mysuguclientapp.legacy.seller.mapper.OrderStatusMapper;
 import ma.mysuguclientapp.services.interfaces.CommandeService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -62,6 +66,70 @@ public class OrderSellerController {
     }
 
     /**
+     * POST orders/order-detail-status/{id} ({@code _method:put} toléré, ignoré côté serveur) :
+     * met à jour le statut natif via le mapping 6valley -> StatutCommande (spec §3). Appartenance
+     * TOUJOURS vérifiée avant écriture — une commande d'un AUTRE restaurant -> 404 (jamais de
+     * mutation cross-tenant). Statut inconnu -> 400 forme 6valley {@code {errors:[...]}} (spec §3).
+     */
+    @PostMapping("/order-detail-status/{id}")
+    public ResponseEntity<?> updateOrderStatus(@AuthenticationPrincipal String email,
+                                                @PathVariable Long id,
+                                                @RequestBody(required = false) Map<String, Object> body) {
+        ownedOrder(email, id); // 404 si la commande n'appartient pas au vendeur
+        Object orderStatus = body != null ? body.get("order_status") : null;
+        StatutCommande statut;
+        try {
+            statut = statusMapper.fromSixValleyStatus(orderStatus != null ? orderStatus.toString() : null);
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.badRequest()
+                    .body(ErrorsResponse.of("order-status-001", e.getReason()));
+        }
+        CommandeUpdateStatusDTO dto = new CommandeUpdateStatusDTO();
+        dto.setStatut(statut.name());
+        commandeService.updateCommandeStatus(id, dto);
+        return ResponseEntity.ok(Map.of("message", "Statut mis à jour."));
+    }
+
+    /**
+     * POST orders/assign-delivery-man ({@code _method:put} toléré, {@code order_id,
+     * delivery_man_id}) : assigne un livreur interne à la commande via
+     * {@link CommandeService#assignLivreur}. Appartenance de la commande TOUJOURS vérifiée avant
+     * écriture — une commande d'un AUTRE restaurant -> 404 (jamais de mutation cross-tenant).
+     * // GAP: vendor->livreur ownership n'est pas natif (livreurs sont globaux, gérés par
+     * l'admin) — l'assignation réutilise directement le service natif, sans restriction
+     * supplémentaire côté vendeur (umbrella §4).
+     */
+    @PostMapping("/assign-delivery-man")
+    public Map<String, Object> assignDeliveryMan(@AuthenticationPrincipal String email,
+                                                   @RequestBody Map<String, Object> body) {
+        Long orderId = toLong(body.get("order_id"));
+        Long deliveryManId = toLong(body.get("delivery_man_id"));
+        ownedOrder(email, orderId); // 404 si la commande n'appartient pas au vendeur
+        commandeService.assignLivreur(orderId, deliveryManId);
+        return Map.of("message", "Livreur assigné.");
+    }
+
+    /**
+     * POST orders/assign-third-party-delivery ({@code delivery_service_name,
+     * third_party_delivery_tracking_id, order_id}) : assigne un livreur tiers (hors plateforme)
+     * via {@link CommandeService#assignThirdPartyDelivery}. Appartenance TOUJOURS vérifiée avant
+     * écriture — une commande d'un AUTRE restaurant -> 404 (jamais de mutation cross-tenant).
+     * // GAP: pas de champ natif pour third_party_delivery_tracking_id (spec §4) — accepté et
+     * ignoré.
+     */
+    @PostMapping("/assign-third-party-delivery")
+    public Map<String, Object> assignThirdPartyDelivery(@AuthenticationPrincipal String email,
+                                                          @RequestBody Map<String, Object> body) {
+        Long orderId = toLong(body.get("order_id"));
+        ownedOrder(email, orderId); // 404 si la commande n'appartient pas au vendeur
+        AssignThirdPartyDeliveryDTO dto = new AssignThirdPartyDeliveryDTO();
+        Object serviceName = body.get("delivery_service_name");
+        dto.setNom(serviceName != null ? serviceName.toString() : null);
+        commandeService.assignThirdPartyDelivery(orderId, dto);
+        return Map.of("message", "Livreur tiers assigné.");
+    }
+
+    /**
      * Résout la commande par id et vérifie qu'elle appartient au restaurant du vendeur
      * authentifié. Sinon 404 (jamais de fuite cross-restaurant) — garde réutilisée par tous les
      * endpoints commandes (détail, statut, assignation, paiement, tracking, adresse).
@@ -74,5 +142,16 @@ public class OrderSellerController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Commande non trouvée");
         }
         return commande;
+    }
+
+    private static Long toLong(Object o) {
+        if (o == null) {
+            return null;
+        }
+        try {
+            return Long.parseLong(o.toString().trim());
+        } catch (NumberFormatException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "id invalide");
+        }
     }
 }
