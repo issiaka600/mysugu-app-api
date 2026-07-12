@@ -86,9 +86,12 @@ public class SellerShopProfileController {
     /** GET shop-info : boutique du vendeur (son Restaurant), forme 6valley. */
     @GetMapping("/shop-info")
     public Map<String, Object> shopInfo(@AuthenticationPrincipal String email) {
-        sellerContext.currentRestaurant(email); // 403 non-vendeur / 404 sans restaurant
+        Restaurant entity = sellerContext.currentRestaurant(email); // 403 non-vendeur / 404 sans restaurant
         RestaurantDTO resto = restaurantService.getMonRestaurant(email);
-        return shopMapper.toShopInfo(resto);
+        Map<String, Object> shop = shopMapper.toShopInfo(resto);
+        // GAP: surface l'annotation vacances persistée dans horairesOuverture (umbrella §7).
+        shopMapper.applyVacationAnnotation(shop, entity.getHorairesOuverture());
+        return shop;
     }
 
     /**
@@ -129,6 +132,53 @@ public class SellerShopProfileController {
         return Map.of(
                 "message", "Statut de la boutique mis à jour.",
                 "temporary_close", !desiredActive);
+    }
+
+    /**
+     * POST vacation-add (_method:put) {vacation_start_date,vacation_end_date,vacation_note,
+     * vacation_status} : mise en congés de la boutique.
+     * // GAP: no native vacation model; mapped to isActive + note. Follow-up: real vacation
+     * scheduling (umbrella §7).
+     * L'app envoie {@code vacation_status=1} pour activer les congés (isActive=false),
+     * {@code 0} pour les lever. La note et les dates sont persistées comme annotation dans
+     * {@code horairesOuverture} et ré-émises dans un écho 6valley valide. Jamais 404/500.
+     */
+    @PostMapping("/vacation-add")
+    public Map<String, Object> vacationAdd(@AuthenticationPrincipal String email,
+                                           @RequestBody(required = false) Map<String, Object> body) {
+        Restaurant resto = sellerContext.currentRestaurant(email);
+        Map<String, Object> b = body != null ? body : Map.of();
+        int status = intVal(b.get("vacation_status")); // 1 = congés ON, 0 = OFF
+        boolean vacationOn = status == 1;
+        String start = str(b.get("vacation_start_date"));
+        String end = str(b.get("vacation_end_date"));
+        String note = str(b.get("vacation_note"));
+
+        // Persiste l'annotation vacances (GAP) via updateRestaurant en préservant les autres champs.
+        RestaurantDTO current = restaurantService.getMonRestaurant(email);
+        var dto = shopMapper.toRestaurantUpdate(current, null, null, null);
+        dto.setHorairesOuverture(vacationOn
+                ? shopMapper.toVacationAnnotation(true, start, end, note)
+                : null);
+        restaurantService.updateRestaurant(resto.getId(), dto, null);
+
+        // Mappe les congés sur isActive (congés ON => fermé => isActive=false).
+        boolean desiredActive = !vacationOn;
+        if (!Boolean.valueOf(desiredActive).equals(resto.getIsActive())) {
+            restaurantService.toggleRestaurantStatus(resto.getId());
+        }
+
+        Map<String, Object> echo = new java.util.LinkedHashMap<>();
+        echo.put("message", "Mode vacances mis à jour.");
+        echo.put("vacation_status", vacationOn);
+        echo.put("vacation_start_date", start);
+        echo.put("vacation_end_date", end);
+        echo.put("vacation_note", note);
+        return echo;
+    }
+
+    private static String str(Object o) {
+        return o == null ? null : o.toString();
     }
 
     private static int intVal(Object o) {

@@ -1,5 +1,7 @@
 package ma.mysuguclientapp.legacy.seller.mapper;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import ma.mysuguclientapp.dtos.LocalisationDTO;
 import ma.mysuguclientapp.dtos.RestaurantCreateDTO;
 import ma.mysuguclientapp.dtos.RestaurantDTO;
@@ -20,6 +22,49 @@ import java.util.Map;
  */
 @Component
 public class ShopMapper {
+
+    /**
+     * Préfixe marquant une annotation vacances GAP stockée dans {@code Restaurant.horairesOuverture}
+     * (aucun modèle vacances natif — umbrella §7). Le reste de la valeur est un JSON portant
+     * {@code vacation_status/start/end/note}.
+     */
+    public static final String VACATION_PREFIX = "__vacation__";
+    private static final ObjectMapper JSON = new ObjectMapper();
+
+    /**
+     * Sérialise l'écho vacances 6valley en annotation persistable dans {@code horairesOuverture}.
+     * // GAP: no native vacation model; mapped to isActive + note. Follow-up: real vacation
+     * scheduling (umbrella §7).
+     */
+    public String toVacationAnnotation(boolean vacationStatus, String start, String end, String note) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("vacation_status", vacationStatus);
+        m.put("vacation_start_date", start);
+        m.put("vacation_end_date", end);
+        m.put("vacation_note", note);
+        try {
+            return VACATION_PREFIX + JSON.writeValueAsString(m);
+        } catch (Exception e) {
+            return VACATION_PREFIX + "{}";
+        }
+    }
+
+    /** Applique l'annotation vacances (le cas échéant) sur l'objet shop, écrasant les échos vacances. */
+    public void applyVacationAnnotation(Map<String, Object> shop, String horairesOuverture) {
+        if (horairesOuverture == null || !horairesOuverture.startsWith(VACATION_PREFIX)) {
+            return;
+        }
+        String json = horairesOuverture.substring(VACATION_PREFIX.length());
+        try {
+            Map<String, Object> m = JSON.readValue(json, new TypeReference<Map<String, Object>>() {});
+            shop.put("vacation_status", Boolean.TRUE.equals(m.get("vacation_status")));
+            shop.put("vacation_start_date", m.get("vacation_start_date"));
+            shop.put("vacation_end_date", m.get("vacation_end_date"));
+            shop.put("vacation_note", m.get("vacation_note"));
+        } catch (Exception e) {
+            // Annotation illisible : on laisse les défauts bénins déjà en place.
+        }
+    }
 
     /** RestaurantDTO natif -> objet "shop" 6valley. {@code temporary_close = !isActive}. */
     public Map<String, Object> toShopInfo(RestaurantDTO r) {
