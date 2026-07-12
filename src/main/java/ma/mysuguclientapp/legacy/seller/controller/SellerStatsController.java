@@ -58,4 +58,15 @@ public class SellerStatsController {
         RestaurantDashboardDTO dto = dashboardService.getDashboard(restaurant.getId());
         return mapper.earningStatistics(dto, type, restaurant.getCommissionPourcentage());
     }
+
+    /**
+     * GET top-delivery-man : STUB bénin (jamais de fuite du classement admin-global à un seul
+     * vendeur) — décision et justification complète dans
+     * {@link SellerStatsMapper#topDeliveryManStub}. Toujours 200, jamais 500.
+     */
+    @GetMapping("/top-delivery-man")
+    public Map<String, Object> topDeliveryMan(@AuthenticationPrincipal String email) {
+        sellerContext.requireOwner(email);
+        return mapper.topDeliveryManStub();
+    }
 }

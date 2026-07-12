@@ -132,4 +132,25 @@ public class SellerStatsMapper {
     private static long nz(Long v) {
         return v != null ? v : 0L;
     }
+
+    /**
+     * GET top-delivery-man -> enveloppe 6valley bénigne, TOUJOURS vide. DECISION 3j.3 : STUB,
+     * pas de réutilisation de {@code StatistiquesService.getTopLivreurs} — deux raisons : (1)
+     * ce service est admin-GLOBAL (toutes plateformes confondues), pas scopé par restaurant, donc
+     * l'afficher à un seul vendeur fuiterait/fausserait un classement plateforme qui ne le
+     * concerne pas (umbrella §7.3) ; (2) l'enveloppe réelle confirmée via Tiktak-vendor-app-moso
+     * (TopDeliveryManModel.fromJson / DeliveryMan.fromJson, 3j.0) attend des champs que mysugu ne
+     * modélise pas pour un livreur (identity_number/identity_type/identity_image, rating[],
+     * is_online non-null obligatoire sous peine de crash {@code int.parse(null)} côté app). Un
+     * widget vide est rendu (jamais 500/404) ; {@code total_size/limit/offset/delivery_man}
+     * confirmés — PAS un tableau nu comme la spec le supposait initialement (correction 3j.0).
+     */
+    public Map<String, Object> topDeliveryManStub() {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("total_size", 0);
+        m.put("limit", "10");
+        m.put("offset", "0");
+        m.put("delivery_man", List.of());
+        return m;
+    }
 }
