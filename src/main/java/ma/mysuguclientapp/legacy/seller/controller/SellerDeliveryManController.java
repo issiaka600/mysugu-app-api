@@ -212,6 +212,65 @@ public class SellerDeliveryManController {
         return mapper.success("Statut mis à jour.");
     }
 
+    // ---- 3e.5: STUB lists + withdraw (benign empty / no-op) ----
+    // STUB: vendors do not own livreurs in mysugu (umbrella §4 GAP; 3e SCOPE DECISION).
+
+    /** GET delivery-man/reviews/{id} : STUB — no per-vendor livreur reviews natively. */
+    @GetMapping("/delivery-man/reviews/{id}")
+    public Map<String, Object> reviews(@AuthenticationPrincipal String email, @PathVariable Long id) {
+        sellerContext.requireOwner(email);
+        return mapper.reviewsStub();
+    }
+
+    /**
+     * GET delivery-man/order-status-history/{id} : STUB — no such per-vendor history natively.
+     * DEVIATION (3e.0): a BARE JSON ARRAY ({@code deliveryServiceInterface
+     * .getDeliverymanOrderHistoryLog} does {@code apiResponse.response!.data.forEach(...)}), not
+     * an envelope.
+     */
+    @GetMapping("/delivery-man/order-status-history/{id}")
+    public List<Map<String, Object>> orderStatusHistory(@AuthenticationPrincipal String email, @PathVariable Long id) {
+        sellerContext.requireOwner(email);
+        return List.of();
+    }
+
+    /** GET delivery-man/collect-cash-list/{id} : STUB — cash collection is self-livreur/admin scoped. */
+    @GetMapping("/delivery-man/collect-cash-list/{id}")
+    public Map<String, Object> collectCashList(@AuthenticationPrincipal String email, @PathVariable Long id,
+                                                @RequestParam(defaultValue = "10") int limit,
+                                                @RequestParam(defaultValue = "0") int offset) {
+        sellerContext.requireOwner(email);
+        return mapper.collectCashListStub();
+    }
+
+    /** GET delivery-man/withdraw/list?status= : STUB — DemandeRetrait is admin-approved, not vendor-scoped. */
+    @GetMapping("/delivery-man/withdraw/list")
+    public Map<String, Object> withdrawList(@AuthenticationPrincipal String email,
+                                             @RequestParam(required = false) String status,
+                                             @RequestParam(defaultValue = "10") int limit,
+                                             @RequestParam(defaultValue = "0") int offset) {
+        sellerContext.requireOwner(email);
+        return mapper.withdrawListStub();
+    }
+
+    /** GET delivery-man/withdraw/details/{id} : STUB — benign neutral, never 404/500. */
+    @GetMapping("/delivery-man/withdraw/details/{id}")
+    public Map<String, Object> withdrawDetails(@AuthenticationPrincipal String email, @PathVariable Long id) {
+        sellerContext.requireOwner(email);
+        return mapper.withdrawDetailsStub();
+    }
+
+    /**
+     * POST delivery-man/withdraw/status-update {_method:put, id, note, approved} : STUB —
+     * vendor CANNOT approve/refuse a retrait (admin-only via AdminLivreursController). Never
+     * touches DemandeRetraitRepository.
+     */
+    @PostMapping("/delivery-man/withdraw/status-update")
+    public Map<String, Object> withdrawStatusUpdate(@AuthenticationPrincipal String email) {
+        sellerContext.requireOwner(email);
+        return mapper.success("Statut de la demande de retrait mis à jour.");
+    }
+
     // ---- helpers ----
 
     private boolean isInRoster(Long livreurId, Long restaurantId) {

@@ -181,6 +181,44 @@ public class SellerDeliveryManMapper {
         return m;
     }
 
+    /** GET /delivery-man/reviews/{id} STUB envelope — no per-vendor livreur reviews natively. */
+    public Map<String, Object> reviewsStub() {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("total_size", 0);
+        m.put("limit", "10");
+        m.put("offset", "0");
+        m.put("average_rating", "0");
+        m.put("reviews", List.of());
+        return m;
+    }
+
+    /** GET /delivery-man/collect-cash-list/{id} STUB envelope — cash collection is self/admin scoped. */
+    public Map<String, Object> collectCashListStub() {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("total_size", 0);
+        m.put("limit", "10");
+        m.put("offset", "0");
+        m.put("collected_cash", List.of());
+        return m;
+    }
+
+    /** GET /delivery-man/withdraw/list STUB envelope — DemandeRetrait is admin-approved, not vendor-scoped. */
+    public Map<String, Object> withdrawListStub() {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("total_size", 0);
+        m.put("limit", "10");
+        m.put("offset", "0");
+        m.put("withdraws", List.of());
+        return m;
+    }
+
+    /** GET /delivery-man/withdraw/details/{id} STUB — neutral, never 404/500. */
+    public Map<String, Object> withdrawDetailsStub() {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("details", null);
+        return m;
+    }
+
     private static int toInt(Boolean b) {
         return Boolean.TRUE.equals(b) ? 1 : 0;
     }
