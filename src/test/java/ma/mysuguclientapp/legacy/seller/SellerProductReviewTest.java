@@ -57,7 +57,10 @@ class SellerProductReviewTest {
 
     private final String ownerEmail = "prod-rev-" + System.nanoTime() + "@test.mysugu";
     private final String clientEmail = "prod-rev-client-" + System.nanoTime() + "@test.mysugu";
+    private final String ownerBEmail = "prod-rev-b-" + System.nanoTime() + "@test.mysugu";
+    private final String clientBEmail = "prod-rev-client-b-" + System.nanoTime() + "@test.mysugu";
     private Long ownerId, clientId, restoId, commandeId, avisId;
+    private Long ownerBId, clientBId, restoBId, commandeBId, avisBId;
 
     @BeforeEach
     void seed() {
@@ -106,15 +109,67 @@ class SellerProductReviewTest {
                 .statut(StatutAvis.EN_ATTENTE)
                 .build();
         avisId = avisRepo.save(avis).getId();
+
+        // Second vendor + restaurant + avis, for cross-tenant moderation test.
+        User ownerB = new User();
+        ownerB.setEmail(ownerBEmail);
+        ownerB.setPassword(encoder.encode("demo1234"));
+        ownerB.setNom("NB"); ownerB.setPrenom("PB");
+        ownerB.setRole(UserRole.RESTAURANT_OWNER);
+        ownerB.setIsActive(true);
+        ownerB = userRepo.save(ownerB);
+        ownerBId = ownerB.getId();
+
+        User clientB = new User();
+        clientB.setEmail(clientBEmail);
+        clientB.setPassword(encoder.encode("demo1234"));
+        clientB.setNom("CB"); clientB.setPrenom("LB");
+        clientB.setRole(UserRole.CLIENT);
+        clientB.setIsActive(true);
+        clientB = userRepo.save(clientB);
+        clientBId = clientB.getId();
+
+        Restaurant rB = new Restaurant();
+        rB.setNom("Boutique B");
+        rB.setDescription("desc");
+        rB.setTempsLivraisonMoyen(30);
+        rB.setOwner(ownerB);
+        rB.setIsActive(true);
+        rB.setLocalisation(new Localisation(1.0, 2.0, "rue", "Casa", "20000", "Maroc"));
+        restoBId = restoRepo.save(rB).getId();
+
+        Commande cB = new Commande();
+        cB.setNumeroCommande("REV-TEST-B-" + System.nanoTime());
+        cB.setClient(clientB);
+        cB.setRestaurant(rB);
+        cB.setStatut(StatutCommande.LIVREE);
+        cB.setStatutPaiement(StatutPaiement.PAYE);
+        cB.setMontantTotal(new BigDecimal("50.00"));
+        commandeBId = commandeRepo.save(cB).getId();
+
+        Avis avisB = Avis.builder()
+                .commande(commandeRepo.findById(commandeBId).orElseThrow())
+                .auteur(clientB)
+                .restaurant(rB)
+                .noteRestaurant(3)
+                .commentaire("Avis B")
+                .statut(StatutAvis.EN_ATTENTE)
+                .build();
+        avisBId = avisRepo.save(avisB).getId();
     }
 
     @AfterEach
     void cleanup() {
         avisRepo.findById(avisId).ifPresent(avisRepo::delete);
+        avisRepo.findById(avisBId).ifPresent(avisRepo::delete);
         commandeRepo.findById(commandeId).ifPresent(commandeRepo::delete);
+        commandeRepo.findById(commandeBId).ifPresent(commandeRepo::delete);
         restoRepo.findById(restoId).ifPresent(restoRepo::delete);
+        restoRepo.findById(restoBId).ifPresent(restoRepo::delete);
         userRepo.findById(clientId).ifPresent(userRepo::delete);
+        userRepo.findById(clientBId).ifPresent(userRepo::delete);
         userRepo.findById(ownerId).ifPresent(userRepo::delete);
+        userRepo.findById(ownerBId).ifPresent(userRepo::delete);
     }
 
     @Test
@@ -147,6 +202,16 @@ class SellerProductReviewTest {
         assertThat(M.readTree(r.body).has("message")).isTrue();
 
         assertThat(avisRepo.findById(avisId).orElseThrow().getStatut()).isEqualTo(StatutAvis.APPROUVE);
+    }
+
+    @Test
+    void moderating_another_owners_avis_returns_404_and_does_not_change_it() throws Exception {
+        String tokenA = token(ownerEmail);
+        Resp r = postJson("/api/v3/seller/shop-product-reviews-status", tokenA,
+                Map.of("id", avisBId, "status", 1));
+        assertThat(r.status).isEqualTo(404);
+
+        assertThat(avisRepo.findById(avisBId).orElseThrow().getStatut()).isEqualTo(StatutAvis.EN_ATTENTE);
     }
 
     private String token(String email) throws Exception {

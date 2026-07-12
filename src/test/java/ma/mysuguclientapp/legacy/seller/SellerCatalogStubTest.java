@@ -118,6 +118,16 @@ class SellerCatalogStubTest {
     }
 
     @Test
+    void barcode_generate_missing_id_returns_4xx_not_500() throws Exception {
+        String t = token();
+        Resp missing = postJson("/api/v3/seller/products/barcode/generate", t, Map.of());
+        assertThat(missing.status).isBetween(400, 499);
+
+        Resp blank = postJson("/api/v3/seller/products/barcode/generate", t, Map.of("id", ""));
+        assertThat(blank.status).isBetween(400, 499);
+    }
+
+    @Test
     void upload_digital_product_returns_benign_success() throws Exception {
         String t = token();
         Resp r = postJson("/api/v3/seller/products/upload-digital-product", t, Map.of());

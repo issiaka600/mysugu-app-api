@@ -54,6 +54,9 @@ public class SellerCatalogController {
                                                 @RequestBody Map<String, Object> body) {
         Restaurant restaurant = sellerContext.currentRestaurant(email);
         Long id = toLong(body.get("id"));
+        if (id == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "id requis");
+        }
         PlatDTO plat = platService.getPlatById(id);
         if (plat.getRestaurantId() == null || !plat.getRestaurantId().equals(restaurant.getId())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Produit non trouvé");

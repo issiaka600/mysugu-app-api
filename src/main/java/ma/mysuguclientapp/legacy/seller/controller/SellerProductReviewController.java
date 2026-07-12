@@ -1,13 +1,18 @@
 package ma.mysuguclientapp.legacy.seller.controller;
 
 import lombok.RequiredArgsConstructor;
+import ma.mysuguclientapp.dtos.AvisDTO;
 import ma.mysuguclientapp.dtos.ModerationAvisDTO;
+import ma.mysuguclientapp.entities.Restaurant;
 import ma.mysuguclientapp.enumerations.StatutAvis;
+import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
 import ma.mysuguclientapp.legacy.seller.SellerContext;
 import ma.mysuguclientapp.legacy.seller.mapper.ProductSellerMapper;
 import ma.mysuguclientapp.services.interfaces.AvisService;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
 
@@ -57,13 +62,17 @@ public class SellerProductReviewController {
     /**
      * POST shop-product-reviews-status {id,status} : délègue à la modération native des avis
      * (EXISTS(avis) — umbrella §3). {@code status=1} => APPROUVE, {@code status=0} => REJETE
-     * (raison bénigne fournie car {@code AvisService} l'exige pour un rejet).
+     * (raison bénigne fournie car {@code AvisService} l'exige pour un rejet). Appartenance
+     * vérifiée via {@link #requireOwnedAvis} — {@code AvisService.moderAvis} natif n'a aucun
+     * scoping restaurant, donc sans cette garde un vendeur pourrait modérer (et déclencher le
+     * recalcul de note) l'avis d'un AUTRE restaurant.
      */
     @PostMapping("/shop-product-reviews-status")
     public Map<String, Object> shopProductReviewsStatus(@AuthenticationPrincipal String email,
                                                           @RequestBody Map<String, Object> body) {
-        sellerContext.currentRestaurant(email); // 403 non-vendeur / 404 sans restaurant
+        Restaurant restaurant = sellerContext.currentRestaurant(email); // 403 non-vendeur / 404 sans restaurant
         Long id = toLong(body.get("id"));
+        requireOwnedAvis(restaurant, id); // 404 si l'avis n'appartient pas au vendeur
         int status = toLong(body.get("status")) != null ? toLong(body.get("status")).intValue() : 0;
         ModerationAvisDTO dto = new ModerationAvisDTO();
         if (status == 1) {
@@ -74,6 +83,24 @@ public class SellerProductReviewController {
         }
         avisService.moderAvis(id, dto);
         return mapper.success("Statut de l'avis mis à jour.");
+    }
+
+    /**
+     * Charge l'avis par id et vérifie qu'il appartient au restaurant du vendeur authentifié.
+     * Sinon 404 (jamais de fuite/mutation cross-vendeur) — miroir de {@code ownedOrder}/
+     * {@code ownedPlat}/{@code requireOwnedCoupon} des tranches précédentes.
+     */
+    private void requireOwnedAvis(Restaurant restaurant, Long id) {
+        AvisDTO avis;
+        try {
+            avis = id != null ? avisService.getAvisById(id) : null;
+        } catch (ResourceNotFoundException e) {
+            avis = null;
+        }
+        if (avis == null || avis.getRestaurantId() == null
+                || !avis.getRestaurantId().equals(restaurant.getId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Avis non trouvé");
+        }
     }
 
     private static Long toLong(Object o) {
