@@ -41,7 +41,7 @@ public class ConversationService {
                 .contenu(contenu)
                 .attachments(attachments != null ? new ArrayList<>(attachments) : new ArrayList<>())
                 .seen(false).build());
-        c.setDernierMessage(contenu);
+        c.setDernierMessage(ConversationUnifiee.truncateDernierMessage(contenu));
         c.setDernierMessageAt(m.getCreatedAt() != null ? m.getCreatedAt() : LocalDateTime.now());
         c.setDernierExpediteurType(from.type());
         c.setDernierExpediteurId(from.id());

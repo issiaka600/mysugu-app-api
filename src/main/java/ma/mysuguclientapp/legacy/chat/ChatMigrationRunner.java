@@ -7,6 +7,7 @@ import ma.mysuguclientapp.entities.ConversationUnifiee;
 import ma.mysuguclientapp.entities.MessageChat;
 import ma.mysuguclientapp.entities.MessageLivreur;
 import ma.mysuguclientapp.entities.MessageUnifie;
+import ma.mysuguclientapp.entities.chat.ParticipantRef;
 import ma.mysuguclientapp.enumerations.ParticipantType;
 import ma.mysuguclientapp.repositories.ConversationRepository;
 import ma.mysuguclientapp.repositories.ConversationUnifieeRepository;
@@ -106,16 +107,18 @@ public class ChatMigrationRunner implements ApplicationRunner {
         }
     }
 
-    /** Canonicalizes (aT,aId)/(bT,bId) by (ordinal, id) before delegating to the fixed-order finder. */
+    /**
+     * Canonicalizes (aT,aId)/(bT,bId) via {@link ParticipantRef#canonical(ParticipantRef, ParticipantRef)}
+     * before delegating to the fixed-order finder — the same single source of truth used by
+     * {@link ma.mysuguclientapp.services.chat.ConversationService}, so the migration can never
+     * desync from the live ordering rule and create duplicate conversations.
+     */
     private ConversationUnifiee findOrCreate(ParticipantType aT, Long aId, ParticipantType bT, Long bId) {
-        boolean swap = (aT.ordinal() > bT.ordinal()) || (aT == bT && aId != null && bId != null && aId > bId);
-        ParticipantType p1t = swap ? bT : aT;
-        Long p1i = swap ? bId : aId;
-        ParticipantType p2t = swap ? aT : bT;
-        Long p2i = swap ? aId : bId;
-        return convs.findByParties(p1t, p1i, p2t, p2i).orElseGet(() ->
+        ParticipantRef[] p = ParticipantRef.canonical(new ParticipantRef(aT, aId), new ParticipantRef(bT, bId));
+        return convs.findByParties(p[0].type(), p[0].id(), p[1].type(), p[1].id()).orElseGet(() ->
                 convs.save(ConversationUnifiee.builder()
-                        .partyAType(p1t).partyAId(p1i).partyBType(p2t).partyBId(p2i).build()));
+                        .partyAType(p[0].type()).partyAId(p[0].id())
+                        .partyBType(p[1].type()).partyBId(p[1].id()).build()));
     }
 
     private void saveMsg(ConversationUnifiee c, ParticipantType expT, Long expId, String contenu,
@@ -125,7 +128,7 @@ public class ChatMigrationRunner implements ApplicationRunner {
                 .attachments(att != null ? new ArrayList<>(att) : new ArrayList<>()).seen(seen).build();
         msgs.save(m);
         if (c.getDernierMessageAt() == null || (createdAt != null && createdAt.isAfter(c.getDernierMessageAt()))) {
-            c.setDernierMessage(contenu);
+            c.setDernierMessage(ConversationUnifiee.truncateDernierMessage(contenu));
             c.setDernierMessageAt(createdAt);
             c.setDernierExpediteurType(expT);
             c.setDernierExpediteurId(expId);

@@ -51,4 +51,18 @@ class ConversationServiceTest {
         verify(notifications).envoyerNotification(eq(5L), anyString(), eq("hi"),
             eq(ma.mysuguclientapp.enumerations.TypeNotification.MESSAGE), anyLong(), eq("CONVERSATION"));
     }
+
+    @Test
+    void append_with_message_over_500_chars_succeeds_and_truncates_only_the_summary() {
+        String longContenu = "a".repeat(1800); // > 500 (dernier_message) but <= 2000 (contenu)
+
+        MessageUnifie saved = assertDoesNotThrow(() -> service.append(customer, livreur, longContenu, List.of()));
+
+        assertEquals(longContenu, saved.getContenu());
+        assertEquals(1800, saved.getContenu().length());
+
+        var c = convs.findAll().get(0);
+        assertEquals(500, c.getDernierMessage().length());
+        assertEquals(longContenu.substring(0, 500), c.getDernierMessage());
+    }
 }
