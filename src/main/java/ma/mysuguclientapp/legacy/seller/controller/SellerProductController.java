@@ -168,6 +168,30 @@ public class SellerProductController {
         return mapper.success("Image supprimée.");
     }
 
+    /**
+     * POST products/quantity-update : {@code Plat} n'a pas de champ stock/quantité natif.
+     * STUB no-op — renvoie un accusé bénin sans rien persister.
+     * // STUB: Plat has no stock field (umbrella §4 GAP).
+     */
+    @PostMapping("/quantity-update")
+    public Map<String, Object> quantityUpdate(@AuthenticationPrincipal String email,
+                                               @RequestBody(required = false) Map<String, Object> body) {
+        sellerContext.currentRestaurant(email); // 403 non-vendeur / 404 sans restaurant
+        return mapper.success("Quantité mise à jour.");
+    }
+
+    /**
+     * GET products/stock-out-list?limit&offset : aucun modèle de stock natif -> enveloppe vide
+     * bénigne (jamais 404/500). // STUB: Plat has no stock field (umbrella §4 GAP).
+     */
+    @GetMapping("/stock-out-list")
+    public Map<String, Object> stockOutList(@AuthenticationPrincipal String email,
+                                             @RequestParam(defaultValue = "10") int limit,
+                                             @RequestParam(defaultValue = "0") int offset) {
+        sellerContext.currentRestaurant(email); // 403 non-vendeur / 404 sans restaurant
+        return mapper.emptyEnvelope("products", limit, offset);
+    }
+
     /** Reporte les champs existants d'un PlatDTO dans un PlatCreateDTO (évite de les nuller). */
     private PlatCreateDTO preserveFields(PlatDTO existing) {
         PlatCreateDTO dto = new PlatCreateDTO();
