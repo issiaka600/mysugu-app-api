@@ -12,6 +12,8 @@ import java.time.LocalDateTime;
  * du techspec migration TikTak livreur — "counterpart" client/vendeur manquant).
  * Un seul fil par couple (client, restaurant) ; le contenu des messages est dans MessageChat.
  */
+// Retire after prod cutover (still read by ChatMigrationRunner)
+@Deprecated
 @Entity
 @Table(name = "conversations",
         uniqueConstraints = @UniqueConstraint(name = "uk_conversation_client_restaurant", columnNames = {"client_id", "restaurant_id"}))

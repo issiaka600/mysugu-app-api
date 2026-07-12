@@ -18,6 +18,8 @@ import java.util.List;
  * TIKTAK_LIVREUR_MIGRATION_TECHSPEC.md §9. Le livreur peut envoyer/consulter ; la réception
  * côté client reste à câbler dans l'app client.
  */
+// Retire after prod cutover (still read by ChatMigrationRunner)
+@Deprecated
 @Entity
 @Table(name = "messages_livreur",
         indexes = @Index(name = "idx_msg_livreur_conv", columnList = "livreur_id,interlocuteur_type,interlocuteur_id"))

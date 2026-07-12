@@ -10,6 +10,8 @@ import java.time.LocalDateTime;
 /**
  * Message individuel au sein d'une Conversation (module MESSAGERIE / CHAT).
  */
+// Retire after prod cutover (still read by ChatMigrationRunner)
+@Deprecated
 @Entity
 @Table(name = "messages_chat",
         indexes = @Index(name = "idx_message_chat_conversation", columnList = "conversation_id"))
