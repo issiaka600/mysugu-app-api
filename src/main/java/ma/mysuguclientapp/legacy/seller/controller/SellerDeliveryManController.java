@@ -16,7 +16,9 @@ import ma.mysuguclientapp.services.interfaces.CommandeService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -156,6 +158,58 @@ public class SellerDeliveryManController {
         Restaurant restaurant = sellerContext.currentRestaurant(email);
         BigDecimal total = gainsLivreurRepository.sumMontantNetByLivreurAndRestaurant(id, restaurant.getId());
         return mapper.toEarning(total);
+    }
+
+    // ---- 3e.4: STUB management mutations (success-no-op) ----
+    // STUB: vendors do not own livreurs in mysugu (umbrella §4 GAP; 3e SCOPE DECISION). No write
+    // ever touches User/GainsLivreur/CaisseLivreur here. Multipart bodies (store/update, real app
+    // uses http.MultipartRequest) are intentionally NOT bound — any body is accepted and ignored.
+
+    /** POST delivery-man/store (multipart) : STUB — mysugu has no native livreur create (even admin). */
+    @PostMapping("/delivery-man/store")
+    public Map<String, Object> store(@AuthenticationPrincipal String email) {
+        sellerContext.requireOwner(email);
+        return mapper.success("Livreur ajouté.");
+    }
+
+    /**
+     * POST delivery-man/update / delivery-man/update/{id} (multipart, {@code _method:put}) : STUB
+     * — mysugu has no native livreur update. DEVIATION (3e.0): the real app posts to
+     * {@code /delivery-man/update/{id}} (id in the URL, via {@code addNewDeliveryMan(isUpdate:
+     * true)}), not bare {@code /delivery-man/update} as the spec initially assumed — both mapped.
+     */
+    @PostMapping({"/delivery-man/update", "/delivery-man/update/{id}"})
+    public Map<String, Object> update(@AuthenticationPrincipal String email,
+                                       @PathVariable(required = false) Long id) {
+        sellerContext.requireOwner(email);
+        return mapper.success("Livreur mis à jour.");
+    }
+
+    /**
+     * GET|DELETE|POST delivery-man/delete/{id} : STUB — admin can soft-delete, vendor cannot.
+     * DEVIATION (3e.0): the real app calls this with a plain GET ({@code dioClient!.get(...)}, no
+     * {@code _method} spoofing) — GET is mapped alongside DELETE/POST (established _method-spoof
+     * convention) so the real call never 404s/405s. Never deletes the global livreur.
+     */
+    @RequestMapping(value = {"/delivery-man/delete/{id}", "/delivery-man/delete/{id}/"},
+            method = {RequestMethod.GET, RequestMethod.DELETE, RequestMethod.POST})
+    public Map<String, Object> delete(@AuthenticationPrincipal String email, @PathVariable Long id) {
+        sellerContext.requireOwner(email);
+        return mapper.success("Livreur supprimé.");
+    }
+
+    /** POST delivery-man/cash-receive {deliveryman_id, amount} : STUB — cash reconciliation is admin CaisseController. */
+    @PostMapping("/delivery-man/cash-receive")
+    public Map<String, Object> cashReceive(@AuthenticationPrincipal String email) {
+        sellerContext.requireOwner(email);
+        return mapper.success("Espèces reçues.");
+    }
+
+    /** POST delivery-man/status-update {id, status} : STUB — admin toggles livreur active/availability, vendor cannot. */
+    @PostMapping("/delivery-man/status-update")
+    public Map<String, Object> statusUpdate(@AuthenticationPrincipal String email) {
+        sellerContext.requireOwner(email);
+        return mapper.success("Statut mis à jour.");
     }
 
     // ---- helpers ----

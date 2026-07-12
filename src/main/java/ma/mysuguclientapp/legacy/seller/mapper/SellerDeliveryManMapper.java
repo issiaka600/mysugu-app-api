@@ -171,6 +171,16 @@ public class SellerDeliveryManMapper {
         return m;
     }
 
+    // ---- 3e.4/3e.5: STUB envelopes (success-no-op / benign empty) ----
+    // STUB: vendors do not own livreurs in mysugu (umbrella §4 GAP; 3e SCOPE DECISION).
+
+    /** Generic success-no-op envelope for STUB mutations — HTTP 200 {"message": "..."}. */
+    public Map<String, Object> success(String message) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("message", message);
+        return m;
+    }
+
     private static int toInt(Boolean b) {
         return Boolean.TRUE.equals(b) ? 1 : 0;
     }
