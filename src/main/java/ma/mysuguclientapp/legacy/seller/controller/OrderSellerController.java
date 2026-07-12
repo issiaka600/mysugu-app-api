@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import ma.mysuguclientapp.dtos.AssignThirdPartyDeliveryDTO;
 import ma.mysuguclientapp.dtos.CommandeDTO;
 import ma.mysuguclientapp.dtos.CommandeUpdateStatusDTO;
+import ma.mysuguclientapp.dtos.DeliveryChargeDateUpdateDTO;
 import ma.mysuguclientapp.dtos.UpdatePaymentStatusDTO;
 import ma.mysuguclientapp.entities.Restaurant;
 import ma.mysuguclientapp.enumerations.StatutCommande;
@@ -17,11 +18,16 @@ import ma.mysuguclientapp.services.interfaces.CommandeService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -154,6 +160,69 @@ public class OrderSellerController {
         dto.setStatutPaiement(statutPaiement);
         commandeService.updatePaymentStatus(orderId, dto);
         return ResponseEntity.ok(Map.of("message", "Statut de paiement mis à jour."));
+    }
+
+    /**
+     * POST orders/delivery-charge-date-update ({@code _method:put} toléré, {@code order_id,
+     * deliveryman_charge, expected_delivery_date}) : réutilise
+     * {@link CommandeService#updateDeliveryChargeAndDate}. Appartenance TOUJOURS vérifiée avant
+     * écriture — une commande d'un AUTRE restaurant -> 404 (jamais de mutation cross-tenant).
+     * Champs absents/invalides ignorés silencieusement (jamais 500).
+     */
+    @PostMapping("/delivery-charge-date-update")
+    public Map<String, Object> deliveryChargeDateUpdate(@AuthenticationPrincipal String email,
+                                                          @RequestBody Map<String, Object> body) {
+        Long orderId = toLong(body.get("order_id"));
+        ownedOrder(email, orderId); // 404 si la commande n'appartient pas au vendeur
+
+        DeliveryChargeDateUpdateDTO dto = new DeliveryChargeDateUpdateDTO();
+        Object charge = body.get("deliveryman_charge");
+        if (charge != null) {
+            try {
+                dto.setFraisLivraison(new BigDecimal(charge.toString().trim()));
+            } catch (NumberFormatException ignored) {
+                // GAP build-minimal: valeur non numérique -> champ ignoré, jamais 500 (spec §6).
+            }
+        }
+        Object expectedDate = body.get("expected_delivery_date");
+        if (expectedDate != null) {
+            dto.setDateLivraisonPrevue(parseFlexibleDateTime(expectedDate.toString()));
+        }
+        commandeService.updateDeliveryChargeAndDate(orderId, dto);
+        return Map.of("message", "Frais/date de livraison mis à jour.");
+    }
+
+    /**
+     * POST orders/order-wise-product-upload (multipart, {@code order_id}, {@code _method:put}
+     * toléré, {@code digital_file_after_sell}) : build-minimal — le fichier digital de 6valley
+     * n'a pas d'équivalent pour des repas, il est accepté et ignoré. Appartenance TOUJOURS
+     * vérifiée avant écriture — une commande d'un AUTRE restaurant -> 404. Jamais 500.
+     * // BUILD-MINIMAL: digital-file irrelevant to meals (spec §6).
+     */
+    @PostMapping(value = "/order-wise-product-upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Map<String, Object> orderWiseProductUpload(@AuthenticationPrincipal String email,
+                                                        @RequestParam("order_id") Long orderId,
+                                                        @RequestParam(value = "digital_file_after_sell", required = false) MultipartFile file) {
+        ownedOrder(email, orderId); // 404 si la commande n'appartient pas au vendeur
+        return Map.of("message", "Fichier reçu.");
+    }
+
+    /** Parse tolérant d'une date 6valley ({@code "yyyy-MM-dd HH:mm:ss"} ou {@code "yyyy-MM-dd"}). */
+    private LocalDateTime parseFlexibleDateTime(String value) {
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(trimmed.replace(' ', 'T'));
+        } catch (Exception e) {
+            try {
+                return LocalDate.parse(trimmed).atStartOfDay();
+            } catch (Exception e2) {
+                // GAP build-minimal: format non reconnu -> champ ignoré, jamais 500 (spec §6).
+                return null;
+            }
+        }
     }
 
     /**
