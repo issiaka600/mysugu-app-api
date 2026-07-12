@@ -20,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -131,6 +132,63 @@ public class SellerProductController {
                 : ModeDisponibilitePlat.INDISPONIBLE_DEFINITIVE.name());
         platService.updateAvailability(id, dto);
         return mapper.success("Statut du produit mis à jour.");
+    }
+
+    /**
+     * POST products/upload-images (multipart) : {@code Plat} est mono-image (imageUrl) — pas de
+     * galerie native. Mappé sur la même sémantique que {@code PATCH /api/plats/{id}/image}
+     * (un seul fichier remplace l'image existante). Fichiers additionnels ignorés.
+     * // GAP: Plat mono-image; gallery = follow-up (umbrella §7.2).
+     */
+    @PostMapping(value = "/upload-images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Map<String, Object> uploadImages(@AuthenticationPrincipal String email,
+                                             @RequestParam("id") Long id,
+                                             @RequestParam(value = "image", required = false) MultipartFile image) {
+        PlatDTO existing = ownedPlat(email, id); // 404 si le produit n'appartient pas au vendeur
+        // NB: platService.updatePlat() écrase nom/description/prix avec les valeurs du DTO passé
+        // (même comportement que le PATCH natif /api/plats/{id}/image) : on reporte donc les
+        // champs existants pour ne pas les nuller.
+        PlatDTO updated = platService.updatePlat(id, preserveFields(existing), image);
+        String url = updated.getImageUrl();
+        return Map.of("image", url != null ? List.of(url) : List.of());
+    }
+
+    /**
+     * POST products/delete-image {id} : efface l'image (mono) du produit du vendeur.
+     * // GAP: Plat mono-image; gallery = follow-up (umbrella §7.2).
+     */
+    @PostMapping("/delete-image")
+    public Map<String, Object> deleteImage(@AuthenticationPrincipal String email,
+                                            @RequestBody Map<String, Object> body) {
+        Long id = toLong(body.get("id"));
+        PlatDTO existing = ownedPlat(email, id); // 404 si le produit n'appartient pas au vendeur
+        PlatCreateDTO dto = preserveFields(existing);
+        dto.setRemoveImage(true);
+        platService.updatePlat(id, dto, null);
+        return mapper.success("Image supprimée.");
+    }
+
+    /** Reporte les champs existants d'un PlatDTO dans un PlatCreateDTO (évite de les nuller). */
+    private PlatCreateDTO preserveFields(PlatDTO existing) {
+        PlatCreateDTO dto = new PlatCreateDTO();
+        dto.setNom(existing.getNom());
+        dto.setDescription(existing.getDescription());
+        dto.setPrix(existing.getPrix());
+        dto.setIngredients(existing.getIngredients());
+        dto.setCategoriePlat(existing.getCategoriePlat());
+        dto.setCategorieProduit(existing.getCategorieProduit());
+        dto.setTempsPreparation(existing.getTempsPreparation());
+        return dto;
+    }
+
+    /**
+     * GET products/get-product-images/{id} : image (mono) du produit, sous forme de liste
+     * 6valley — {@code [<url>]} si présente, {@code []} sinon. // GAP: mono-image (umbrella §7.2).
+     */
+    @GetMapping("/get-product-images/{id}")
+    public List<String> getProductImages(@AuthenticationPrincipal String email, @PathVariable Long id) {
+        PlatDTO plat = ownedPlat(email, id); // 404 si le produit n'appartient pas au vendeur
+        return plat.getImageUrl() != null ? List.of(plat.getImageUrl()) : List.of();
     }
 
     private PlatCreateDTO toPlatCreateDTO(Long restaurantId, String name, String details,
