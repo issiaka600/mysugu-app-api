@@ -73,4 +73,33 @@ public class SellerFinanceController {
         sellerContext.requireOwner(email);
         return mapper.withdrawMethodList();
     }
+
+    /**
+     * POST balance-withdraw {amount, withdraw_method_id, ...} : STUB bénin succès-no-op (pas de
+     * solde/retrait vendeur natif — spec 3f §2 SCOPE DECISION). Aucune persistance (aucune entité
+     * "demande de retrait vendeur" n'existe côté natif). Jamais 500.
+     * STUB: no native seller wallet/withdraw/refund (spec 3f SCOPE DECISION, umbrella §4). Needs
+     * product-owner sign-off for a real build.
+     */
+    @PostMapping("/balance-withdraw")
+    public Map<String, Object> balanceWithdraw(@AuthenticationPrincipal String email,
+                                               @RequestBody(required = false) Map<String, Object> body) {
+        sellerContext.requireOwner(email);
+        return mapper.success("Demande de retrait envoyée.");
+    }
+
+    /**
+     * POST close-withdraw-request : STUB bénin succès-no-op. URL réelle confirmée 3f.0 contre
+     * {@code app_constants.dart} ({@code cancelBalanceRequest}) — SANS suffixe {@code {id}}
+     * (déviation par rapport à {@code /withdraw/close-request/{id}} supposé par la conception
+     * initiale de la spec ; route définie mais non appelée par l'app actuelle). Jamais 500.
+     * STUB: no native seller wallet/withdraw/refund (spec 3f SCOPE DECISION, umbrella §4). Needs
+     * product-owner sign-off for a real build.
+     */
+    @PostMapping("/close-withdraw-request")
+    public Map<String, Object> closeWithdrawRequest(@AuthenticationPrincipal String email,
+                                                     @RequestBody(required = false) Map<String, Object> body) {
+        sellerContext.requireOwner(email);
+        return mapper.success("Demande de retrait annulée.");
+    }
 }
