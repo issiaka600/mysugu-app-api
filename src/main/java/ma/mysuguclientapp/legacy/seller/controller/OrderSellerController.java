@@ -7,6 +7,8 @@ import ma.mysuguclientapp.dtos.CommandeDTO;
 import ma.mysuguclientapp.dtos.CommandeUpdateStatusDTO;
 import ma.mysuguclientapp.dtos.DeliveryChargeDateUpdateDTO;
 import ma.mysuguclientapp.dtos.UpdatePaymentStatusDTO;
+import ma.mysuguclientapp.entities.Commande;
+import ma.mysuguclientapp.entities.Localisation;
 import ma.mysuguclientapp.entities.Restaurant;
 import ma.mysuguclientapp.enumerations.StatutCommande;
 import ma.mysuguclientapp.enumerations.StatutPaiement;
@@ -14,6 +16,7 @@ import ma.mysuguclientapp.legacy.seller.SellerContext;
 import ma.mysuguclientapp.legacy.seller.dto.ErrorsResponse;
 import ma.mysuguclientapp.legacy.seller.mapper.OrderSellerMapper;
 import ma.mysuguclientapp.legacy.seller.mapper.OrderStatusMapper;
+import ma.mysuguclientapp.repositories.CommandeRepository;
 import ma.mysuguclientapp.services.interfaces.CommandeService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -49,6 +52,7 @@ public class OrderSellerController {
     private final CommandeService commandeService;
     private final OrderSellerMapper orderMapper;
     private final OrderStatusMapper statusMapper;
+    private final CommandeRepository commandeRepository;
 
     /** GET orders/list?limit&offset&status : commandes du restaurant du vendeur, forme 6valley paginée. */
     @GetMapping("/list")
@@ -263,6 +267,48 @@ public class OrderSellerController {
     }
 
     /**
+     * POST orders/address-update ({@code order_id, latitude, longitude, address,
+     * contact_person_name, phone, city, zip, email, address_type}) : build-minimal — écrit
+     * uniquement ce que {@code Commande.adresseLivraison} (embedded {@link Localisation}) peut
+     * porter (lat/lng + libellé + ville). Appartenance TOUJOURS vérifiée avant écriture — une
+     * commande d'un AUTRE restaurant -> 404 (jamais de mutation cross-tenant).
+     * // GAP build-minimal (spec §6): zip/contact_person_name/phone/email/address_type n'ont pas
+     * d'équivalent natif — acceptés et ignorés.
+     */
+    @PostMapping("/address-update")
+    public Map<String, Object> addressUpdate(@AuthenticationPrincipal String email,
+                                              @RequestBody Map<String, Object> body) {
+        Long orderId = toLong(body.get("order_id"));
+        ownedOrder(email, orderId); // 404 si la commande n'appartient pas au vendeur
+
+        Commande commande = commandeRepository.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Commande non trouvée"));
+        Localisation adresse = commande.getAdresseLivraison();
+        if (adresse == null) {
+            adresse = new Localisation();
+        }
+        Double latitude = toDouble(body.get("latitude"));
+        if (latitude != null) {
+            adresse.setLatitude(latitude);
+        }
+        Double longitude = toDouble(body.get("longitude"));
+        if (longitude != null) {
+            adresse.setLongitude(longitude);
+        }
+        Object address = body.get("address");
+        if (address != null) {
+            adresse.setAdresse(address.toString());
+        }
+        Object city = body.get("city");
+        if (city != null) {
+            adresse.setVille(city.toString());
+        }
+        commande.setAdresseLivraison(adresse);
+        commandeRepository.save(commande);
+        return Map.of("message", "Adresse de livraison mise à jour.");
+    }
+
+    /**
      * Résout la commande par id et vérifie qu'elle appartient au restaurant du vendeur
      * authentifié. Sinon 404 (jamais de fuite cross-restaurant) — garde réutilisée par tous les
      * endpoints commandes (détail, statut, assignation, paiement, tracking, adresse).
@@ -285,6 +331,18 @@ public class OrderSellerController {
             return Long.parseLong(o.toString().trim());
         } catch (NumberFormatException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "id invalide");
+        }
+    }
+
+    /** Parse tolérant lat/lng (l'app envoie des chaînes) — jamais d'exception, ignoré si invalide. */
+    private static Double toDouble(Object o) {
+        if (o == null) {
+            return null;
+        }
+        try {
+            return Double.parseDouble(o.toString().trim());
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 }
