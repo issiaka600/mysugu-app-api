@@ -1,17 +1,26 @@
 package ma.mysuguclientapp.legacy.seller.controller;
 
 import lombok.RequiredArgsConstructor;
+import ma.mysuguclientapp.dtos.CommandeDTO;
+import ma.mysuguclientapp.dtos.admin.LivreurDetailDTO;
+import ma.mysuguclientapp.entities.Commande;
 import ma.mysuguclientapp.entities.Restaurant;
 import ma.mysuguclientapp.entities.User;
 import ma.mysuguclientapp.legacy.seller.SellerContext;
+import ma.mysuguclientapp.legacy.seller.mapper.OrderSellerMapper;
 import ma.mysuguclientapp.legacy.seller.mapper.SellerDeliveryManMapper;
 import ma.mysuguclientapp.repositories.CommandeRepository;
+import ma.mysuguclientapp.repositories.GainsLivreurRepository;
+import ma.mysuguclientapp.services.interfaces.AdminLivreurService;
+import ma.mysuguclientapp.services.interfaces.CommandeService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -40,6 +49,10 @@ public class SellerDeliveryManController {
 
     private final SellerContext sellerContext;
     private final CommandeRepository commandeRepository;
+    private final GainsLivreurRepository gainsLivreurRepository;
+    private final AdminLivreurService adminLivreurService;
+    private final CommandeService commandeService;
+    private final OrderSellerMapper orderMapper;
     private final SellerDeliveryManMapper mapper;
 
     // ---- 3e.2: roster (derived, read-only) ----
@@ -78,6 +91,81 @@ public class SellerDeliveryManController {
                     .toList();
         }
         return mapper.toListEnvelope(roster, limit, offset);
+    }
+
+    // ---- 3e.3: details / order-list / earning (derived, read-only, roster-guarded) ----
+
+    /**
+     * GET delivery-man/details/{id} : roster-guarded read-only detail via
+     * {@link AdminLivreurService#getLivreurDetails}. A livreur id NOT in my derived roster (or
+     * unknown id) -> benign neutral object, NEVER 404/500 (spec §3 row #4 — no leak of an
+     * arbitrary livreur to a vendor who never worked with them).
+     */
+    @GetMapping("/delivery-man/details/{id}")
+    public Map<String, Object> details(@AuthenticationPrincipal String email, @PathVariable Long id) {
+        Restaurant restaurant = sellerContext.currentRestaurant(email);
+        if (!isInRoster(id, restaurant.getId())) {
+            return mapper.toDetailsNeutral();
+        }
+        try {
+            LivreurDetailDTO dto = adminLivreurService.getLivreurDetails(id);
+            return mapper.toDetails(dto);
+        } catch (RuntimeException e) {
+            // Never 404/500 on this screen (spec §5) — benign neutral fallback.
+            return mapper.toDetailsNeutral();
+        }
+    }
+
+    /**
+     * GET delivery-man/order-list/{id} : DERIVED — commandes this livreur delivered for MY
+     * restaurant, reusing {@link OrderSellerMapper#toOrder} (the SAME order shape the vendor
+     * app's own order list uses — {@code order_model.dart} — confirmed 3e.0;
+     * NOT {@code LegacyOrderMapper}, which targets the livreur app's own order model). A livreur
+     * who never served my restaurant -> empty list (never 404/500).
+     */
+    @GetMapping("/delivery-man/order-list/{id}")
+    public Map<String, Object> orderList(@AuthenticationPrincipal String email, @PathVariable Long id,
+                                          @RequestParam(defaultValue = "10") int limit,
+                                          @RequestParam(defaultValue = "0") int offset) {
+        Restaurant restaurant = sellerContext.currentRestaurant(email);
+        List<Commande> commandes = commandeRepository.findByLivreurAndRestaurant(id, restaurant.getId());
+        List<Map<String, Object>> orders = commandes.stream()
+                .map(c -> {
+                    try {
+                        CommandeDTO dto = commandeService.getCommandeById(c.getId());
+                        return orderMapper.toOrder(dto);
+                    } catch (RuntimeException e) {
+                        return null;
+                    }
+                })
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        return mapper.toOrderListEnvelope(orders, limit, offset);
+    }
+
+    /**
+     * GET delivery-man/earning/{id} : DERIVE-MINIMAL — sum {@code GainsLivreur.montantNet} over
+     * this livreur's commandes belonging to MY restaurant only (cheap single JPQL join, see
+     * {@link GainsLivreurRepository#sumMontantNetByLivreurAndRestaurant}). DEVIATION (3e.0): real
+     * keys are {@code total_earn}/{@code withdrawable_balance}, not the spec's initially assumed
+     * {@code total_earning}/{@code cash_in_hands}. Numbers never null. A livreur who never served
+     * my restaurant -> zeros (never 404/500).
+     */
+    @GetMapping("/delivery-man/earning/{id}")
+    public Map<String, Object> earning(@AuthenticationPrincipal String email, @PathVariable Long id) {
+        Restaurant restaurant = sellerContext.currentRestaurant(email);
+        BigDecimal total = gainsLivreurRepository.sumMontantNetByLivreurAndRestaurant(id, restaurant.getId());
+        return mapper.toEarning(total);
+    }
+
+    // ---- helpers ----
+
+    private boolean isInRoster(Long livreurId, Long restaurantId) {
+        if (livreurId == null) {
+            return false;
+        }
+        return commandeRepository.findDistinctLivreursByRestaurant(restaurantId).stream()
+                .anyMatch(u -> u.getId().equals(livreurId));
     }
 
     private static String nvl(String s) {

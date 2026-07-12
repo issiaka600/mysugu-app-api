@@ -40,4 +40,14 @@ public interface GainsLivreurRepository extends JpaRepository<GainsLivreur, Long
 
     /** Empêche le double-enregistrement des gains sur une même commande (OneToOne). */
     boolean existsByCommandeId(Long commandeId);
+
+    /**
+     * Vendor shim 3e (derive-minimal): net earnings of a livreur, scoped to orders delivered for
+     * ONE restaurant (not the livreur's global earnings across all restaurants). Cheap single
+     * JPQL join on GainsLivreur.commande.restaurant — vendor->livreur ownership is NOT native
+     * (umbrella §4 GAP; 3e SCOPE DECISION), this is a read-only derivation only.
+     */
+    @Query("SELECT COALESCE(SUM(g.montantNet), 0) FROM GainsLivreur g WHERE g.livreur.id = :livreurId " +
+           "AND g.commande.restaurant.id = :restaurantId")
+    BigDecimal sumMontantNetByLivreurAndRestaurant(Long livreurId, Long restaurantId);
 }
