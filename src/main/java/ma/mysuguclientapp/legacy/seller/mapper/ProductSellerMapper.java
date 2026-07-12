@@ -1,0 +1,155 @@
+package ma.mysuguclientapp.legacy.seller.mapper;
+
+import ma.mysuguclientapp.dtos.OptionGroupDTO;
+import ma.mysuguclientapp.dtos.OptionItemDTO;
+import ma.mysuguclientapp.dtos.PlatDTO;
+import ma.mysuguclientapp.enumerations.CategoriePlat;
+import org.springframework.data.domain.Page;
+import org.springframework.stereotype.Component;
+
+import java.math.BigDecimal;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Translates native {@link PlatDTO} <-> the 6valley "product" contract consumed by
+ * Tiktak-vendor-app-moso (lib/features/product/domain/models/product_model.dart) behind
+ * {@code /api/v3/seller/products/*}. Pure shape translation — no persistence, no ownership
+ * checks (those live in the controller via SellerContext). See
+ * docs/superpowers/specs/2026-07-10-vendor-3c-products-design.md §4.
+ */
+@Component
+public class ProductSellerMapper {
+
+    /**
+     * Stable numeric id per {@link CategoriePlat} value, used both for the standalone
+     * {@code categories} listing and for {@code category_ids} on each product.
+     */
+    private static final Map<CategoriePlat, Long> CATEGORY_IDS = buildCategoryIds();
+
+    private static final Map<CategoriePlat, String> LABELS = Map.of(
+            CategoriePlat.ENTREE, "Entrée",
+            CategoriePlat.PLAT_PRINCIPAL, "Plat principal",
+            CategoriePlat.DESSERT, "Dessert",
+            CategoriePlat.BOISSON, "Boisson",
+            CategoriePlat.ACCOMPAGNEMENT, "Accompagnement"
+    );
+
+    private static Map<CategoriePlat, Long> buildCategoryIds() {
+        Map<CategoriePlat, Long> ids = new LinkedHashMap<>();
+        long i = 1;
+        for (CategoriePlat c : CategoriePlat.values()) {
+            ids.put(c, i++);
+        }
+        return ids;
+    }
+
+    /** Native PlatDTO -> 6valley product JSON (product_model.dart shape). */
+    public Map<String, Object> toSixValley(PlatDTO dto) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", dto.getId());
+        m.put("name", dto.getNom());
+        m.put("details", dto.getDescription());
+        m.put("price", dto.getPrix());
+        // Confirmed against the live app model: unit_price is the field actually read by the
+        // vendor app; price kept alongside for tolerant/older parsers (umbrella §4).
+        m.put("unit_price", dto.getPrix());
+        String image = dto.getImageUrl();
+        m.put("image", image);
+        m.put("thumbnail", image);
+        m.put("images", image != null ? List.of(image) : List.of());
+        // GAP: Plat has no stock/quantity field -> large benign sentinel so the app never shows
+        // "out of stock" for a product the vendor marked available (umbrella §4 GAP).
+        m.put("current_stock", 999999);
+        int status = Boolean.TRUE.equals(dto.getIsAvailable()) ? 1 : 0;
+        m.put("status", status);
+        m.put("product_type", "physical");
+        m.put("choice_options", toChoiceOptions(dto.getOptionGroups()));
+        m.put("category_ids", toCategoryIds(dto.getCategoriePlat()));
+        m.put("tax", 0);
+        m.put("discount", 0);
+        m.put("added_by", "seller");
+        String code = dto.getId() != null ? String.valueOf(dto.getId()) : null;
+        m.put("code", code);
+        m.put("sku", code);
+        return m;
+    }
+
+    private List<Map<String, Object>> toChoiceOptions(List<OptionGroupDTO> groups) {
+        if (groups == null || groups.isEmpty()) {
+            return List.of();
+        }
+        return groups.stream().map(this::toChoiceOption).toList();
+    }
+
+    private Map<String, Object> toChoiceOption(OptionGroupDTO group) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("name", group.getNom());
+        m.put("title", group.getNom());
+        List<OptionItemDTO> items = group.getItems();
+        m.put("options", items == null ? List.of() : items.stream().map(this::toOption).toList());
+        return m;
+    }
+
+    private Map<String, Object> toOption(OptionItemDTO item) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("label", item.getNom());
+        m.put("optionPrice", item.getPrixSupplement() != null ? item.getPrixSupplement() : BigDecimal.ZERO);
+        return m;
+    }
+
+    private List<Map<String, Object>> toCategoryIds(String categoriePlat) {
+        if (categoriePlat == null || categoriePlat.isBlank()) {
+            return List.of();
+        }
+        CategoriePlat c;
+        try {
+            c = CategoriePlat.valueOf(categoriePlat);
+        } catch (IllegalArgumentException e) {
+            return List.of();
+        }
+        Map<String, Object> entry = new LinkedHashMap<>();
+        // Confirmed against the live app model: category id is parsed as a String.
+        entry.put("id", String.valueOf(CATEGORY_IDS.get(c)));
+        entry.put("position", 0);
+        return List.of(entry);
+    }
+
+    /** 6valley pagination envelope: {total_size, limit, offset, <key>: [...]}. */
+    public Map<String, Object> listEnvelope(String key, Page<PlatDTO> page) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("total_size", (int) page.getTotalElements());
+        m.put("limit", page.getSize());
+        m.put("offset", page.getNumber() * page.getSize());
+        m.put(key, page.getContent().stream().map(this::toSixValley).toList());
+        return m;
+    }
+
+    /** CategoriePlat -> 6valley flat category shape (product-add screen). */
+    public Map<String, Object> category(CategoriePlat c) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", CATEGORY_IDS.get(c));
+        m.put("name", LABELS.getOrDefault(c, c.name()));
+        m.put("slug", c.name().toLowerCase().replace('_', '-'));
+        m.put("position", 0);
+        m.put("parent_id", 0);
+        m.put("childes", List.of());
+        return m;
+    }
+
+    /** 6valley write-ack envelope. */
+    public Map<String, Object> success(String message) {
+        return Map.of("message", message);
+    }
+
+    /** Benign empty pagination envelope for GAP endpoints (never 404/500 — umbrella §4). */
+    public Map<String, Object> emptyEnvelope(String key, int limit, int offset) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("total_size", 0);
+        m.put("limit", limit);
+        m.put("offset", offset);
+        m.put(key, List.of());
+        return m;
+    }
+}
