@@ -2,9 +2,11 @@ package ma.mysuguclientapp.legacy.seller.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import ma.mysuguclientapp.dtos.PlatAvailabilityUpdateDTO;
 import ma.mysuguclientapp.dtos.PlatCreateDTO;
 import ma.mysuguclientapp.dtos.PlatDTO;
 import ma.mysuguclientapp.entities.Restaurant;
+import ma.mysuguclientapp.enumerations.ModeDisponibilitePlat;
 import ma.mysuguclientapp.legacy.seller.SellerContext;
 import ma.mysuguclientapp.legacy.seller.mapper.ProductSellerMapper;
 import ma.mysuguclientapp.services.interfaces.PlatService;
@@ -109,6 +111,26 @@ public class SellerProductController {
         ownedPlat(email, id); // 404 si le produit n'appartient pas au vendeur
         platService.deletePlat(id);
         return mapper.success("Produit supprimé.");
+    }
+
+    /**
+     * POST products/status-update {id,status} : bascule Plat.isAvailable via
+     * PlatService.updateAvailability. {@code status=1} => DISPONIBLE, {@code status=0} =>
+     * INDISPONIBLE_DEFINITIVE (pas de créneau temporaire côté 6valley). Appartenance TOUJOURS
+     * vérifiée avant écriture — un Plat d'un AUTRE restaurant -> 404.
+     */
+    @PostMapping("/status-update")
+    public Map<String, Object> statusUpdate(@AuthenticationPrincipal String email,
+                                             @RequestBody Map<String, Object> body) {
+        Long id = toLong(body.get("id"));
+        ownedPlat(email, id); // 404 si le produit n'appartient pas au vendeur
+        int status = toLong(body.get("status")) != null ? toLong(body.get("status")).intValue() : 0;
+        PlatAvailabilityUpdateDTO dto = new PlatAvailabilityUpdateDTO();
+        dto.setAvailabilityMode(status == 1
+                ? ModeDisponibilitePlat.DISPONIBLE.name()
+                : ModeDisponibilitePlat.INDISPONIBLE_DEFINITIVE.name());
+        platService.updateAvailability(id, dto);
+        return mapper.success("Statut du produit mis à jour.");
     }
 
     private PlatCreateDTO toPlatCreateDTO(Long restaurantId, String name, String details,
