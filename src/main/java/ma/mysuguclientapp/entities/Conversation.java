@@ -6,6 +6,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
+// TODO(Task 9): drop after cutover — legacy System B chat, migrated into the unified store (ChatMigrationRunner).
 /**
  * Conversation entre un client et un restaurant (module MESSAGERIE / CHAT, ticket T9
  * du techspec migration TikTak livreur — "counterpart" client/vendeur manquant).

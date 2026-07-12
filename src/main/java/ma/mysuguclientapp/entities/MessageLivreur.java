@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+// TODO(Task 9): drop after cutover — legacy System A chat, migrated into the unified store (ChatMigrationRunner).
 /**
  * Message de chat livreur <-> interlocuteur (client/vendeur/admin). Feature ABSENTE de MySugu,
  * reconstruite pour le shim (contrat 6valley §5.14–§5.17).

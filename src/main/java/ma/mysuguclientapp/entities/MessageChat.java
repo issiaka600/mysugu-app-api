@@ -6,6 +6,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
+// TODO(Task 9): drop after cutover — legacy System B chat, migrated into the unified store (ChatMigrationRunner).
 /**
  * Message individuel au sein d'une Conversation (module MESSAGERIE / CHAT).
  */
