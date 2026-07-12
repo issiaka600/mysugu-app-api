@@ -89,4 +89,24 @@ public class SellerShopProfileController {
         RestaurantDTO resto = restaurantService.getMonRestaurant(email);
         return shopMapper.toShopInfo(resto);
     }
+
+    /**
+     * POST shop-update (multipart, {@code _method:put} toléré) : met à jour la boutique du
+     * vendeur. L'id du Restaurant est TOUJOURS résolu via {@link SellerContext#currentRestaurant}
+     * (jamais depuis le corps) — pas d'écriture cross-tenant. Champs 6valley sans équivalent natif
+     * (bannières, minimum_order_amount, delivery_charge, free_delivery) acceptés et ignorés.
+     */
+    @PostMapping(value = "/shop-update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Map<String, Object> shopUpdate(
+            @AuthenticationPrincipal String email,
+            @RequestParam(value = "name", required = false) String name,
+            @RequestParam(value = "address", required = false) String address,
+            @RequestParam(value = "delivery_time", required = false) Integer deliveryTime,
+            @RequestParam(value = "logo", required = false) MultipartFile logo) {
+        Long restaurantId = sellerContext.currentRestaurant(email).getId(); // id serveur, jamais du corps
+        RestaurantDTO current = restaurantService.getMonRestaurant(email);
+        RestaurantDTO updated = restaurantService.updateRestaurant(restaurantId,
+                shopMapper.toRestaurantUpdate(current, name, address, deliveryTime), logo);
+        return shopMapper.toShopInfo(updated);
+    }
 }
