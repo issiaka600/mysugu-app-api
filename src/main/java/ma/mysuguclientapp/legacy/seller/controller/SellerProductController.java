@@ -9,6 +9,7 @@ import ma.mysuguclientapp.entities.Restaurant;
 import ma.mysuguclientapp.enumerations.ModeDisponibilitePlat;
 import ma.mysuguclientapp.legacy.seller.SellerContext;
 import ma.mysuguclientapp.legacy.seller.mapper.ProductSellerMapper;
+import ma.mysuguclientapp.repositories.LigneCommandeRepository;
 import ma.mysuguclientapp.services.interfaces.PlatService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -39,6 +40,7 @@ public class SellerProductController {
     private final SellerContext sellerContext;
     private final PlatService platService;
     private final ProductSellerMapper mapper;
+    private final LigneCommandeRepository ligneCommandeRepository;
 
     /** GET products/?limit&offset : produits du restaurant du vendeur, forme 6valley paginée. */
     @GetMapping({"", "/"})
@@ -190,6 +192,42 @@ public class SellerProductController {
                                              @RequestParam(defaultValue = "0") int offset) {
         sellerContext.currentRestaurant(email); // 403 non-vendeur / 404 sans restaurant
         return mapper.emptyEnvelope("products", limit, offset);
+    }
+
+    /**
+     * GET products/top-selling-product / products/most-popular-product : agrégation
+     * {@code LigneCommande} build-minimal (quantité vendue par plat, décroissante), scopée au
+     * restaurant du vendeur. Un restaurant sans commande -> enveloppe vide (jamais 500).
+     */
+    @GetMapping("/top-selling-product")
+    public Map<String, Object> topSelling(@AuthenticationPrincipal String email,
+                                           @RequestParam(defaultValue = "10") int limit,
+                                           @RequestParam(defaultValue = "0") int offset) {
+        return bestSelling(email, limit, offset);
+    }
+
+    @GetMapping("/most-popular-product")
+    public Map<String, Object> mostPopular(@AuthenticationPrincipal String email,
+                                            @RequestParam(defaultValue = "10") int limit,
+                                            @RequestParam(defaultValue = "0") int offset) {
+        return bestSelling(email, limit, offset);
+    }
+
+    private Map<String, Object> bestSelling(String email, int limit, int offset) {
+        Restaurant restaurant = sellerContext.currentRestaurant(email);
+        List<Object[]> rows = ligneCommandeRepository.sumQuantiteByRestaurantGroupByPlat(restaurant.getId());
+        int total = rows.size();
+        int from = Math.min(Math.max(offset, 0), total);
+        int to = Math.min(from + Math.max(limit, 0), total);
+        List<Map<String, Object>> products = rows.subList(from, to).stream()
+                .map(row -> {
+                    Long platId = (Long) row[0];
+                    long qty = ((Number) row[1]).longValue();
+                    PlatDTO plat = platService.getPlatById(platId);
+                    return mapper.toSixValleyWithCount(plat, qty);
+                })
+                .toList();
+        return mapper.rawEnvelope("products", total, limit, offset, products);
     }
 
     /** Reporte les champs existants d'un PlatDTO dans un PlatCreateDTO (évite de les nuller). */

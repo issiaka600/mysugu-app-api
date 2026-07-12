@@ -176,4 +176,22 @@ public class ProductSellerMapper {
         m.put("average_rating", 0);
         return m;
     }
+
+    /** {@link #toSixValley} plus a {@code count} field (top-selling/most-popular — plan 3c.8). */
+    public Map<String, Object> toSixValleyWithCount(PlatDTO dto, long count) {
+        Map<String, Object> m = toSixValley(dto);
+        m.put("count", count);
+        return m;
+    }
+
+    /** Raw 6valley pagination envelope built from an already-materialized item list. */
+    public Map<String, Object> rawEnvelope(String key, int total, int limit, int offset,
+                                           List<Map<String, Object>> items) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("total_size", total);
+        m.put("limit", limit);
+        m.put("offset", offset);
+        m.put(key, items);
+        return m;
+    }
 }
