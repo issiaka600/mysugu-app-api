@@ -78,6 +78,29 @@ public class CodePromoServiceImpl implements CodePromoService {
 
     @Override
     @Transactional
+    public CodePromoDTO mettreAJour(Long id, CodePromoCreateDTO dto) {
+        CodePromo promo = findById(id);
+        String newCode = dto.getCode().toUpperCase();
+        codePromoRepository.findByCode(newCode).ifPresent(existing -> {
+            if (!existing.getId().equals(id)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Code promo déjà existant: " + newCode);
+            }
+        });
+        promo.setCode(newCode);
+        promo.setDescription(dto.getDescription());
+        promo.setTypeReduction(dto.getTypeReduction());
+        promo.setValeur(dto.getValeur());
+        promo.setMontantMinCommande(dto.getMontantMinCommande());
+        promo.setMontantMaxReduction(dto.getMontantMaxReduction());
+        promo.setDateDebut(dto.getDateDebut());
+        promo.setDateFin(dto.getDateFin());
+        promo.setUsageMax(dto.getUsageMax());
+        // usageCount / createdBy / isActive / createdAt : préservés (non touchés).
+        return toDTO(codePromoRepository.save(promo));
+    }
+
+    @Override
+    @Transactional
     public CodePromoDTO activerDesactiver(Long id, boolean actif) {
         CodePromo promo = findById(id);
         promo.setIsActive(actif);

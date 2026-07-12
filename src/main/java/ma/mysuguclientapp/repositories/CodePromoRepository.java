@@ -23,4 +23,7 @@ public interface CodePromoRepository extends JpaRepository<CodePromo, Long> {
     Optional<CodePromo> findValidCode(String code, LocalDateTime now);
 
     List<CodePromo> findByIsActiveTrue();
+
+    /** Coupons créés par un vendeur donné (scoping du shim vendeur — spec 3h §3). */
+    List<CodePromo> findByCreatedById(Long ownerId);
 }

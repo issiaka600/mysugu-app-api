@@ -1,0 +1,1012 @@
+19:35:43.986 [main] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [ma.mysuguclientapp.GoogleAuthHttpFlowE2ETest]: GoogleAuthHttpFlowE2ETest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+19:35:45.370 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.GoogleAuthHttpFlowE2ETest
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.2)
+
+2026-07-12T19:35:47.969+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.GoogleAuthHttpFlowE2ETest            : Starting GoogleAuthHttpFlowE2ETest using Java 21.0.11 with PID 86481 (started by issiaka in /mnt/c/Users/Issiaka traoré/Desktop/systalink/mysugu/mysugu-app-api-dev)
+2026-07-12T19:35:47.973+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.GoogleAuthHttpFlowE2ETest            : No active profile set, falling back to 1 default profile: "default"
+2026-07-12T19:36:03.345+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-07-12T19:36:07.441+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 4047 ms. Found 47 JPA repository interfaces.
+2026-07-12T19:36:10.363+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 0 (http)
+2026-07-12T19:36:10.403+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-07-12T19:36:10.404+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-07-12T19:36:10.625+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 22545 ms
+2026-07-12T19:36:12.223+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-07-12T19:36:12.584+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.2.1.Final
+2026-07-12T19:36:16.929+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-07-12T19:36:17.213+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-07-12T19:36:17.867+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@393d4e34
+2026-07-12T19:36:17.875+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-07-12T19:36:18.067+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-07-12T19:36:18.211+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://127.0.0.1:5433/mysugu_test]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 16.13
+	Default catalog/schema: mysugu_test/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-07-12T19:36:28.617+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-07-12T19:36:29.845+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:29.846+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "ukluy16hqawc5711bcu0eswpvyb" of relation "avis" does not exist, skipping
+2026-07-12T19:36:29.862+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:29.863+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "uk3u24ouhcnrbx36iggrnlvt4m2" of relation "caisses_livreur" does not exist, skipping
+2026-07-12T19:36:29.880+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:29.880+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "ukkntee8mcehelwcs7fnp7e15lv" of relation "categories_restaurant" does not exist, skipping
+2026-07-12T19:36:29.898+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:29.898+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "uk96ahx61k659k5apvbdj1ygkwu" of relation "codes_promo" does not exist, skipping
+2026-07-12T19:36:29.914+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:29.914+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "uk6khl59j2hyfmuyqljjn6let1d" of relation "commandes" does not exist, skipping
+2026-07-12T19:36:29.930+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:29.930+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "uko495ij1jfri3rr8tb0hawqvqp" of relation "commandes" does not exist, skipping
+2026-07-12T19:36:29.951+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:29.952+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "uk_conversation_client_restaurant" of relation "conversations" does not exist, skipping
+2026-07-12T19:36:29.968+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:29.969+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "ukc0gup5gqq3pqvolpxlvsd09po" of relation "dettes_restaurant" does not exist, skipping
+2026-07-12T19:36:29.982+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:29.983+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "ukc3lmp7xwxajkc2ibu9ebyl1p2" of relation "device_tokens" does not exist, skipping
+2026-07-12T19:36:29.997+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:29.997+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "ukh10w1pofg5l6udkct4bbstilo" of relation "favoris" does not exist, skipping
+2026-07-12T19:36:30.017+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:30.017+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "uknhi37l27gibna2m66x8gpl1vm" of relation "gains_livreur" does not exist, skipping
+2026-07-12T19:36:30.044+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:30.045+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "uk1tiryrv7x9fxp06vgqm8r9d9f" of relation "menu_plats" does not exist, skipping
+2026-07-12T19:36:30.129+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:30.129+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "uk2f2pygdeq6j1wbt0gspykp4c6" of relation "paniers" does not exist, skipping
+2026-07-12T19:36:30.145+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:30.145+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "uk4j5tfqps7h5j0hbuqd3trjfbg" of relation "parametres_paiement_restaurant" does not exist, skipping
+2026-07-12T19:36:30.160+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:30.160+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "ukn783l2smikx9mfqa8pyu5sexu" of relation "points_fidelite" does not exist, skipping
+2026-07-12T19:36:30.175+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:30.175+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "ukjdho73ymbyu46p2hh562dk4kk" of relation "promotions" does not exist, skipping
+2026-07-12T19:36:30.194+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:30.194+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "ukghpmfn23vmxfu3spu3lfg4r2d" of relation "refresh_tokens" does not exist, skipping
+2026-07-12T19:36:30.212+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:30.212+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "ukdjkksm4vjhb4assxc6v1wb44h" of relation "restaurant_employes" does not exist, skipping
+2026-07-12T19:36:30.229+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:30.229+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "uklk9ib7tye3jj5e6nj4pxx1kt1" of relation "services_categories" does not exist, skipping
+2026-07-12T19:36:30.254+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:30.254+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "uk9khubx67gacwl9rsfoqnssekk" of relation "tokens_blacklist" does not exist, skipping
+2026-07-12T19:36:30.269+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:30.269+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "uk90gyhqyaou2lu46w3a768wscs" of relation "tokens_verification" does not exist, skipping
+2026-07-12T19:36:30.284+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:30.284+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "ukskdjk1hmstgrlv9rmcah0s678" of relation "users" does not exist, skipping
+2026-07-12T19:36:30.299+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:30.299+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "uk6dotkott2kjsp8vw4d0m25fb7" of relation "users" does not exist, skipping
+2026-07-12T19:36:30.315+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:30.316+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "ukbfkq75k9libkmsigbqm7dfm9n" of relation "utilisations_code_promo" does not exist, skipping
+2026-07-12T19:36:30.330+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:30.330+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "uksswfdl9fq40xlkove1y5kc7kv" of relation "wallets" does not exist, skipping
+2026-07-12T19:36:30.344+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-07-12T19:36:30.345+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.warn              : constraint "ukmbd80gplgh9qwf1cpi3nhmxfn" of relation "zones_deploiement" does not exist, skipping
+2026-07-12T19:36:30.703+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-07-12T19:36:30.990+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-07-12T19:36:34.539+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.mysuguclientapp.config.FirebaseConfig  : Firebase FCM désactivé (firebase.enabled=false).
+2026-07-12T19:36:35.307+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.config.MinioInitializer              : Initialisation des buckets MinIO...
+2026-07-12T19:36:35.817+01:00 ERROR 86481 --- [MySuguClientApp-test] [           main] m.m.s.implementations.MinioService       : Erreur lors de l'initialisation du bucket MinIO
+
+java.net.ConnectException: Failed to connect to /127.0.0.1:9999
+	at okhttp3.internal.connection.RealConnection.connectSocket(RealConnection.kt:297) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealConnection.connect(RealConnection.kt:207) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.ExchangeFinder.findConnection(ExchangeFinder.kt:226) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.ExchangeFinder.findHealthyConnection(ExchangeFinder.kt:106) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.ExchangeFinder.find(ExchangeFinder.kt:74) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealCall.initExchange$okhttp(RealCall.kt:255) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:32) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:95) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:83) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:76) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:201) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:517) ~[okhttp-4.12.0.jar:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: java.net.ConnectException: Connection refused
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:694) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:542) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:592) ~[na:na]
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:327) ~[na:na]
+	at java.base/java.net.Socket.connect(Socket.java:751) ~[na:na]
+	at okhttp3.internal.platform.Platform.connectSocket(Platform.kt:128) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealConnection.connectSocket(RealConnection.kt:295) ~[okhttp-4.12.0.jar:na]
+	... 18 common frames omitted
+
+2026-07-12T19:36:35.838+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.config.MinioInitializer              : Buckets MinIO initialisés avec succès
+2026-07-12T19:36:35.879+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] ma.mysuguclientapp.config.StripeConfig   : Stripe désactivé ou clé API non configurée — paiements par carte ignorés
+2026-07-12T19:36:41.285+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-07-12T19:36:41.871+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2026-07-12T19:36:41.872+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+2026-07-12T19:36:44.162+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-07-12T19:36:44.343+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:36:44.344+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@7558c84d]]
+2026-07-12T19:36:44.344+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:36:44.370+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 33255 (http) with context path '/'
+2026-07-12T19:36:44.408+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.GoogleAuthHttpFlowE2ETest            : Started GoogleAuthHttpFlowE2ETest in 58.02 seconds (process running for 64.607)
+2026-07-12T19:36:45.346+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.config.ParametresCaisseInitializer   : ParametresCaisse singleton (id=1) initialise.
+2026-07-12T19:36:45.409+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.config.FiltreInitializer             : Filtres par défaut semés: 14
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (/home/issiaka/.m2/repository/net/bytebuddy/byte-buddy-agent/1.17.8/byte-buddy-agent-1.17.8.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+2026-07-12T19:36:47.099+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-1-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-07-12T19:36:47.099+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-1-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-07-12T19:36:47.102+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-1-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
+2026-07-12T19:36:48.341+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-1-exec-1] m.m.s.implementations.UserServiceImpl    : Connexion Google réussie pour: google.auth.e2e@mysugu.test
+2026-07-12T19:36:49.438+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.DeliveryManShimContractTest]: DeliveryManShimContractTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:36:50.296+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.DeliveryManShimContractTest
+2026-07-12T19:36:50.302+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:36:50.302+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@7558c84d]]
+2026-07-12T19:36:50.302+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.2)
+
+2026-07-12T19:36:50.464+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.legacy.DeliveryManShimContractTest   : Starting DeliveryManShimContractTest using Java 21.0.11 with PID 86481 (started by issiaka in /mnt/c/Users/Issiaka traoré/Desktop/systalink/mysugu/mysugu-app-api-dev)
+2026-07-12T19:36:50.464+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.legacy.DeliveryManShimContractTest   : No active profile set, falling back to 1 default profile: "default"
+2026-07-12T19:37:00.896+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-07-12T19:37:02.970+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 2070 ms. Found 47 JPA repository interfaces.
+2026-07-12T19:37:04.437+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 0 (http)
+2026-07-12T19:37:04.440+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-07-12T19:37:04.440+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-07-12T19:37:04.521+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 14049 ms
+2026-07-12T19:37:05.923+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-07-12T19:37:06.480+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-07-12T19:37:06.503+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Starting...
+2026-07-12T19:37:06.561+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-2 - Added connection org.postgresql.jdbc.PgConnection@6c275adf
+2026-07-12T19:37:06.563+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Start completed.
+2026-07-12T19:37:06.573+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-07-12T19:37:06.583+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://127.0.0.1:5433/mysugu_test]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 16.13
+	Default catalog/schema: mysugu_test/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-07-12T19:37:09.218+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-07-12T19:37:09.330+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-07-12T19:37:09.539+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.mysuguclientapp.config.FirebaseConfig  : Firebase FCM désactivé (firebase.enabled=false).
+2026-07-12T19:37:09.545+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.config.MinioInitializer              : Initialisation des buckets MinIO...
+2026-07-12T19:37:09.641+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.config.MinioInitializer              : Buckets MinIO initialisés avec succès
+2026-07-12T19:37:09.674+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] ma.mysuguclientapp.config.StripeConfig   : Stripe désactivé ou clé API non configurée — paiements par carte ignorés
+2026-07-12T19:37:11.523+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-07-12T19:37:11.631+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2026-07-12T19:37:11.631+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+2026-07-12T19:37:12.059+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-07-12T19:37:12.081+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:37:12.081+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@19ffd989]]
+2026-07-12T19:37:12.081+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:37:12.086+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 45609 (http) with context path '/'
+2026-07-12T19:37:12.099+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.legacy.DeliveryManShimContractTest   : Started DeliveryManShimContractTest in 21.793 seconds (process running for 92.299)
+2026-07-12T19:37:17.923+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-1] o.a.c.c.C.[Tomcat-1].[localhost].[/]     : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-07-12T19:37:17.924+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-07-12T19:37:17.926+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
+2026-07-12T19:37:18.457+01:00  WARN 86481 --- [MySuguClientApp-test] [o-auto-2-exec-2] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Commande introuvable.
+2026-07-12T19:37:24.129+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-4] m.m.s.i.NotificationServiceImpl          : Notification 'LIVREUR_ASSIGNE' envoyée à l'utilisateur 3
+2026-07-12T19:37:24.144+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-4] m.m.s.i.NotificationServiceImpl          : Notification 'LIVREUR_ASSIGNE' envoyée à l'utilisateur 2
+2026-07-12T19:37:37.686+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-9] m.m.s.i.NotificationServiceImpl          : Notification 'LIVREUR_ASSIGNE' envoyée à l'utilisateur 3
+2026-07-12T19:37:37.696+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-9] m.m.s.i.NotificationServiceImpl          : Notification 'LIVREUR_ASSIGNE' envoyée à l'utilisateur 2
+2026-07-12T19:37:37.817+01:00  INFO 86481 --- [MySuguClientApp-test] [-auto-2-exec-10] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 3
+2026-07-12T19:37:50.891+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-4] m.m.l.d.c.DeliveryManAuthController      : OTP reset livreur généré pour +212600000001 (exp 2min)
+2026-07-12T19:37:57.683+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-1] m.m.s.i.NotificationServiceImpl          : Notification 'LIVREUR_ASSIGNE' envoyée à l'utilisateur 3
+2026-07-12T19:37:57.692+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-1] m.m.s.i.NotificationServiceImpl          : Notification 'LIVREUR_ASSIGNE' envoyée à l'utilisateur 2
+2026-07-12T19:37:57.800+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-2] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 3
+2026-07-12T19:37:58.526+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.OrderAddressUpdateTest]: OrderAddressUpdateTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:37:59.974+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.OrderAddressUpdateTest
+2026-07-12T19:37:59.978+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:37:59.978+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@19ffd989]]
+2026-07-12T19:37:59.978+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.2)
+
+2026-07-12T19:38:00.110+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.l.seller.OrderAddressUpdateTest      : Starting OrderAddressUpdateTest using Java 21.0.11 with PID 86481 (started by issiaka in /mnt/c/Users/Issiaka traoré/Desktop/systalink/mysugu/mysugu-app-api-dev)
+2026-07-12T19:38:00.110+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.l.seller.OrderAddressUpdateTest      : No active profile set, falling back to 1 default profile: "default"
+2026-07-12T19:38:08.459+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-07-12T19:38:10.161+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 1699 ms. Found 47 JPA repository interfaces.
+2026-07-12T19:38:10.313+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 0 (http)
+2026-07-12T19:38:10.313+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-07-12T19:38:10.314+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-07-12T19:38:10.349+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 10234 ms
+2026-07-12T19:38:11.122+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-07-12T19:38:11.446+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-07-12T19:38:11.458+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-3 - Starting...
+2026-07-12T19:38:11.475+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-3 - Added connection org.postgresql.jdbc.PgConnection@5ceb4036
+2026-07-12T19:38:11.475+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-3 - Start completed.
+2026-07-12T19:38:11.478+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-07-12T19:38:11.483+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://127.0.0.1:5433/mysugu_test]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 16.13
+	Default catalog/schema: mysugu_test/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-07-12T19:38:13.632+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-07-12T19:38:13.717+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-07-12T19:38:13.847+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.mysuguclientapp.config.FirebaseConfig  : Firebase FCM désactivé (firebase.enabled=false).
+2026-07-12T19:38:13.853+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.config.MinioInitializer              : Initialisation des buckets MinIO...
+2026-07-12T19:38:13.856+01:00 ERROR 86481 --- [MySuguClientApp-test] [           main] m.m.s.implementations.MinioService       : Erreur lors de l'initialisation du bucket MinIO
+
+java.net.ConnectException: Failed to connect to /127.0.0.1:9999
+	at okhttp3.internal.connection.RealConnection.connectSocket(RealConnection.kt:297) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealConnection.connect(RealConnection.kt:207) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.ExchangeFinder.findConnection(ExchangeFinder.kt:226) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.ExchangeFinder.findHealthyConnection(ExchangeFinder.kt:106) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.ExchangeFinder.find(ExchangeFinder.kt:74) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealCall.initExchange$okhttp(RealCall.kt:255) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:32) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:95) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:83) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:76) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:201) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:517) ~[okhttp-4.12.0.jar:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: java.net.ConnectException: Connection refused
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:694) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:542) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:592) ~[na:na]
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:327) ~[na:na]
+	at java.base/java.net.Socket.connect(Socket.java:751) ~[na:na]
+	at okhttp3.internal.platform.Platform.connectSocket(Platform.kt:128) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealConnection.connectSocket(RealConnection.kt:295) ~[okhttp-4.12.0.jar:na]
+	... 18 common frames omitted
+
+2026-07-12T19:38:13.857+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.config.MinioInitializer              : Buckets MinIO initialisés avec succès
+2026-07-12T19:38:13.943+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] ma.mysuguclientapp.config.StripeConfig   : Stripe désactivé ou clé API non configurée — paiements par carte ignorés
+2026-07-12T19:38:18.150+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-07-12T19:38:18.268+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2026-07-12T19:38:18.269+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+2026-07-12T19:38:18.600+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-07-12T19:38:18.618+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:38:18.619+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@2b3175fe]]
+2026-07-12T19:38:18.619+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:38:18.623+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 38121 (http) with context path '/'
+2026-07-12T19:38:18.630+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.l.seller.OrderAddressUpdateTest      : Started OrderAddressUpdateTest in 18.649 seconds (process running for 158.838)
+2026-07-12T19:38:18.667+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.config.FiltreInitializer             : Filtres par défaut semés: 14
+2026-07-12T19:38:18.959+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-3-exec-1] o.a.c.c.C.[Tomcat-2].[localhost].[/]     : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-07-12T19:38:18.960+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-3-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-07-12T19:38:18.963+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-3-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
+2026-07-12T19:38:19.140+01:00  WARN 86481 --- [MySuguClientApp-test] [o-auto-3-exec-2] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Commande non trouvée
+2026-07-12T19:38:19.935+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.OrderAssignTest]: OrderAssignTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:19.943+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.OrderAssignTest
+2026-07-12T19:38:20.449+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-3-exec-6] m.m.s.i.CommandeServiceImpl              : Livreur tiers 'Glovo' assigne a la commande ORD-ASGN-217455703372568-0.05450319719035157
+2026-07-12T19:38:20.472+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-3-exec-6] m.m.s.i.NotificationServiceImpl          : Notification 'LIVREUR_ASSIGNE' envoyée à l'utilisateur 12
+2026-07-12T19:38:21.176+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-3-exec-8] m.m.s.i.CommandeServiceImpl              : Livreur N assigne a la commande ORD-ASGN-217456446753828-0.6369745633791237
+2026-07-12T19:38:21.178+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-3-exec-8] m.m.s.i.NotificationServiceImpl          : Notification 'LIVREUR_ASSIGNE' envoyée à l'utilisateur 17
+2026-07-12T19:38:21.180+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-3-exec-8] m.m.s.i.NotificationServiceImpl          : Notification 'LIVREUR_ASSIGNE' envoyée à l'utilisateur 16
+2026-07-12T19:38:21.184+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-3-exec-8] m.m.s.i.NotificationServiceImpl          : Notification 'LIVREUR_ASSIGNE' envoyée à l'utilisateur 14
+2026-07-12T19:38:21.815+01:00  WARN 86481 --- [MySuguClientApp-test] [-auto-3-exec-10] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Commande non trouvée
+2026-07-12T19:38:22.372+01:00  WARN 86481 --- [MySuguClientApp-test] [o-auto-3-exec-2] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Commande non trouvée
+2026-07-12T19:38:22.518+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.OrderChargeAndUploadTest]: OrderChargeAndUploadTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:22.525+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.OrderChargeAndUploadTest
+2026-07-12T19:38:22.977+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-3-exec-4] m.m.s.i.CommandeServiceImpl              : Frais/date de livraison mis a jour pour la commande ORD-CHG-217458191312692-0.3440917945439639
+2026-07-12T19:38:24.096+01:00  WARN 86481 --- [MySuguClientApp-test] [o-auto-3-exec-8] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Commande non trouvée
+2026-07-12T19:38:24.647+01:00  WARN 86481 --- [MySuguClientApp-test] [-auto-3-exec-10] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Commande non trouvée
+2026-07-12T19:38:24.804+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.OrderDetailsTest]: OrderDetailsTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:24.809+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.OrderDetailsTest
+2026-07-12T19:38:25.165+01:00 ERROR 86481 --- [MySuguClientApp-test] [o-auto-3-exec-2] m.m.exceptions.GlobalExceptionHandler    : Ressource non trouvée: Commande non trouvee
+2026-07-12T19:38:26.136+01:00  WARN 86481 --- [MySuguClientApp-test] [o-auto-3-exec-6] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Commande non trouvée
+2026-07-12T19:38:26.277+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.OrderListTest]: OrderListTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:26.282+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.OrderListTest
+2026-07-12T19:38:28.361+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.OrderLiveTrackingTest]: OrderLiveTrackingTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:28.366+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.OrderLiveTrackingTest
+2026-07-12T19:38:28.771+01:00  WARN 86481 --- [MySuguClientApp-test] [o-auto-3-exec-6] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Commande non trouvée
+2026-07-12T19:38:29.918+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.OrderPaymentStatusTest]: OrderPaymentStatusTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:29.925+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.OrderPaymentStatusTest
+2026-07-12T19:38:30.276+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-3-exec-2] m.m.s.i.CommandeServiceImpl              : Statut de paiement de la commande ORD-PAY-217465577280682 mis a jour: EN_ATTENTE -> PAYE
+2026-07-12T19:38:30.700+01:00  WARN 86481 --- [MySuguClientApp-test] [o-auto-3-exec-4] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Commande non trouvée
+2026-07-12T19:38:30.851+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.OrderStatusUpdateTest]: OrderStatusUpdateTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:30.856+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.OrderStatusUpdateTest
+2026-07-12T19:38:31.647+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-3-exec-8] m.m.s.i.CommandeServiceImpl              : Statut de la commande ORD-STAT-217466943158163 mis a jour: EN_PREPARATION
+2026-07-12T19:38:32.040+01:00  WARN 86481 --- [MySuguClientApp-test] [-auto-3-exec-10] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Commande non trouvée
+2026-07-12T19:38:32.157+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerAccountTest]: SellerAccountTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:32.161+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerAccountTest
+2026-07-12T19:38:32.163+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:38:32.163+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@2b3175fe]]
+2026-07-12T19:38:32.163+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+2026-07-12T19:38:32.165+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:38:32.165+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@19ffd989]]
+2026-07-12T19:38:32.165+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:38:32.172+01:00  INFO 86481 --- [MySuguClientApp-test] [MessageBroker-1] o.s.w.s.c.WebSocketMessageBrokerStats    : WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 4, active threads = 1, queued tasks = 3, completed tasks = 0]
+2026-07-12T19:38:32.346+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-5] m.m.s.i.DeviceTokenServiceImpl           : Nouveau token FCM enregistré pour l'utilisateur 86 (platform: ANDROID)
+2026-07-12T19:38:32.570+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-7] m.m.l.s.c.SellerAccountController        : Compte vendeur supprimé (RGPD) pour seller-account-217467791116241@test.mysugu
+2026-07-12T19:38:32.897+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerAuthLoginTest]: SellerAuthLoginTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:32.906+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerAuthLoginTest
+2026-07-12T19:38:33.628+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerCatalogStubTest]: SellerCatalogStubTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:33.634+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerCatalogStubTest
+2026-07-12T19:38:33.636+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:38:33.637+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@19ffd989]]
+2026-07-12T19:38:33.637+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+2026-07-12T19:38:33.637+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:38:33.637+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@2b3175fe]]
+2026-07-12T19:38:33.637+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:38:34.630+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerContextTest]: SellerContextTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:34.637+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerContextTest
+2026-07-12T19:38:34.641+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:38:34.641+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@2b3175fe]]
+2026-07-12T19:38:34.641+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.2)
+
+2026-07-12T19:38:34.813+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.legacy.seller.SellerContextTest      : Starting SellerContextTest using Java 21.0.11 with PID 86481 (started by issiaka in /mnt/c/Users/Issiaka traoré/Desktop/systalink/mysugu/mysugu-app-api-dev)
+2026-07-12T19:38:34.814+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.legacy.seller.SellerContextTest      : No active profile set, falling back to 1 default profile: "default"
+2026-07-12T19:38:42.561+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-07-12T19:38:44.972+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 2404 ms. Found 47 JPA repository interfaces.
+2026-07-12T19:38:45.918+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-07-12T19:38:46.367+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-07-12T19:38:46.378+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-4 - Starting...
+2026-07-12T19:38:46.393+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-4 - Added connection org.postgresql.jdbc.PgConnection@7604ece6
+2026-07-12T19:38:46.394+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-4 - Start completed.
+2026-07-12T19:38:46.397+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-07-12T19:38:46.402+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://127.0.0.1:5433/mysugu_test]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 16.13
+	Default catalog/schema: mysugu_test/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-07-12T19:38:48.597+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-07-12T19:38:48.670+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-07-12T19:38:48.719+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.mysuguclientapp.config.FirebaseConfig  : Firebase FCM désactivé (firebase.enabled=false).
+2026-07-12T19:38:48.724+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.config.MinioInitializer              : Initialisation des buckets MinIO...
+2026-07-12T19:38:48.727+01:00 ERROR 86481 --- [MySuguClientApp-test] [           main] m.m.s.implementations.MinioService       : Erreur lors de l'initialisation du bucket MinIO
+
+java.net.ConnectException: Failed to connect to /127.0.0.1:9999
+	at okhttp3.internal.connection.RealConnection.connectSocket(RealConnection.kt:297) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealConnection.connect(RealConnection.kt:207) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.ExchangeFinder.findConnection(ExchangeFinder.kt:226) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.ExchangeFinder.findHealthyConnection(ExchangeFinder.kt:106) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.ExchangeFinder.find(ExchangeFinder.kt:74) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealCall.initExchange$okhttp(RealCall.kt:255) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:32) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:95) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:83) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:76) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:201) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:517) ~[okhttp-4.12.0.jar:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: java.net.ConnectException: Connection refused
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:694) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:542) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:592) ~[na:na]
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:327) ~[na:na]
+	at java.base/java.net.Socket.connect(Socket.java:751) ~[na:na]
+	at okhttp3.internal.platform.Platform.connectSocket(Platform.kt:128) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealConnection.connectSocket(RealConnection.kt:295) ~[okhttp-4.12.0.jar:na]
+	... 18 common frames omitted
+
+2026-07-12T19:38:48.728+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.config.MinioInitializer              : Buckets MinIO initialisés avec succès
+2026-07-12T19:38:48.744+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] ma.mysuguclientapp.config.StripeConfig   : Stripe désactivé ou clé API non configurée — paiements par carte ignorés
+2026-07-12T19:38:50.182+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-07-12T19:38:50.253+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2026-07-12T19:38:50.253+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+2026-07-12T19:38:50.492+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-07-12T19:38:50.508+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:38:50.508+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@1027847b]]
+2026-07-12T19:38:50.508+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:38:50.512+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.legacy.seller.SellerContextTest      : Started SellerContextTest in 15.834 seconds (process running for 190.717)
+2026-07-12T19:38:50.658+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerCouponCheckTest]: SellerCouponCheckTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:50.661+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerCouponCheckTest
+2026-07-12T19:38:50.663+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:38:50.664+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@1027847b]]
+2026-07-12T19:38:50.664+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+2026-07-12T19:38:50.665+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:38:50.665+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@2b3175fe]]
+2026-07-12T19:38:50.665+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:38:51.091+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerCouponCustomersStubTest]: SellerCouponCustomersStubTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:51.097+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerCouponCustomersStubTest
+2026-07-12T19:38:51.298+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerCouponListTest]: SellerCouponListTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:51.302+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerCouponListTest
+2026-07-12T19:38:51.763+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerCouponMutateTest]: SellerCouponMutateTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:51.768+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerCouponMutateTest
+2026-07-12T19:38:52.954+01:00  WARN 86481 --- [MySuguClientApp-test] [o-auto-3-exec-3] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Coupon non trouvé
+2026-07-12T19:38:52.999+01:00  WARN 86481 --- [MySuguClientApp-test] [-auto-3-exec-10] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Coupon non trouvé
+2026-07-12T19:38:53.038+01:00  WARN 86481 --- [MySuguClientApp-test] [o-auto-3-exec-5] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Coupon non trouvé
+2026-07-12T19:38:53.114+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerCouponStoreTest]: SellerCouponStoreTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:53.118+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerCouponStoreTest
+2026-07-12T19:38:53.339+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerEarningStatisticsTest]: SellerEarningStatisticsTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:53.347+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerEarningStatisticsTest
+2026-07-12T19:38:54.802+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerInfoTest]: SellerInfoTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:54.814+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerInfoTest
+2026-07-12T19:38:55.012+01:00  WARN 86481 --- [MySuguClientApp-test] [o-auto-3-exec-8] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 403 FORBIDDEN - Réservé au vendeur
+2026-07-12T19:38:55.377+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerNotificationListTest]: SellerNotificationListTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:55.382+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerNotificationListTest
+2026-07-12T19:38:57.082+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerNotificationViewTest]: SellerNotificationViewTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:57.087+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerNotificationViewTest
+2026-07-12T19:38:57.692+01:00  WARN 86481 --- [MySuguClientApp-test] [o-auto-3-exec-4] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Notification non trouvée
+2026-07-12T19:38:57.977+01:00  WARN 86481 --- [MySuguClientApp-test] [o-auto-3-exec-3] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Notification non trouvée
+2026-07-12T19:38:58.249+01:00  WARN 86481 --- [MySuguClientApp-test] [-auto-3-exec-11] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Notification non trouvée
+2026-07-12T19:38:58.292+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerOrderStatisticsTest]: SellerOrderStatisticsTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:58.296+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerOrderStatisticsTest
+2026-07-12T19:38:59.357+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerPasswordResetTest]: SellerPasswordResetTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:59.362+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerPasswordResetTest
+2026-07-12T19:38:59.363+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:38:59.364+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@2b3175fe]]
+2026-07-12T19:38:59.364+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+2026-07-12T19:38:59.364+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:38:59.364+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@19ffd989]]
+2026-07-12T19:38:59.364+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:38:59.536+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-2] m.m.l.s.controller.SellerAuthController  : OTP reset vendeur généré pour seller-reset-217494875527434@test.mysugu (exp 2min)
+2026-07-12T19:38:59.776+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerProductImagesTest]: SellerProductImagesTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:38:59.782+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerProductImagesTest
+2026-07-12T19:39:00.091+01:00  WARN 86481 --- [MySuguClientApp-test] [o-auto-2-exec-8] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Produit non trouvé
+2026-07-12T19:39:00.508+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-1] m.m.s.implementations.PlatServiceImpl    : Plat mis à jour: Tajine
+2026-07-12T19:39:00.582+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-3] m.m.s.implementations.PlatServiceImpl    : Plat mis à jour: Tajine
+2026-07-12T19:39:00.954+01:00  WARN 86481 --- [MySuguClientApp-test] [o-auto-2-exec-6] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Produit non trouvé
+2026-07-12T19:39:01.293+01:00  WARN 86481 --- [MySuguClientApp-test] [o-auto-2-exec-8] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Produit non trouvé
+2026-07-12T19:39:01.370+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerProductListTest]: SellerProductListTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:01.376+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerProductListTest
+2026-07-12T19:39:01.378+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:39:01.378+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@19ffd989]]
+2026-07-12T19:39:01.378+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+2026-07-12T19:39:01.379+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:39:01.379+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@2b3175fe]]
+2026-07-12T19:39:01.379+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:39:02.033+01:00  WARN 86481 --- [MySuguClientApp-test] [o-auto-3-exec-5] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Produit non trouvé
+2026-07-12T19:39:02.408+01:00  WARN 86481 --- [MySuguClientApp-test] [o-auto-3-exec-9] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Produit non trouvé
+2026-07-12T19:39:03.253+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerProductReviewTest]: SellerProductReviewTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:03.260+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerProductReviewTest
+2026-07-12T19:39:03.538+01:00  INFO 86481 --- [MySuguClientApp-test] [-auto-3-exec-10] m.m.s.implementations.AvisServiceImpl    : Avis 1 modéré: APPROUVE
+2026-07-12T19:39:04.289+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerProductStatusTest]: SellerProductStatusTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:04.293+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerProductStatusTest
+2026-07-12T19:39:04.559+01:00  WARN 86481 --- [MySuguClientApp-test] [-auto-3-exec-11] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Produit non trouvé
+2026-07-12T19:39:04.921+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-3-exec-7] m.m.s.implementations.PlatServiceImpl    : Disponibilité du plat Tajine changée à: INDISPONIBLE_DEFINITIVE
+2026-07-12T19:39:05.000+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-3-exec-2] m.m.s.implementations.PlatServiceImpl    : Disponibilité du plat Tajine changée à: DISPONIBLE
+2026-07-12T19:39:05.149+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerProductStockStubTest]: SellerProductStockStubTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:05.152+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerProductStockStubTest
+2026-07-12T19:39:05.580+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerProductWriteTest]: SellerProductWriteTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:05.589+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerProductWriteTest
+2026-07-12T19:39:05.592+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:39:05.592+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@2b3175fe]]
+2026-07-12T19:39:05.592+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+2026-07-12T19:39:05.593+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:39:05.593+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@19ffd989]]
+2026-07-12T19:39:05.593+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:39:05.873+01:00  WARN 86481 --- [MySuguClientApp-test] [-auto-2-exec-10] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Produit non trouvé
+2026-07-12T19:39:06.309+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-2] m.m.s.implementations.PlatServiceImpl    : PLAT CREATE DTO : PlatCreateDTO(nom=Avant, description=desc, prix=30.00, ingredients=null, categoriePlat=null, categorieProduit=null, restaurantId=105, tempsPreparation=null, availabilityMode=null, indisponibleJusqua=null, removeImage=null)
+2026-07-12T19:39:06.319+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-2] m.m.s.implementations.PlatServiceImpl    : Plat créé: Avant
+2026-07-12T19:39:06.423+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-4] m.m.s.implementations.PlatServiceImpl    : Plat mis à jour: Apres
+2026-07-12T19:39:06.812+01:00  WARN 86481 --- [MySuguClientApp-test] [o-auto-2-exec-7] m.m.exceptions.GlobalExceptionHandler    : ResponseStatusException: 404 NOT_FOUND - Produit non trouvé
+2026-07-12T19:39:07.126+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-9] m.m.s.implementations.PlatServiceImpl    : PLAT CREATE DTO : PlatCreateDTO(nom=Tajine Kefta, description=Tajine avec kefta, prix=45.00, ingredients=null, categoriePlat=null, categorieProduit=null, restaurantId=109, tempsPreparation=null, availabilityMode=null, indisponibleJusqua=null, removeImage=null)
+2026-07-12T19:39:07.128+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-9] m.m.s.implementations.PlatServiceImpl    : Plat créé: Tajine Kefta
+2026-07-12T19:39:07.563+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-2] m.m.s.implementations.PlatServiceImpl    : PLAT CREATE DTO : PlatCreateDTO(nom=AEffacer, description=desc, prix=30.00, ingredients=null, categoriePlat=null, categorieProduit=null, restaurantId=111, tempsPreparation=null, availabilityMode=null, indisponibleJusqua=null, removeImage=null)
+2026-07-12T19:39:07.567+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-2] m.m.s.implementations.PlatServiceImpl    : Plat créé: AEffacer
+2026-07-12T19:39:07.654+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-4] m.m.s.implementations.PlatServiceImpl    : Plat supprimé: AEffacer
+2026-07-12T19:39:07.710+01:00 ERROR 86481 --- [MySuguClientApp-test] [o-auto-2-exec-5] m.m.exceptions.GlobalExceptionHandler    : Ressource non trouvée: Plat non trouvé avec l'ID: 89
+2026-07-12T19:39:07.794+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerRefundStubTest]: SellerRefundStubTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:07.800+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerRefundStubTest
+2026-07-12T19:39:07.802+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:39:07.803+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@19ffd989]]
+2026-07-12T19:39:07.803+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+2026-07-12T19:39:07.803+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:39:07.804+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@2b3175fe]]
+2026-07-12T19:39:07.804+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:39:08.382+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerRegistrationTest]: SellerRegistrationTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:08.388+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerRegistrationTest
+2026-07-12T19:39:08.390+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:39:08.390+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@2b3175fe]]
+2026-07-12T19:39:08.390+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+2026-07-12T19:39:08.391+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:39:08.392+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@19ffd989]]
+2026-07-12T19:39:08.392+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:39:08.555+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-7] m.m.s.implementations.UserServiceImpl    : Utilisateur créé avec succès: seller-reg-217503906336716@test.mysugu
+2026-07-12T19:39:08.565+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-7] m.m.s.i.RestaurantServiceImpl            : Onboarding soumis: restaurant 'Chez Foo' par seller-reg-217503906336716@test.mysugu
+2026-07-12T19:39:08.569+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-7] m.m.l.s.c.SellerRegistrationController   : Boutique vendeur créée (EN_ATTENTE) à l'inscription pour seller-reg-217503906336716@test.mysugu
+2026-07-12T19:39:08.635+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-7] m.m.l.s.c.SellerRegistrationController   : Inscription vendeur réussie pour seller-reg-217503906336716@test.mysugu
+2026-07-12T19:39:08.671+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerSharedTest]: SellerSharedTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:08.677+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerSharedTest
+2026-07-12T19:39:08.771+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerTopDeliveryManTest]: SellerTopDeliveryManTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:08.777+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerTopDeliveryManTest
+2026-07-12T19:39:08.779+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:39:08.779+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@19ffd989]]
+2026-07-12T19:39:08.779+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+2026-07-12T19:39:08.780+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:39:08.780+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@2b3175fe]]
+2026-07-12T19:39:08.780+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:39:09.094+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerTopSellingTest]: SellerTopSellingTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:09.106+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerTopSellingTest
+2026-07-12T19:39:10.286+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerTransactionsTest]: SellerTransactionsTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:10.291+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerTransactionsTest
+2026-07-12T19:39:11.406+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerUpdateTest]: SellerUpdateTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:11.417+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerUpdateTest
+2026-07-12T19:39:11.421+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:39:11.422+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@2b3175fe]]
+2026-07-12T19:39:11.422+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+2026-07-12T19:39:11.424+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:39:11.424+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@19ffd989]]
+2026-07-12T19:39:11.424+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:39:11.724+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerWithdrawMethodsTest]: SellerWithdrawMethodsTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:11.731+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerWithdrawMethodsTest
+2026-07-12T19:39:11.733+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:39:11.734+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@19ffd989]]
+2026-07-12T19:39:11.734+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+2026-07-12T19:39:11.734+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:39:11.734+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@2b3175fe]]
+2026-07-12T19:39:11.734+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:39:11.978+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.SellerWithdrawStubTest]: SellerWithdrawStubTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:11.986+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.SellerWithdrawStubTest
+2026-07-12T19:39:12.443+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.ShopInfoTest]: ShopInfoTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:12.450+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.ShopInfoTest
+2026-07-12T19:39:12.687+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.ShopUpdateTest]: ShopUpdateTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:12.696+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.ShopUpdateTest
+2026-07-12T19:39:12.698+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:39:12.698+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@2b3175fe]]
+2026-07-12T19:39:12.698+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+2026-07-12T19:39:12.699+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:39:12.699+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@19ffd989]]
+2026-07-12T19:39:12.699+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:39:12.959+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-9] m.m.s.i.RestaurantServiceImpl            : Restaurant mis à jour: Deux Renommee
+2026-07-12T19:39:13.086+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.TemporaryCloseTest]: TemporaryCloseTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:13.092+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.TemporaryCloseTest
+2026-07-12T19:39:13.095+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:39:13.095+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@19ffd989]]
+2026-07-12T19:39:13.095+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+2026-07-12T19:39:13.096+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:39:13.096+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@2b3175fe]]
+2026-07-12T19:39:13.096+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:39:13.269+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-3-exec-8] m.m.s.i.RestaurantServiceImpl            : Statut du restaurant Boutique changé à: false
+2026-07-12T19:39:13.320+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-3-exec-4] m.m.s.i.RestaurantServiceImpl            : Statut du restaurant Boutique changé à: true
+2026-07-12T19:39:13.514+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-3-exec-3] m.m.s.i.RestaurantServiceImpl            : Statut du restaurant Boutique changé à: false
+2026-07-12T19:39:13.653+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.legacy.seller.VacationAddTest]: VacationAddTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:13.662+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.legacy.seller.VacationAddTest
+2026-07-12T19:39:13.666+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:39:13.666+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@2b3175fe]]
+2026-07-12T19:39:13.666+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+2026-07-12T19:39:13.666+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:39:13.666+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@19ffd989]]
+2026-07-12T19:39:13.666+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:39:13.859+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-2] m.m.s.i.RestaurantServiceImpl            : Restaurant mis à jour: Boutique
+2026-07-12T19:39:13.867+01:00  INFO 86481 --- [MySuguClientApp-test] [o-auto-2-exec-2] m.m.s.i.RestaurantServiceImpl            : Statut du restaurant Boutique changé à: false
+2026-07-12T19:39:13.943+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.MySuguClientAppApplicationTests]: MySuguClientAppApplicationTests does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:13.952+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.MySuguClientAppApplicationTests
+2026-07-12T19:39:13.954+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:39:13.955+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@19ffd989]]
+2026-07-12T19:39:13.955+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+2026-07-12T19:39:13.956+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:39:13.956+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@1027847b]]
+2026-07-12T19:39:13.956+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:39:13.996+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.OwnerProvisioningServiceTest]: OwnerProvisioningServiceTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:14.003+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.OwnerProvisioningServiceTest
+2026-07-12T19:39:14.007+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:39:14.007+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@1027847b]]
+2026-07-12T19:39:14.007+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.2)
+
+2026-07-12T19:39:14.131+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.OwnerProvisioningServiceTest         : Starting OwnerProvisioningServiceTest using Java 21.0.11 with PID 86481 (started by issiaka in /mnt/c/Users/Issiaka traoré/Desktop/systalink/mysugu/mysugu-app-api-dev)
+2026-07-12T19:39:14.132+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.OwnerProvisioningServiceTest         : No active profile set, falling back to 1 default profile: "default"
+2026-07-12T19:39:23.520+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-07-12T19:39:25.856+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 2332 ms. Found 47 JPA repository interfaces.
+2026-07-12T19:39:27.046+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-07-12T19:39:27.613+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-07-12T19:39:27.627+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-5 - Starting...
+2026-07-12T19:39:27.659+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-5 - Added connection org.postgresql.jdbc.PgConnection@64363738
+2026-07-12T19:39:27.659+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-5 - Start completed.
+2026-07-12T19:39:27.665+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-07-12T19:39:27.670+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://127.0.0.1:5433/mysugu_test]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 16.13
+	Default catalog/schema: mysugu_test/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-07-12T19:39:29.687+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-07-12T19:39:29.759+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-07-12T19:39:29.788+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.mysuguclientapp.config.FirebaseConfig  : Firebase FCM désactivé (firebase.enabled=false).
+2026-07-12T19:39:29.790+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.config.MinioInitializer              : Initialisation des buckets MinIO...
+2026-07-12T19:39:29.792+01:00 ERROR 86481 --- [MySuguClientApp-test] [           main] m.m.s.implementations.MinioService       : Erreur lors de l'initialisation du bucket MinIO
+
+java.net.ConnectException: Failed to connect to /127.0.0.1:9999
+	at okhttp3.internal.connection.RealConnection.connectSocket(RealConnection.kt:297) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealConnection.connect(RealConnection.kt:207) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.ExchangeFinder.findConnection(ExchangeFinder.kt:226) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.ExchangeFinder.findHealthyConnection(ExchangeFinder.kt:106) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.ExchangeFinder.find(ExchangeFinder.kt:74) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealCall.initExchange$okhttp(RealCall.kt:255) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:32) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:95) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:83) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:76) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:201) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:517) ~[okhttp-4.12.0.jar:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: java.net.ConnectException: Connection refused
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:694) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:542) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:592) ~[na:na]
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:327) ~[na:na]
+	at java.base/java.net.Socket.connect(Socket.java:751) ~[na:na]
+	at okhttp3.internal.platform.Platform.connectSocket(Platform.kt:128) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealConnection.connectSocket(RealConnection.kt:295) ~[okhttp-4.12.0.jar:na]
+	... 18 common frames omitted
+
+2026-07-12T19:39:29.793+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.config.MinioInitializer              : Buckets MinIO initialisés avec succès
+2026-07-12T19:39:29.807+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] ma.mysuguclientapp.config.StripeConfig   : Stripe désactivé ou clé API non configurée — paiements par carte ignorés
+2026-07-12T19:39:31.347+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-07-12T19:39:31.403+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2026-07-12T19:39:31.403+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+2026-07-12T19:39:31.699+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-07-12T19:39:31.716+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:39:31.716+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@5e3544a0]]
+2026-07-12T19:39:31.716+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:39:31.720+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.OwnerProvisioningServiceTest         : Started OwnerProvisioningServiceTest in 17.704 seconds (process running for 231.926)
+2026-07-12T19:39:31.843+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.OwnerProvisioningServiceImpl     : Invitation restaurateur envoyée à owner-new-217509382610468@test.mysugu
+2026-07-12T19:39:31.903+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.PromotionServiceTest]: PromotionServiceTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:31.908+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.PromotionServiceTest
+2026-07-12T19:39:31.910+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:39:31.910+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@5e3544a0]]
+2026-07-12T19:39:31.910+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+2026-07-12T19:39:31.911+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:39:31.911+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@1027847b]]
+2026-07-12T19:39:31.911+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+[TEST 1 OK] Promo flash créée sans restaurant, id=1
+[TEST 2 OK] Promo liée au restaurant, FK promotion_id=2 bien persistée sur le restaurant id=130
+[TEST 3 OK] getPromotionsFlash() retourne 1 promo(s) flash
+[TEST 4 OK] getPromotionsRestaurant(130) retourne 1 promo(s)
+[TEST 5 OK] activerDesactiver() fonctionne correctement
+2026-07-12T19:39:32.079+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.PushNotificationTest]: PushNotificationTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:32.087+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.PushNotificationTest
+2026-07-12T19:39:32.090+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:39:32.091+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@1027847b]]
+2026-07-12T19:39:32.091+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.2)
+
+2026-07-12T19:39:32.216+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.mysuguclientapp.PushNotificationTest   : Starting PushNotificationTest using Java 21.0.11 with PID 86481 (started by issiaka in /mnt/c/Users/Issiaka traoré/Desktop/systalink/mysugu/mysugu-app-api-dev)
+2026-07-12T19:39:32.216+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.mysuguclientapp.PushNotificationTest   : No active profile set, falling back to 1 default profile: "default"
+2026-07-12T19:39:41.140+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-07-12T19:39:43.314+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 2171 ms. Found 47 JPA repository interfaces.
+2026-07-12T19:39:44.259+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-07-12T19:39:44.642+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-07-12T19:39:44.668+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-6 - Starting...
+2026-07-12T19:39:44.688+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-6 - Added connection org.postgresql.jdbc.PgConnection@3f97fd70
+2026-07-12T19:39:44.688+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-6 - Start completed.
+2026-07-12T19:39:44.695+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-07-12T19:39:44.706+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://127.0.0.1:5433/mysugu_test]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 16.13
+	Default catalog/schema: mysugu_test/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-07-12T19:39:46.898+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-07-12T19:39:46.988+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-07-12T19:39:47.022+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] m.mysuguclientapp.config.FirebaseConfig  : Fichier service account non trouvé à : firebase-service-account.json. Tentative de fallback local.
+2026-07-12T19:39:47.022+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] m.mysuguclientapp.config.FirebaseConfig  : Aucun fichier service-account Firebase trouvé. Notifications push désactivées.
+2026-07-12T19:39:47.025+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.config.MinioInitializer              : Initialisation des buckets MinIO...
+2026-07-12T19:39:47.028+01:00 ERROR 86481 --- [MySuguClientApp-test] [           main] m.m.s.implementations.MinioService       : Erreur lors de l'initialisation du bucket MinIO
+
+java.net.ConnectException: Failed to connect to /127.0.0.1:9999
+	at okhttp3.internal.connection.RealConnection.connectSocket(RealConnection.kt:297) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealConnection.connect(RealConnection.kt:207) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.ExchangeFinder.findConnection(ExchangeFinder.kt:226) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.ExchangeFinder.findHealthyConnection(ExchangeFinder.kt:106) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.ExchangeFinder.find(ExchangeFinder.kt:74) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealCall.initExchange$okhttp(RealCall.kt:255) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:32) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:95) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:83) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:76) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:201) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:517) ~[okhttp-4.12.0.jar:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: java.net.ConnectException: Connection refused
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:694) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:542) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:592) ~[na:na]
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:327) ~[na:na]
+	at java.base/java.net.Socket.connect(Socket.java:751) ~[na:na]
+	at okhttp3.internal.platform.Platform.connectSocket(Platform.kt:128) ~[okhttp-4.12.0.jar:na]
+	at okhttp3.internal.connection.RealConnection.connectSocket(RealConnection.kt:295) ~[okhttp-4.12.0.jar:na]
+	... 18 common frames omitted
+
+2026-07-12T19:39:47.029+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.config.MinioInitializer              : Buckets MinIO initialisés avec succès
+2026-07-12T19:39:47.049+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] ma.mysuguclientapp.config.StripeConfig   : Stripe désactivé ou clé API non configurée — paiements par carte ignorés
+2026-07-12T19:39:48.890+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-07-12T19:39:48.947+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2026-07-12T19:39:48.947+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+2026-07-12T19:39:49.219+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-07-12T19:39:49.235+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:39:49.235+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@3d63f979]]
+2026-07-12T19:39:49.235+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:39:49.238+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.mysuguclientapp.PushNotificationTest   : Started PushNotificationTest in 17.142 seconds (process running for 249.441)
+2026-07-12T19:39:49.604+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.DeviceTokenServiceImpl           : Nouveau token FCM enregistré pour l'utilisateur 233 (platform: ANDROID)
+2026-07-12T19:39:49.615+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.DeviceTokenServiceImpl           : Nouveau token FCM enregistré pour l'utilisateur 234 (platform: ANDROID)
+2026-07-12T19:39:49.623+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.DeviceTokenServiceImpl           : Nouveau token FCM enregistré pour l'utilisateur 236 (platform: ANDROID)
+2026-07-12T19:39:49.635+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.DeviceTokenServiceImpl           : Nouveau token FCM enregistré pour l'utilisateur 237 (platform: ANDROID)
+2026-07-12T19:39:49.643+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.DeviceTokenServiceImpl           : Nouveau token FCM enregistré pour l'utilisateur 235 (platform: ANDROID)
+2026-07-12T19:39:49.694+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.CommandeServiceImpl              : Commande creee: CMD-20260712193949-2661 pour un montant de 74.00 (remise: 0)
+2026-07-12T19:39:49.714+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 233
+2026-07-12T19:39:49.718+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 234
+2026-07-12T19:39:49.719+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.CommandeServiceImpl              : Aucun livreur disponible dans un rayon de 15.0km pour la commande CMD-20260712193949-2661
+2026-07-12T19:39:49.728+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 1
+2026-07-12T19:39:49.737+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 2
+2026-07-12T19:39:49.740+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 235
+2026-07-12T19:39:49.740+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.CommandeServiceImpl              : Statut de la commande CMD-20260712193949-2661 mis a jour: CONFIRMEE
+2026-07-12T19:39:49.803+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.CommandeServiceImpl              : Commande creee: CMD-20260712193949-4631 pour un montant de 74.00 (remise: 0)
+2026-07-12T19:39:49.816+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 233
+2026-07-12T19:39:49.821+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 234
+2026-07-12T19:39:49.822+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.CommandeServiceImpl              : Aucun livreur disponible dans un rayon de 15.0km pour la commande CMD-20260712193949-4631
+2026-07-12T19:39:49.826+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 1
+2026-07-12T19:39:49.828+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 236
+2026-07-12T19:39:49.831+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 2
+2026-07-12T19:39:49.833+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 235
+2026-07-12T19:39:49.833+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.CommandeServiceImpl              : Statut de la commande CMD-20260712193949-4631 mis a jour: CONFIRMEE
+2026-07-12T19:39:49.908+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.CommandeServiceImpl              : Statut de la commande CMD-20260712193949-4631 mis a jour: EN_PREPARATION
+2026-07-12T19:39:49.919+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.CommandeServiceImpl              : Statut de la commande CMD-20260712193949-4631 mis a jour: PRETE
+2026-07-12T19:39:49.940+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.CommandeServiceImpl              : Commande creee: CMD-20260712193949-7708 pour un montant de 74.00 (remise: 0)
+2026-07-12T19:39:49.947+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 233
+2026-07-12T19:39:49.949+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 234
+2026-07-12T19:39:49.949+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.CommandeServiceImpl              : Aucun livreur disponible dans un rayon de 15.0km pour la commande CMD-20260712193949-7708
+2026-07-12T19:39:49.952+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 1
+2026-07-12T19:39:49.953+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 236
+2026-07-12T19:39:49.955+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 2
+2026-07-12T19:39:49.956+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 235
+2026-07-12T19:39:49.956+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.CommandeServiceImpl              : Statut de la commande CMD-20260712193949-7708 mis a jour: CONFIRMEE
+2026-07-12T19:39:49.980+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.CommandeServiceImpl              : Commande creee: CMD-20260712193949-1612 pour un montant de 74.00 (remise: 0)
+2026-07-12T19:39:49.988+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 233
+2026-07-12T19:39:49.990+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 234
+2026-07-12T19:39:49.991+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.CommandeServiceImpl              : Aucun livreur disponible dans un rayon de 15.0km pour la commande CMD-20260712193949-1612
+2026-07-12T19:39:49.994+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 1
+2026-07-12T19:39:49.995+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 236
+2026-07-12T19:39:49.997+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 237
+2026-07-12T19:39:50.000+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 2
+2026-07-12T19:39:50.002+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.NotificationServiceImpl          : Notification 'COMMANDE_CONFIRMEE' envoyée à l'utilisateur 235
+2026-07-12T19:39:50.002+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] m.m.s.i.CommandeServiceImpl              : Statut de la commande CMD-20260712193949-1612 mis a jour: CONFIRMEE
+2026-07-12T19:39:50.102+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.error             : HHH000247: ErrorCode: 0, SQLState: 23503
+2026-07-12T19:39:50.102+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] org.hibernate.orm.jdbc.error             : ERROR: update or delete on table "plats" violates foreign key constraint "fk5mibuthu8ele2q3xyve64er5q" on table "lignes_commande"
+  Detail: Key (id)=(96) is still referenced from table "lignes_commande".
+[ERROR] Tests run: 12, Failures: 4, Errors: 3, Skipped: 0, Time elapsed: 18.07 s <<< FAILURE! -- in ma.mysuguclientapp.PushNotificationTest
+[ERROR] ma.mysuguclientapp.PushNotificationTest.confirmCommande_withLivreurDisponible_autoAssigns -- Time elapsed: 0.071 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expecting actual not to be null
+	at ma.mysuguclientapp.PushNotificationTest.confirmCommande_withLivreurDisponible_autoAssigns(PushNotificationTest.java:196)
+
+[ERROR] ma.mysuguclientapp.PushNotificationTest.autoAssign_livreurReceivesLivreurAssigneNotification -- Time elapsed: 0.022 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+Expecting value to be true but was false
+	at ma.mysuguclientapp.PushNotificationTest.autoAssign_livreurReceivesLivreurAssigneNotification(PushNotificationTest.java:217)
+
+[ERROR] ma.mysuguclientapp.PushNotificationTest.getAvailableLivreurs_filtersbyDisponibleAndRadius -- Time elapsed: 0.014 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expecting empty but was: [UserDTO(id=236, email=test.livreur.push@mysugu.test, nom=LivreurPush, prenom=Test, telephone=null, role=LIVREUR, avatar=null, localisation=LocalisationDTO(latitude=33.585, longitude=-7.605, adresse=Avenue Hassan II, ville=Casablanca, codePostal=null, pays=Maroc), isActive=true, livreurDisponible=true, createdAt=2026-07-12T19:39:49.520023)]
+	at ma.mysuguclientapp.PushNotificationTest.getAvailableLivreurs_filtersbyDisponibleAndRadius(PushNotificationTest.java:240)
+
+[ERROR] ma.mysuguclientapp.PushNotificationTest.deliveryCompleted_livreurBecomesAvailableAgain -- Time elapsed: 0.026 s <<< ERROR!
+ma.mysuguclientapp.exceptions.BadRequestException: Transition de statut invalide: PRETE -> EN_COURS
+	at ma.mysuguclientapp.services.implementations.CommandeServiceImpl.validateStatusTransition(CommandeServiceImpl.java:860)
+	at ma.mysuguclientapp.services.implementations.CommandeServiceImpl.updateCommandeStatus(CommandeServiceImpl.java:354)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158)
+	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:133)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:371)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:130)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719)
+	at ma.mysuguclientapp.services.implementations.CommandeServiceImpl$$SpringCGLIB$$0.updateCommandeStatus(<generated>)
+	at ma.mysuguclientapp.PushNotificationTest.updateStatut(PushNotificationTest.java:412)
+	at ma.mysuguclientapp.PushNotificationTest.deliveryCompleted_livreurBecomesAvailableAgain(PushNotificationTest.java:261)
+
+[ERROR] ma.mysuguclientapp.PushNotificationTest.cancelCommande_livreurBecomesAvailableAgain -- Time elapsed: 0.035 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expecting actual not to be null
+	at ma.mysuguclientapp.PushNotificationTest.cancelCommande_livreurBecomesAvailableAgain(PushNotificationTest.java:283)
+
+[ERROR] ma.mysuguclientapp.PushNotificationTest.manualReassign_releasesOldLivreur -- Time elapsed: 0.046 s <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "ma.mysuguclientapp.entities.User.getId()" because the return value of "ma.mysuguclientapp.entities.Commande.getLivreur()" is null
+	at ma.mysuguclientapp.PushNotificationTest.manualReassign_releasesOldLivreur(PushNotificationTest.java:315)
+
+[ERROR] ma.mysuguclientapp.PushNotificationTest -- Time elapsed: 18.07 s <<< ERROR!
+org.springframework.dao.DataIntegrityViolationException: 
+could not execute statement [ERROR: update or delete on table "plats" violates foreign key constraint "fk5mibuthu8ele2q3xyve64er5q" on table "lignes_commande"
+  Detail: Key (id)=(96) is still referenced from table "lignes_commande".] [delete from plats where id=?]; SQL [delete from plats where id=?]; constraint [fk5mibuthu8ele2q3xyve64er5q]
+	at org.springframework.orm.jpa.hibernate.HibernateExceptionTranslator.convertHibernateAccessException(HibernateExceptionTranslator.java:169)
+	at org.springframework.orm.jpa.hibernate.HibernateExceptionTranslator.convertHibernateAccessException(HibernateExceptionTranslator.java:131)
+	at org.springframework.orm.jpa.hibernate.HibernateExceptionTranslator.translateExceptionIfPossible(HibernateExceptionTranslator.java:105)
+	at org.springframework.orm.jpa.vendor.HibernateJpaDialect.translateExceptionIfPossible(HibernateJpaDialect.java:199)
+	at org.springframework.orm.jpa.JpaTransactionManager.doCommit(JpaTransactionManager.java:557)
+	at org.springframework.transaction.support.AbstractPlatformTransactionManager.processCommit(AbstractPlatformTransactionManager.java:794)
+	at org.springframework.transaction.support.AbstractPlatformTransactionManager.commit(AbstractPlatformTransactionManager.java:757)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.commitTransactionAfterReturning(TransactionAspectSupport.java:687)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:408)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:130)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179)
+	at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:135)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179)
+	at org.springframework.data.jpa.repository.support.CrudMethodMetadataPostProcessor$CrudMethodMetadataPopulatingMethodInterceptor.invoke(CrudMethodMetadataPostProcessor.java:166)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179)
+	at org.springframework.aop.framework.JdkDynamicAopProxy.invoke(JdkDynamicAopProxy.java:222)
+	at jdk.proxy2/jdk.proxy2.$Proxy258.deleteById(Unknown Source)
+	at ma.mysuguclientapp.PushNotificationTest.tearDown(PushNotificationTest.java:353)
+Caused by: org.hibernate.exception.ConstraintViolationException: could not execute statement [ERROR: update or delete on table "plats" violates foreign key constraint "fk5mibuthu8ele2q3xyve64er5q" on table "lignes_commande"
+  Detail: Key (id)=(96) is still referenced from table "lignes_commande".] [delete from plats where id=?]
+	at org.hibernate.exception.internal.SQLStateConversionDelegate.convert(SQLStateConversionDelegate.java:73)
+	at org.hibernate.exception.internal.StandardSQLExceptionConverter.convert(StandardSQLExceptionConverter.java:34)
+	at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:115)
+	at org.hibernate.engine.jdbc.internal.ResultSetReturnImpl.executeUpdate(ResultSetReturnImpl.java:184)
+	at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.performNonBatchedMutation(AbstractMutationExecutor.java:145)
+	at org.hibernate.engine.jdbc.mutation.internal.MutationExecutorSingleNonBatched.performNonBatchedOperations(MutationExecutorSingleNonBatched.java:53)
+	at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.execute(AbstractMutationExecutor.java:66)
+	at org.hibernate.persister.entity.mutation.AbstractDeleteCoordinator.doStaticDelete(AbstractDeleteCoordinator.java:268)
+	at org.hibernate.persister.entity.mutation.AbstractDeleteCoordinator.delete(AbstractDeleteCoordinator.java:79)
+	at org.hibernate.action.internal.EntityDeleteAction.execute(EntityDeleteAction.java:119)
+	at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:634)
+	at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:505)
+	at org.hibernate.event.internal.AbstractFlushingEventListener.performExecutions(AbstractFlushingEventListener.java:381)
+	at org.hibernate.event.internal.DefaultFlushEventListener.onFlush(DefaultFlushEventListener.java:40)
+	at org.hibernate.event.service.internal.EventListenerGroupImpl.fireEventOnEachListener(EventListenerGroupImpl.java:138)
+	at org.hibernate.internal.SessionImpl.fireFlush(SessionImpl.java:1489)
+	at org.hibernate.internal.SessionImpl.managedFlush(SessionImpl.java:481)
+	at org.hibernate.internal.SessionImpl.flushBeforeTransactionCompletion(SessionImpl.java:2116)
+	at org.hibernate.internal.SessionImpl.beforeTransactionCompletion(SessionImpl.java:2038)
+	at org.hibernate.engine.jdbc.internal.JdbcCoordinatorImpl.beforeTransactionCompletion(JdbcCoordinatorImpl.java:410)
+	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl.beforeCompletionCallback(JdbcResourceLocalTransactionCoordinatorImpl.java:166)
+	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl$TransactionDriverControlImpl.commitNoRollbackOnly(JdbcResourceLocalTransactionCoordinatorImpl.java:248)
+	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl$TransactionDriverControlImpl.commit(JdbcResourceLocalTransactionCoordinatorImpl.java:242)
+	at org.hibernate.engine.transaction.internal.TransactionImpl.commit(TransactionImpl.java:89)
+	at org.springframework.orm.jpa.JpaTransactionManager.doCommit(JpaTransactionManager.java:553)
+	... 13 more
+Caused by: org.postgresql.util.PSQLException: ERROR: update or delete on table "plats" violates foreign key constraint "fk5mibuthu8ele2q3xyve64er5q" on table "lignes_commande"
+  Detail: Key (id)=(96) is still referenced from table "lignes_commande".
+	at org.postgresql.core.v3.QueryExecutorImpl.receiveErrorResponse(QueryExecutorImpl.java:2846)
+	at org.postgresql.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:2531)
+	at org.postgresql.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:429)
+	at org.postgresql.jdbc.PgStatement.executeInternal(PgStatement.java:526)
+	at org.postgresql.jdbc.PgStatement.execute(PgStatement.java:436)
+	at org.postgresql.jdbc.PgPreparedStatement.executeWithFlags(PgPreparedStatement.java:196)
+	at org.postgresql.jdbc.PgPreparedStatement.executeUpdate(PgPreparedStatement.java:157)
+	at com.zaxxer.hikari.pool.ProxyPreparedStatement.executeUpdate(ProxyPreparedStatement.java:61)
+	at com.zaxxer.hikari.pool.HikariProxyPreparedStatement.executeUpdate(HikariProxyPreparedStatement.java)
+	at org.hibernate.engine.jdbc.internal.ResultSetReturnImpl.executeUpdate(ResultSetReturnImpl.java:181)
+	... 34 more
+
+2026-07-12T19:39:50.337+01:00  WARN 86481 --- [MySuguClientApp-test] [           main] m.m.s.implementations.AppleAuthService   : Echec validation token Apple: Invalid JWT serialization: Missing dot delimiter(s)
+2026-07-12T19:39:50.360+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.services.CodePromoUpdateTest]: CodePromoUpdateTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:51.067+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.services.CodePromoUpdateTest
+2026-07-12T19:39:51.068+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-07-12T19:39:51.068+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@3d63f979]]
+2026-07-12T19:39:51.068+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+2026-07-12T19:39:51.069+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-07-12T19:39:51.069+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@1027847b]]
+2026-07-12T19:39:51.069+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-07-12T19:39:51.069+01:00  INFO 86481 --- [MySuguClientApp-test] [MessageBroker-1] o.s.w.s.c.WebSocketMessageBrokerStats    : WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 4, active threads = 1, queued tasks = 3, completed tasks = 0]
+2026-07-12T19:39:51.877+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.VerticalFilterTest]: VerticalFilterTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:51.885+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.VerticalFilterTest
+2026-07-12T19:39:51.997+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [ma.mysuguclientapp.ZoneAttenteNotificationServiceTest]: ZoneAttenteNotificationServiceTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-12T19:39:52.003+01:00  INFO 86481 --- [MySuguClientApp-test] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration ma.mysuguclientapp.MySuguClientAppApplication for test class ma.mysuguclientapp.ZoneAttenteNotificationServiceTest
+[ERROR] Failures: 
+[ERROR]   PushNotificationTest.autoAssign_livreurReceivesLivreurAssigneNotification:217 
+Expecting value to be true but was false
+[ERROR]   PushNotificationTest.cancelCommande_livreurBecomesAvailableAgain:283 
+Expecting actual not to be null
+[ERROR]   PushNotificationTest.confirmCommande_withLivreurDisponible_autoAssigns:196 
+Expecting actual not to be null
+[ERROR]   PushNotificationTest.getAvailableLivreurs_filtersbyDisponibleAndRadius:240 
+Expecting empty but was: [UserDTO(id=236, email=test.livreur.push@mysugu.test, nom=LivreurPush, prenom=Test, telephone=null, role=LIVREUR, avatar=null, localisation=LocalisationDTO(latitude=33.585, longitude=-7.605, adresse=Avenue Hassan II, ville=Casablanca, codePostal=null, pays=Maroc), isActive=true, livreurDisponible=true, createdAt=2026-07-12T19:39:49.520023)]
+[ERROR] Errors: 
+[ERROR]   PushNotificationTest.deliveryCompleted_livreurBecomesAvailableAgain:261->updateStatut:412 » BadRequest Transition de statut invalide: PRETE -> EN_COURS
+[ERROR]   PushNotificationTest.manualReassign_releasesOldLivreur:315 NullPointer Cannot invoke "ma.mysuguclientapp.entities.User.getId()" because the return value of "ma.mysuguclientapp.entities.Commande.getLivreur()" is null
+[ERROR]   PushNotificationTest.tearDown:353 » DataIntegrityViolation could not execute statement [ERROR: update or delete on table "plats" violates foreign key constraint "fk5mibuthu8ele2q3xyve64er5q" on table "lignes_commande"
+  Detail: Key (id)=(96) is still referenced from table "lignes_commande".] [delete from plats where id=?]; SQL [delete from plats where id=?]; constraint [fk5mibuthu8ele2q3xyve64er5q]
+[ERROR] Tests run: 181, Failures: 4, Errors: 3, Skipped: 0
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.4:test (default-test) on project MySuguClientApp: There are test failures.
+[ERROR] 
+[ERROR] See /mnt/c/Users/Issiaka traoré/Desktop/systalink/mysugu/mysugu-app-api-dev/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
