@@ -66,7 +66,16 @@ public class SecurityConfig {
                                 "/api/integrations/tiktak/**",
                                 // Legacy shim livreur (app Tiktak/moso) : auth publique + config au splash
                                 "/api/v2/delivery-man/auth/**",
-                                "/api/v1/config"
+                                "/api/v1/config",
+                                // Legacy shim client (app MySuKu) : login/register publics
+                                "/api/v1/auth/**",
+                                // Legacy shim vendeur (app Tiktak-vendor/moso) : auth + inscription publiques
+                                "/api/v3/seller/auth/**",
+                                "/api/v3/seller/registration",
+                                // Endpoints boot partagés 6valley (stubs bénins, jamais 500/404)
+                                "/api/v1/attributes",
+                                "/api/v1/categories/childes/**",
+                                "/api/v1/mapapi/**"
                         ).permitAll()
 
                         // WebSocket endpoint
@@ -190,6 +199,11 @@ public class SecurityConfig {
                         // Legacy shim livreur (app Tiktak/moso) : tout le reste du namespace exige LIVREUR.
                         // (auth/** et /api/v1/config sont déjà en permitAll plus haut.)
                         .requestMatchers("/api/v2/delivery-man/**").hasRole("LIVREUR")
+
+                        // Legacy shim vendeur (app Tiktak-vendor/moso) : tout le reste du namespace exige
+                        // une authentification ; le rôle RESTAURANT_OWNER est vérifié par SellerContext.
+                        // (auth/** et registration sont déjà en permitAll plus haut.)
+                        .requestMatchers("/api/v3/seller/**").authenticated()
 
                         // Facturation restaurant
                         .requestMatchers("/api/facturation-restaurant/**").hasAnyRole("RESTAURANT_OWNER", "ADMIN")

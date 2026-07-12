@@ -7,6 +7,8 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+// Retire after prod cutover (still read by ChatMigrationRunner)
+@Deprecated
 @Repository
 public interface ConversationRepository extends JpaRepository<Conversation, Long> {
 

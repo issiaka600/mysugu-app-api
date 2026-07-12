@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+// TODO(Task 9): drop after cutover — legacy System A chat, migrated into the unified store (ChatMigrationRunner).
 /**
  * Message de chat livreur <-> interlocuteur (client/vendeur/admin). Feature ABSENTE de MySugu,
  * reconstruite pour le shim (contrat 6valley §5.14–§5.17).
@@ -17,6 +18,8 @@ import java.util.List;
  * TIKTAK_LIVREUR_MIGRATION_TECHSPEC.md §9. Le livreur peut envoyer/consulter ; la réception
  * côté client reste à câbler dans l'app client.
  */
+// Retire after prod cutover (still read by ChatMigrationRunner)
+@Deprecated
 @Entity
 @Table(name = "messages_livreur",
         indexes = @Index(name = "idx_msg_livreur_conv", columnList = "livreur_id,interlocuteur_type,interlocuteur_id"))
