@@ -1,6 +1,7 @@
 package ma.mysuguclientapp.repositories;
 
 import ma.mysuguclientapp.entities.Commande;
+import ma.mysuguclientapp.entities.User;
 import ma.mysuguclientapp.enumerations.StatutCommande;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -58,4 +59,16 @@ public interface CommandeRepository extends JpaRepository<Commande, Long> {
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM Commande c WHERE c.id = :id")
     Optional<Commande> findByIdForUpdate(Long id);
+
+    // --- Vendor shim 3e: derivation-only (vendor->livreur ownership is NOT native, umbrella §4
+    // GAP; 3e SCOPE DECISION). These derive the "roster" of livreurs who actually served a given
+    // restaurant, read-only, from existing Commande rows — no ownership FK is created. ---
+
+    /** Distinct livreurs who delivered at least one order for this restaurant (the derived roster). */
+    @Query("SELECT DISTINCT c.livreur FROM Commande c WHERE c.restaurant.id = :rid AND c.livreur IS NOT NULL")
+    List<User> findDistinctLivreursByRestaurant(Long rid);
+
+    /** Orders a given livreur delivered for a given restaurant (order-list/earning derivation). */
+    @Query("SELECT c FROM Commande c WHERE c.livreur.id = :lid AND c.restaurant.id = :rid ORDER BY c.createdAt DESC")
+    List<Commande> findByLivreurAndRestaurant(Long lid, Long rid);
 }
