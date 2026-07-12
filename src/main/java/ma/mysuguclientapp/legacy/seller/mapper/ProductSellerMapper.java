@@ -165,4 +165,15 @@ public class ProductSellerMapper {
         m.put(key, List.of());
         return m;
     }
+
+    /**
+     * Benign empty review envelope (product_review_model.dart shape): {total_size, limit,
+     * offset, reviews:[], average_rating:0}. // GAP: Avis is restaurant-level, not per-product
+     * (umbrella §4).
+     */
+    public Map<String, Object> emptyReviewEnvelope(int limit, int offset) {
+        Map<String, Object> m = emptyEnvelope("reviews", limit, offset);
+        m.put("average_rating", 0);
+        return m;
+    }
 }
