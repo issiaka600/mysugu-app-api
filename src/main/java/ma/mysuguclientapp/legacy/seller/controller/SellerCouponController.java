@@ -15,6 +15,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -52,5 +53,25 @@ public class SellerCouponController {
         promo.setCreatedBy(owner);
         CodePromo saved = codePromoRepository.save(promo);
         return mapper.toSixValley(codePromoService.getCodePromo(saved.getId()));
+    }
+
+    /**
+     * GET coupon/list?limit&offset : coupons du vendeur authentifié (filtre createdBy = owner),
+     * enveloppe de pagination 6valley {total_size, limit, offset, coupons:[...]}.
+     */
+    @GetMapping("/list")
+    public Map<String, Object> list(@AuthenticationPrincipal String email,
+                                    @RequestParam(defaultValue = "10") int limit,
+                                    @RequestParam(defaultValue = "0") int offset) {
+        User owner = sellerContext.requireOwner(email);
+        List<CodePromo> all = codePromoRepository.findByCreatedById(owner.getId());
+        int total = all.size();
+        int safeLimit = Math.max(limit, 0);
+        int from = Math.min(Math.max(offset, 0), total);
+        int to = safeLimit == 0 ? from : Math.min(from + safeLimit, total);
+        List<Map<String, Object>> coupons = all.subList(from, to).stream()
+                .map(promo -> mapper.toSixValley(codePromoService.getCodePromo(promo.getId())))
+                .toList();
+        return mapper.listEnvelope(coupons, total, limit, offset);
     }
 }
