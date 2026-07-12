@@ -162,6 +162,18 @@ public class SellerCouponController {
     }
 
     /**
+     * GET coupon/customers?name= : STUB — mysugu n'a pas de ciblage client / coupons par client
+     * (spec §7). Renvoie une liste vide bénigne {customers:[]} (jamais 404/500).
+     * // STUB: no native customer targeting (umbrella §4 GAP handling; spec §7).
+     */
+    @GetMapping("/customers")
+    public Map<String, Object> customers(@AuthenticationPrincipal String email,
+                                         @RequestParam(value = "name", required = false) String name) {
+        sellerContext.requireOwner(email); // 403 si non-vendeur
+        return Map.of("customers", List.of());
+    }
+
+    /**
      * Charge le coupon par id et vérifie qu'il a été créé par le vendeur authentifié. Sinon 404
      * (jamais de fuite/mutation cross-vendeur) — garde réutilisée par update/status/delete
      * (miroir de {@code ownedOrder}/{@code ownedPlat} des tranches précédentes).
