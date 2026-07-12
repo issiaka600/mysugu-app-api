@@ -102,4 +102,45 @@ public class SellerFinanceController {
         sellerContext.requireOwner(email);
         return mapper.success("Demande de retrait annulée.");
     }
+
+    /**
+     * GET refund/list : STUB bénin — aucun domaine de remboursement natif (le "refund" n'existe
+     * que dans les internals Stripe, spec 3f §2/§3 GAP). Réponse = TABLEAU JSON NU vide (confirmé
+     * 3f.0 contre {@code refund_controller.dart}). Jamais 500.
+     * STUB: no native seller wallet/withdraw/refund (spec 3f SCOPE DECISION, umbrella §4).
+     */
+    @GetMapping("/refund/list")
+    public List<Map<String, Object>> refundList(@AuthenticationPrincipal String email) {
+        sellerContext.requireOwner(email);
+        return List.of();
+    }
+
+    /**
+     * GET refund/refund-details?order_details_id= : STUB bénin — objet unique, tous les champs
+     * numériques à {@code 0} non nul ({@code RefundDetailsModel.fromJson} fait
+     * {@code json['<champ>'].toDouble()} SANS garde de nullité — confirmé 3f.0). Requête par
+     * QUERY PARAM {@code order_details_id}, PAS un path variable {@code {id}} (déviation vs la
+     * conception initiale de la spec). Jamais 404/500.
+     * STUB: no native seller wallet/withdraw/refund (spec 3f SCOPE DECISION, umbrella §4).
+     */
+    @GetMapping("/refund/refund-details")
+    public Map<String, Object> refundDetails(@AuthenticationPrincipal String email,
+                                              @RequestParam(value = "order_details_id", required = false) Long orderDetailsId) {
+        sellerContext.requireOwner(email);
+        return mapper.refundDetailsStub();
+    }
+
+    /**
+     * POST refund/refund-status-update {refund_status, refund_request_id, note} : STUB bénin
+     * succès-no-op (l'app ne lit que le statusCode — confirmé 3f.0 contre
+     * {@code refund_controller.dart::updateRefundStatus}). Jamais 500.
+     * STUB: no native seller wallet/withdraw/refund (spec 3f SCOPE DECISION, umbrella §4). Needs
+     * product-owner sign-off for a real build.
+     */
+    @PostMapping("/refund/refund-status-update")
+    public Map<String, Object> refundStatusUpdate(@AuthenticationPrincipal String email,
+                                                   @RequestBody(required = false) Map<String, Object> body) {
+        sellerContext.requireOwner(email);
+        return mapper.success("Statut du remboursement mis à jour.");
+    }
 }
