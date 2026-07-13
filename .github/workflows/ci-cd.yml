@@ -17,6 +17,7 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment: dev          # deploy secrets (DEPLOY_SSH_KEY, ...) live in the "dev" environment
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,10 +42,15 @@ jobs:
           echo "path=$JAR" >> "$GITHUB_OUTPUT"
 
       - name: Load deploy key
+        env:
+          DEPLOY_SSH_KEY_B64: ${{ secrets.DEPLOY_SSH_KEY }}   # base64 (single line) of the OpenSSH private key
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          # DEPLOY_SSH_KEY is the base64 (single line) of the OpenSSH private key
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" | base64 -d > ~/.ssh/deploy_key
+          if [ -z "$DEPLOY_SSH_KEY_B64" ]; then
+            echo "::error::DEPLOY_SSH_KEY is empty — check it exists in the 'dev' environment and the job declares 'environment: dev'"
+            exit 1
+          fi
+          printf '%s' "$DEPLOY_SSH_KEY_B64" | base64 -d > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keygen -y -f ~/.ssh/deploy_key >/dev/null   # fail fast if the key is malformed
           ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
