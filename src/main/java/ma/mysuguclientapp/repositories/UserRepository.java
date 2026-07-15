@@ -30,5 +30,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     // --- Legacy livreur (shim Tiktak) : login/reset par téléphone ---
     List<User> findByTelephoneAndRole(String telephone, UserRole role);
+    List<User> findByTelephoneInAndRole(java.util.Collection<String> telephones, UserRole role);
     List<User> findByTelephone(String telephone);
 }

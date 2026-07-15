@@ -50,7 +50,7 @@ public class DeliveryManAuthController {
             return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
                     .body(ErrorsResponse.of("credential", "Téléphone et mot de passe requis."));
         }
-        User livreur = findLivreurByPhone(req.phone());
+        User livreur = findLivreurByPhone(req.countryCode(), req.phone());
         if (livreur == null || !passwordEncoder.matches(req.password(), livreur.getPassword())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ErrorsResponse.of("auth-001", "Identifiants incorrects."));
@@ -71,7 +71,7 @@ public class DeliveryManAuthController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(ErrorsResponse.of("not-found", "Numéro de téléphone requis."));
         }
-        User livreur = findLivreurByPhone(phone);
+        User livreur = findLivreurByPhone(countryCode, phone);
         if (livreur == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(ErrorsResponse.of("not-found", "Aucun compte livreur pour ce numéro."));
@@ -127,13 +127,14 @@ public class DeliveryManAuthController {
     @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<?> resetPassword(@RequestBody Map<String, Object> body) {
         String phone = str(body.get("phone"));
+        String countryCode = str(body.get("country_code"));
         String password = str(body.get("password"));
         String confirm = str(body.get("confirm_password"));
         if (password == null || password.length() < 8 || !password.equals(confirm)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(ErrorsResponse.of("password", "Mot de passe invalide ou non confirmé (min 8)."));
         }
-        User livreur = phone != null ? findLivreurByPhone(phone) : null;
+        User livreur = phone != null ? findLivreurByPhone(countryCode, phone) : null;
         if (livreur == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(ErrorsResponse.of("not-found", "Compte introuvable."));
@@ -144,10 +145,59 @@ public class DeliveryManAuthController {
         return ResponseEntity.ok(new MessageResponse("Mot de passe réinitialisé avec succès."));
     }
 
-    /** Résout un livreur par téléphone (numéro tel que saisi par l'app). Premier match LIVREUR. */
-    private User findLivreurByPhone(String phone) {
-        List<User> matches = userRepository.findByTelephoneAndRole(phone, UserRole.LIVREUR);
+    /**
+     * Résout un livreur à partir de l'indicatif + numéro tels qu'envoyés par l'app Tiktak
+     * (country_code="212" et phone = numéro local saisi), alors que {@code User.telephone} est
+     * stocké en E.164 ("+212..."). On génère les variantes plausibles et on matche la première
+     * correspondance LIVREUR. Voir {@link #phoneCandidates(String, String)}.
+     */
+    private User findLivreurByPhone(String countryCode, String phone) {
+        java.util.Set<String> candidates = phoneCandidates(countryCode, phone);
+        if (candidates.isEmpty()) {
+            return null;
+        }
+        List<User> matches = userRepository.findByTelephoneInAndRole(candidates, UserRole.LIVREUR);
         return matches.isEmpty() ? null : matches.get(0);
+    }
+
+    /**
+     * Variantes de téléphone possibles pour un couple (indicatif, numéro saisi).
+     * Reconstruit notamment la forme E.164 stockée ("+" + indicatif + numéro local sans le 0 de
+     * préfixe national), tout en gardant les formes brutes pour la compatibilité ascendante.
+     */
+    public static java.util.Set<String> phoneCandidates(String countryCode, String phone) {
+        java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
+        if (phone == null) {
+            return out;
+        }
+        String raw = phone.trim();
+        if (raw.isEmpty()) {
+            return out;
+        }
+        out.add(raw); // tel quel (couvre le cas où l'app enverrait déjà "+212...")
+        String cc = countryCode == null ? "" : countryCode.replaceAll("[^0-9]", "");
+        String digits = raw.replaceAll("[^0-9]", "");
+        if (digits.isEmpty()) {
+            return out;
+        }
+        // Partie locale : sans l'indicatif éventuellement déjà présent, sans le 0 de préfixe national.
+        String local = digits;
+        if (!cc.isEmpty() && local.startsWith(cc)) {
+            local = local.substring(cc.length());
+        }
+        local = local.replaceFirst("^0+", "");
+        if (!local.isEmpty()) {
+            if (!cc.isEmpty()) {
+                out.add("+" + cc + local);
+                out.add(cc + local);
+                out.add("00" + cc + local);
+            }
+            out.add(local);
+            out.add("0" + local);
+        }
+        out.add("+" + digits);
+        out.add(digits);
+        return out;
     }
 
     private static String str(Object o) {

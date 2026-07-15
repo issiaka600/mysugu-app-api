@@ -157,6 +157,17 @@ class DeliveryManShimContractTest {
     // ---------- tests ----------
 
     @Test
+    void login_realAppSplitPayload_succeeds() throws Exception {
+        // Reproduit le payload RÉEL de l'app Tiktak : indicatif sans '+' ("212") et numéro LOCAL
+        // ("600000001", tel que saisi, sans indicatif), alors que User.telephone est stocké en
+        // E.164 ("+212600000001"). L'ancien matching exact renvoyait 401 ; la normalisation corrige.
+        Resp r = doPost("/api/v2/delivery-man/auth/login",
+                Map.of("country_code", "212", "phone", "600000001", "password", "demo1234"), null);
+        assertThat(r.status()).isEqualTo(200);
+        assertThat(M.readTree(r.body()).hasNonNull("token")).isTrue();
+    }
+
+    @Test
     void config_hasLanguageAndUnitAsArrays() throws Exception {
         JsonNode c = M.readTree(doGet("/api/v1/config", null).body());
         assertThat(c.get("language").isArray()).isTrue();
