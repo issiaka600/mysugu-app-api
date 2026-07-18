@@ -141,6 +141,45 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Erreurs de requête client standard de Spring MVC : paramètre/en-tête/part manquant, type
+     * invalide, corps JSON illisible, violation de contrainte sur paramètre. Sans ce handler, le
+     * catch-all {@code Exception} plus bas les transformait en 500 alors que ce sont des 400
+     * (entrée client invalide) — d'où les nombreux 500 « required parameter not present ».
+     */
+    @ExceptionHandler({
+            org.springframework.web.bind.MissingServletRequestParameterException.class,
+            org.springframework.web.bind.MissingRequestHeaderException.class,
+            org.springframework.web.multipart.support.MissingServletRequestPartException.class,
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
+            org.springframework.http.converter.HttpMessageNotReadableException.class,
+            jakarta.validation.ConstraintViolationException.class
+    })
+    public ResponseEntity<ErrorResponse> handleClientInputErrors(Exception ex, WebRequest request) {
+        log.warn("Requête client invalide (400): {}", ex.getMessage());
+        return new ResponseEntity<>(buildError(
+                HttpStatus.BAD_REQUEST,
+                "Bad Request",
+                ex.getMessage(),
+                request),
+                HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Méthode HTTP non supportée sur la route -> 405 (et non 500).
+     */
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotSupported(
+            org.springframework.web.HttpRequestMethodNotSupportedException ex, WebRequest request) {
+        log.warn("Méthode non supportée (405): {}", ex.getMessage());
+        return new ResponseEntity<>(buildError(
+                HttpStatus.METHOD_NOT_ALLOWED,
+                "Method Not Allowed",
+                ex.getMessage(),
+                request),
+                HttpStatus.METHOD_NOT_ALLOWED);
+    }
+
+    /**
      * Gestion des erreurs génériques (500)
      */
     @ExceptionHandler(Exception.class)

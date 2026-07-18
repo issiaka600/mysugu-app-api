@@ -241,7 +241,8 @@ public class AuthEnhancedServiceImpl implements AuthEnhancedService {
         }
         AdresseLivraison adresse = AdresseLivraison.builder()
                 .user(user)
-                .libelle(dto.getLibelle())
+                // libelle est NOT NULL en base mais optionnel côté app -> défaut si absent (sinon 500 contrainte)
+                .libelle(dto.getLibelle() != null && !dto.getLibelle().isBlank() ? dto.getLibelle() : "Adresse")
                 .adresse(dto.getAdresse())
                 .complement(dto.getComplement())
                 .ville(dto.getVille())

@@ -33,7 +33,7 @@ public class WalletServiceImpl implements WalletService {
     private final UserRepository userRepository;
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional // PAS readOnly : getOrCreateWallet insère le wallet au 1er accès (sinon 500 "INSERT in read-only tx")
     public WalletDTO getWallet(Long userId) {
         Wallet wallet = getOrCreateWallet(userId);
         return toDTO(wallet);

@@ -108,6 +108,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/users/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/statistiques/**").hasRole("ADMIN")
+                        // Endpoints codes-promo destinés au CLIENT (doivent précéder le /** ADMIN qui les masquait -> 403)
+                        .requestMatchers(HttpMethod.GET, "/api/codes-promo/disponibles").hasAnyRole("CLIENT", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/codes-promo/valider").hasAnyRole("CLIENT", "ADMIN")
                         .requestMatchers("/api/codes-promo/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/promotions").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/promotions/**").hasRole("ADMIN")
@@ -161,7 +164,7 @@ public class SecurityConfig {
 
                         // Avis (client soumettre, public lire)
                         .requestMatchers(HttpMethod.POST, "/api/avis").hasRole("CLIENT")
-                        .requestMatchers(HttpMethod.GET, "/api/avis/restaurant/*/status").hasAnyRole("ADMIN", "RESTAURANT_OWNER")
+                        .requestMatchers(HttpMethod.GET, "/api/avis/restaurant/*/status").hasAnyRole("CLIENT", "ADMIN", "RESTAURANT_OWNER")
                         .requestMatchers(HttpMethod.GET, "/api/avis/**").permitAll()
                         .requestMatchers("/api/avis/*/moderer").hasRole("ADMIN")
 

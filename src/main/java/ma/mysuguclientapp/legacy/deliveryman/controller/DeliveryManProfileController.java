@@ -89,8 +89,13 @@ public class DeliveryManProfileController {
     @PostMapping("/change-status")
     public MessageResponse changeStatus(@AuthenticationPrincipal String email, @RequestBody Map<String, Object> body) {
         User l = livreur(email);
+        // 6valley "change-status" bascule la DISPONIBILITÉ (en ligne/hors-ligne), PAS l'activation
+        // du compte. Anciennement setIsActive(...) : un appel sans champ "status" (status=null)
+        // désactivait le compte livreur et bloquait TOUT login/appel (auth-002). On mappe donc sur
+        // livreurDisponible et on ne touche JAMAIS isActive ici.
         String s = str(body.get("status"));
-        l.setIsActive("1".equals(s) || Boolean.TRUE.equals(body.get("status")));
+        boolean online = "1".equals(s) || Boolean.TRUE.equals(body.get("status"));
+        l.setLivreurDisponible(online);
         userRepository.save(l);
         return new MessageResponse("Status changed successfully");
     }

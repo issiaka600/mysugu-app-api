@@ -36,7 +36,7 @@ public class FideliteServiceImpl implements FideliteService {
     private final UserRepository userRepository;
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional // PAS readOnly : getOrCreatePoints insère la ligne au 1er accès (sinon 500 "INSERT in read-only tx")
     public PointsFideliteDTO getPoints(Long userId) {
         PointsFidelite pf = getOrCreatePoints(userId);
         return toDTO(pf);
@@ -71,7 +71,7 @@ public class FideliteServiceImpl implements FideliteService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional // PAS readOnly : getOrCreatePoints peut insérer la ligne au 1er accès
     public Page<TransactionPointsDTO> getHistoriquePoints(Long userId, Pageable pageable) {
         PointsFidelite pf = getOrCreatePoints(userId);
         return transactionPointsRepository.findByPointsFideliteIdOrderByCreatedAtDesc(pf.getId(), pageable)
