@@ -2,8 +2,8 @@ package ma.mysuguclientapp.legacy.seller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import ma.mysuguclientapp.dtos.restaurant.RestaurantDashboardDTO;
 import ma.mysuguclientapp.entities.Restaurant;
+import ma.mysuguclientapp.enumerations.StatutCommande;
 import ma.mysuguclientapp.entities.User;
 import ma.mysuguclientapp.enumerations.UserRole;
 import ma.mysuguclientapp.legacy.seller.mapper.SellerStatsMapper;
@@ -23,6 +23,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.EnumMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -78,67 +79,60 @@ class SellerOrderStatisticsTest {
         userRepo.findById(ownerId).ifPresent(userRepo::delete);
     }
 
-    private RestaurantDashboardDTO distinctDto() {
-        return RestaurantDashboardDTO.builder()
-                .restaurantId(1L).restaurantNom("Boutique")
-                .commandesAujourdhui(3L).commandesLivreesAujourdhui(2L).commandesAnnuleesAujourdhui(1L)
-                .commandesSemaine(10L).commandesMois(25L)
-                .totalCommandes(99L)
-                .commandesEnCours(4L).commandesEnPreparation(5L)
-                .build();
+    private static Map<StatutCommande, Long> counts(Object... pairs) {
+        Map<StatutCommande, Long> m = new EnumMap<>(StatutCommande.class);
+        for (int i = 0; i < pairs.length; i += 2) {
+            m.put((StatutCommande) pairs[i], (Long) pairs[i + 1]);
+        }
+        return m;
     }
 
     @Test
-    void mapper_today_uses_today_buckets() {
-        Map<String, Object> m = mapper.orderStatistics(distinctDto(), "today");
-        assertThat(m.get("total")).isEqualTo(3L);
-        assertThat(m.get("delivered")).isEqualTo(2L);
+    void mapper_maps_each_status_to_its_6valley_bucket() {
+        Map<String, Object> m = mapper.orderStatistics(counts(
+                StatutCommande.EN_ATTENTE, 2L,
+                StatutCommande.CONFIRMEE, 1L,
+                StatutCommande.EN_PREPARATION, 3L,
+                StatutCommande.PRETE, 1L,
+                StatutCommande.ASSIGNEE_LIVREUR, 1L,
+                StatutCommande.EN_COURS, 2L,
+                StatutCommande.LIVREE, 5L,
+                StatutCommande.ANNULEE, 1L,
+                StatutCommande.NON_FINALISEE, 1L));
+        assertThat(m.get("pending")).isEqualTo(2L);
+        assertThat(m.get("confirmed")).isEqualTo(1L);
+        assertThat(m.get("processing")).isEqualTo(4L);        // EN_PREPARATION + PRETE
+        assertThat(m.get("out_for_delivery")).isEqualTo(3L);  // ASSIGNEE_LIVREUR + EN_COURS
+        assertThat(m.get("delivered")).isEqualTo(5L);
         assertThat(m.get("canceled")).isEqualTo(1L);
-        assertThat(m.get("pending")).isEqualTo(4L);
-        assertThat(m.get("confirmed")).isEqualTo(5L);
-        assertThat(m.get("processing")).isEqualTo(5L);
-        assertThat(m.get("out_for_delivery")).isEqualTo(4L);
-        assertThat(m.get("returned")).isEqualTo(0);
-        assertThat(m.get("failed")).isEqualTo(0);
+        assertThat(m.get("returned")).isEqualTo(0L);
+        assertThat(m.get("failed")).isEqualTo(1L);
+        assertThat(m.get("total")).isEqualTo(17L);            // somme de tous les statuts
     }
 
     @Test
-    void mapper_this_month_uses_month_bucket_total() {
-        Map<String, Object> m = mapper.orderStatistics(distinctDto(), "this_month");
-        assertThat(m.get("total")).isEqualTo(25L);
+    void mapper_confirmed_and_out_for_delivery_are_not_duplicates() {
+        // Régression : anciennement confirmed=processing et out_for_delivery=pending (compteurs faux).
+        Map<String, Object> m = mapper.orderStatistics(counts(
+                StatutCommande.EN_ATTENTE, 7L,      // pending
+                StatutCommande.CONFIRMEE, 2L,       // confirmed
+                StatutCommande.EN_PREPARATION, 3L,  // processing
+                StatutCommande.EN_COURS, 1L));      // out_for_delivery
+        assertThat(m.get("pending")).isEqualTo(7L);
+        assertThat(m.get("confirmed")).isEqualTo(2L);
+        assertThat(m.get("processing")).isEqualTo(3L);
+        assertThat(m.get("out_for_delivery")).isEqualTo(1L);
+        assertThat(m.get("confirmed")).isNotEqualTo(m.get("processing"));
+        assertThat(m.get("out_for_delivery")).isNotEqualTo(m.get("pending"));
+        assertThat(m.get("total")).isEqualTo(13L);
     }
 
     @Test
-    void mapper_this_week_uses_week_bucket_total() {
-        Map<String, Object> m = mapper.orderStatistics(distinctDto(), "this_week");
-        assertThat(m.get("total")).isEqualTo(10L);
-    }
-
-    @Test
-    void mapper_overall_uses_total_bucket() {
-        Map<String, Object> m = mapper.orderStatistics(distinctDto(), "overall");
-        assertThat(m.get("total")).isEqualTo(99L);
-    }
-
-    @Test
-    void mapper_unknown_type_falls_back_to_today_never_crashes() {
-        Map<String, Object> m = mapper.orderStatistics(distinctDto(), "bogus-type");
-        assertThat(m.get("total")).isEqualTo(3L);
-    }
-
-    @Test
-    void mapper_missing_type_falls_back_to_today() {
-        Map<String, Object> m = mapper.orderStatistics(distinctDto(), null);
-        assertThat(m.get("total")).isEqualTo(3L);
-    }
-
-    @Test
-    void mapper_never_nulls_numeric_fields() {
-        RestaurantDashboardDTO empty = RestaurantDashboardDTO.builder().build();
-        Map<String, Object> m = mapper.orderStatistics(empty, "today");
+    void mapper_empty_counts_all_zero_never_nulls() {
+        Map<String, Object> m = mapper.orderStatistics(new EnumMap<>(StatutCommande.class));
         for (String key : new String[]{"pending", "confirmed", "processing", "out_for_delivery",
                 "delivered", "canceled", "returned", "failed", "total"}) {
-            assertThat(m.get(key)).as(key).isNotNull();
+            assertThat(m.get(key)).as(key).isEqualTo(0L);
         }
     }
 

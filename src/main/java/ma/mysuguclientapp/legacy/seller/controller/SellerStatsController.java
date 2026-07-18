@@ -3,8 +3,10 @@ package ma.mysuguclientapp.legacy.seller.controller;
 import lombok.RequiredArgsConstructor;
 import ma.mysuguclientapp.dtos.restaurant.RestaurantDashboardDTO;
 import ma.mysuguclientapp.entities.Restaurant;
+import ma.mysuguclientapp.enumerations.StatutCommande;
 import ma.mysuguclientapp.legacy.seller.SellerContext;
 import ma.mysuguclientapp.legacy.seller.mapper.SellerStatsMapper;
+import ma.mysuguclientapp.repositories.CommandeRepository;
 import ma.mysuguclientapp.services.implementations.RestaurantDashboardServiceImpl;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.EnumMap;
 import java.util.Map;
 
 /**
@@ -31,6 +34,7 @@ public class SellerStatsController {
     private final SellerContext sellerContext;
     private final RestaurantDashboardServiceImpl dashboardService;
     private final SellerStatsMapper mapper;
+    private final CommandeRepository commandeRepository;
 
     /**
      * GET order-statistics?statistics_type= : compteurs de commandes du restaurant du vendeur
@@ -41,8 +45,13 @@ public class SellerStatsController {
     public Map<String, Object> orderStatistics(@AuthenticationPrincipal String email,
                                                @RequestParam(value = "statistics_type", required = false) String statisticsType) {
         Restaurant restaurant = sellerContext.currentRestaurant(email);
-        RestaurantDashboardDTO dto = dashboardService.getDashboard(restaurant.getId());
-        return mapper.orderStatistics(dto, statisticsType);
+        // Compteurs RÉELS par statut du restaurant (réconcilie avec orders/list). statistics_type
+        // est accepté pour compat mais la carte 6valley est une répartition par statut, non périodée.
+        Map<StatutCommande, Long> counts = new EnumMap<>(StatutCommande.class);
+        for (Object[] row : commandeRepository.countByStatutGroupedForRestaurant(restaurant.getId())) {
+            counts.put((StatutCommande) row[0], (Long) row[1]);
+        }
+        return mapper.orderStatistics(counts);
     }
 
     /**

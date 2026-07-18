@@ -1,6 +1,7 @@
 package ma.mysuguclientapp.legacy.seller.mapper;
 
 import ma.mysuguclientapp.dtos.restaurant.RestaurantDashboardDTO;
+import ma.mysuguclientapp.enumerations.StatutCommande;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -30,29 +31,40 @@ public class SellerStatsMapper {
      * restent toujours les compteurs du jour, quel que soit le bucket sélectionné pour
      * {@code total} — approximation documentée (spec §3.1, §5).
      */
-    public Map<String, Object> orderStatistics(RestaurantDashboardDTO dto, String statisticsType) {
-        String type = normalizeOrderType(statisticsType);
-        long total = switch (type) {
-            case "this_week" -> nz(dto.getCommandesSemaine());
-            case "this_month" -> nz(dto.getCommandesMois());
-            case "overall" -> nz(dto.getTotalCommandes());
-            default -> nz(dto.getCommandesAujourdhui());
-        };
-
-        long pending = nz(dto.getCommandesEnCours());
-        long processing = nz(dto.getCommandesEnPreparation());
+    /**
+     * Compteurs de commandes 6valley à partir des comptes RÉELS par statut du restaurant
+     * (une entrée {@link StatutCommande} -> nombre). Mappe chaque statut natif vers le bucket
+     * 6valley EXACTEMENT comme {@code OrderStatusMapper.OUTBOUND_STATUS} (donc réconcilie avec
+     * orders/list). {@code total} = somme des buckets. {@code returned} = 0 (pas d'état natif).
+     * Anciennement : buckets dupliqués (out_for_delivery=pending, confirmed=processing) et total
+     * scopé par période -> compteurs faux/incohérents.
+     */
+    public Map<String, Object> orderStatistics(Map<StatutCommande, Long> countsByStatut) {
+        long pending = c(countsByStatut, StatutCommande.EN_ATTENTE);
+        long confirmed = c(countsByStatut, StatutCommande.CONFIRMEE);
+        long processing = c(countsByStatut, StatutCommande.EN_PREPARATION) + c(countsByStatut, StatutCommande.PRETE);
+        long outForDelivery = c(countsByStatut, StatutCommande.ASSIGNEE_LIVREUR) + c(countsByStatut, StatutCommande.EN_COURS);
+        long delivered = c(countsByStatut, StatutCommande.LIVREE);
+        long canceled = c(countsByStatut, StatutCommande.ANNULEE);
+        long failed = c(countsByStatut, StatutCommande.NON_FINALISEE);
+        long total = pending + confirmed + processing + outForDelivery + delivered + canceled + failed;
 
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("pending", pending);
-        m.put("confirmed", processing);
+        m.put("confirmed", confirmed);
         m.put("processing", processing);
-        m.put("out_for_delivery", pending);
-        m.put("delivered", nz(dto.getCommandesLivreesAujourdhui()));
-        m.put("canceled", nz(dto.getCommandesAnnuleesAujourdhui()));
-        m.put("returned", 0);
-        m.put("failed", 0);
+        m.put("out_for_delivery", outForDelivery);
+        m.put("delivered", delivered);
+        m.put("canceled", canceled);
+        m.put("returned", 0L);
+        m.put("failed", failed);
         m.put("total", total);
         return m;
+    }
+
+    private static long c(Map<StatutCommande, Long> counts, StatutCommande s) {
+        Long v = counts.get(s);
+        return v != null ? v : 0L;
     }
 
     /**

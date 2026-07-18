@@ -41,6 +41,10 @@ public interface CommandeRepository extends JpaRepository<Commande, Long> {
     @Query("SELECT COUNT(c) FROM Commande c WHERE c.restaurant.id = :restaurantId AND c.statut IN ('EN_PREPARATION', 'CONFIRMEE', 'ASSIGNEE_LIVREUR')")
     Long countEnCoursRestaurant(Long restaurantId);
 
+    /** Compte des commandes d'un restaurant groupé par statut : [StatutCommande, Long]. */
+    @Query("SELECT c.statut, COUNT(c) FROM Commande c WHERE c.restaurant.id = :restaurantId GROUP BY c.statut")
+    List<Object[]> countByStatutGroupedForRestaurant(Long restaurantId);
+
     Page<Commande> findByClientIdOrderByCreatedAtDesc(Long clientId, Pageable pageable);
 
     List<Commande> findTop5ByClientIdOrderByCreatedAtDesc(Long clientId);
