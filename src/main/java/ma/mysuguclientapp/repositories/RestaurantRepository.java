@@ -18,7 +18,17 @@ import java.util.Optional;
 @Repository
 public interface RestaurantRepository extends JpaRepository<Restaurant, Long> {
 
-    Optional<Restaurant> findByOwnerId(Long ownerId);
+    /**
+     * Restaurant "principal" d'un propriétaire. Un owner peut posséder plusieurs restaurants
+     * (données réelles constatées) : on renvoie donc UN seul enregistrement déterministe plutôt
+     * que de laisser une requête dérivée lever {@code NonUniqueResultException} (500).
+     * Priorité : actif d'abord, puis approuvé, puis le plus récent (id décroissant).
+     */
+    @Query(value = "SELECT * FROM restaurants r WHERE r.owner_id = :ownerId " +
+            "ORDER BY r.is_active DESC NULLS LAST, " +
+            "(r.statut_approbation = 'APPROUVE') DESC NULLS LAST, " +
+            "r.id DESC LIMIT 1", nativeQuery = true)
+    Optional<Restaurant> findByOwnerId(@Param("ownerId") Long ownerId);
     List<Restaurant> findByPromotion(Promotion promotion);
     long countByZoneDeploiementId(Long zoneDeploiementId);
     Page<Restaurant> findByIsActive(Boolean isActive, Pageable pageable);

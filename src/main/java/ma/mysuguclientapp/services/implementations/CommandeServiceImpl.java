@@ -1067,10 +1067,27 @@ public class CommandeServiceImpl implements CommandeService {
     }
 
     private MethodePaiement parseMethodePaiement(String value) {
-        try {
-            return MethodePaiement.valueOf(value);
-        } catch (Exception e) {
-            throw new BadRequestException("Methode de paiement invalide");
+        if (value == null || value.isBlank()) {
+            throw new BadRequestException("Methode de paiement requise");
+        }
+        // Accepte les libellés natifs ET les alias envoyés par les apps mobiles (6valley) :
+        // paiement à la livraison -> ESPECES ; paiement en ligne/carte -> CARTE_BANCAIRE.
+        String v = value.trim().toUpperCase().replace('-', '_').replace(' ', '_');
+        switch (v) {
+            case "ESPECES", "CASH", "CASH_ON_DELIVERY", "COD" -> {
+                return MethodePaiement.ESPECES;
+            }
+            case "CARTE_BANCAIRE", "CARTE", "CARD", "CREDIT_CARD", "DEBIT_CARD",
+                 "DIGITAL_PAYMENT", "ONLINE", "ONLINE_PAYMENT", "STRIPE" -> {
+                return MethodePaiement.CARTE_BANCAIRE;
+            }
+            default -> {
+                try {
+                    return MethodePaiement.valueOf(v);
+                } catch (Exception e) {
+                    throw new BadRequestException("Methode de paiement invalide: " + value);
+                }
+            }
         }
     }
 

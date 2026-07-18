@@ -50,6 +50,33 @@ class SellerContextTest {
     }
 
     @Test
+    void currentRestaurant_withMultipleRestaurants_picksActiveApproved_withoutThrowing() {
+        // Régression bug A : un owner peut posséder plusieurs restaurants (données réelles).
+        // findByOwnerId ne doit PAS lever NonUniqueResult (500) mais renvoyer le restaurant
+        // "principal" = actif + APPROUVE + le plus récent.
+        User owner = newUser(ownerEmail, UserRole.RESTAURANT_OWNER);
+        Restaurant legacy = new Restaurant();
+        legacy.setNom("Legacy (non approuvé)");
+        legacy.setOwner(owner);
+        legacy.setIsActive(true);
+        legacy = restos.save(legacy);
+        Restaurant principal = new Restaurant();
+        principal.setNom("Principal approuvé");
+        principal.setOwner(owner);
+        principal.setIsActive(true);
+        principal.setStatutApprobation(ma.mysuguclientapp.enumerations.StatutRestaurant.APPROUVE);
+        principal = restos.save(principal);
+        try {
+            Restaurant resolved = ctx.currentRestaurant(ownerEmail);
+            assertThat(resolved.getId()).isEqualTo(principal.getId());
+        } finally {
+            // Nettoyage des DEUX restaurants avant @AfterEach (sinon FK sur delete owner).
+            restos.delete(legacy);
+            restos.delete(principal);
+        }
+    }
+
+    @Test
     void requireOwner_rejects_non_owner() {
         newUser(clientEmail, UserRole.CLIENT);
 

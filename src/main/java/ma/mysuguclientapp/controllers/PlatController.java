@@ -50,7 +50,14 @@ public class PlatController {
         return ResponseEntity.ok(platService.searchPlats(keyword));
     }
 
+    // Le corps est un multipart/form-data À PLAT (un champ par propriété de PlatCreateDTO + `image`),
+    // et NON un part JSON `platDTO`. On documente explicitement le schéma aplati pour que Swagger et
+    // les clients générés envoient le bon format (sinon springdoc rendait PlatCreateDTO comme un objet
+    // JSON imbriqué à cause des champs non-string -> 500 au binding @ModelAttribute).
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @io.swagger.v3.oas.annotations.media.Content(
+            mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
+            schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = PlatCreateDTO.class)))
     public ResponseEntity<PlatDTO> createPlat(
             @Valid @ModelAttribute PlatCreateDTO platDTO,
             @RequestParam(value = "image", required = false) MultipartFile image) {
@@ -59,6 +66,9 @@ public class PlatController {
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @io.swagger.v3.oas.annotations.media.Content(
+            mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
+            schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = PlatCreateDTO.class)))
     public ResponseEntity<PlatDTO> updatePlat(
             @PathVariable Long id,
             @Valid @ModelAttribute PlatCreateDTO platDTO,
