@@ -88,7 +88,7 @@ public class OrderSellerController {
     public ResponseEntity<?> updateOrderStatus(@AuthenticationPrincipal String email,
                                                 @PathVariable Long id,
                                                 @RequestBody(required = false) Map<String, Object> body) {
-        ownedOrder(email, id); // 404 si la commande n'appartient pas au vendeur
+        CommandeDTO cmd = ownedOrder(email, id); // 404 si la commande n'appartient pas au vendeur
         Object orderStatus = body != null ? body.get("order_status") : null;
         StatutCommande statut;
         try {
@@ -96,6 +96,16 @@ public class OrderSellerController {
         } catch (ResponseStatusException e) {
             return ResponseEntity.badRequest()
                     .body(ErrorsResponse.of("order-status-001", e.getReason()));
+        }
+        // Les statuts de LIVRAISON (out_for_delivery / delivered) sont pilotés par le LIVREUR :
+        // leur passage câble le règlement livreur (gains + caisse + libération). Le vendeur ne peut
+        // donc pas les poser sur une commande EN LIVRAISON (sinon ce règlement serait court-circuité).
+        // Exception : le RETRAIT_SUR_PLACE (pas de livreur), où le vendeur marque bien "delivered".
+        boolean livraison = !"RETRAIT_SUR_PLACE".equalsIgnoreCase(cmd.getModeReception());
+        if (statut == StatutCommande.EN_COURS || (statut == StatutCommande.LIVREE && livraison)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ErrorsResponse.of("order-status-002",
+                            "Statut piloté par le livreur (app livreur) pour les commandes en livraison."));
         }
         CommandeUpdateStatusDTO dto = new CommandeUpdateStatusDTO();
         dto.setStatut(statut.name());

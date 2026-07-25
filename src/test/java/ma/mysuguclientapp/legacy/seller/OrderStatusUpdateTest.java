@@ -129,6 +129,46 @@ class OrderStatusUpdateTest {
         assertThat(r.status).isEqualTo(404);
     }
 
+    @Test
+    void seller_cannot_set_out_for_delivery_on_delivery_order_returns_403() throws Exception {
+        // out_for_delivery est piloté par le livreur -> le vendeur reçoit 403, statut inchangé.
+        String t1 = token(owner1Email);
+        Resp r = post("/api/v3/seller/orders/order-detail-status/" + commande1Id,
+                Map.of("_method", "put", "order_status", "out_for_delivery"), t1);
+        assertThat(r.status).isEqualTo(403);
+        assertThat(M.readTree(r.body).get("errors")).isNotNull();
+        assertThat(commandeRepo.findById(commande1Id).orElseThrow().getStatut()).isEqualTo(StatutCommande.CONFIRMEE);
+    }
+
+    @Test
+    void seller_cannot_set_delivered_on_delivery_order_returns_403() throws Exception {
+        String t1 = token(owner1Email);
+        Resp r = post("/api/v3/seller/orders/order-detail-status/" + commande1Id,
+                Map.of("_method", "put", "order_status", "delivered"), t1);
+        assertThat(r.status).isEqualTo(403);
+        assertThat(commandeRepo.findById(commande1Id).orElseThrow().getStatut()).isEqualTo(StatutCommande.CONFIRMEE);
+    }
+
+    @Test
+    void seller_can_set_delivered_on_pickup_order_returns_200() throws Exception {
+        // Exception : RETRAIT_SUR_PLACE (pas de livreur) -> le vendeur marque bien "delivered".
+        User client = userRepo.findById(clientId).orElseThrow();
+        Restaurant r1 = restoRepo.findById(resto1Id).orElseThrow();
+        Plat p1 = platRepo.findById(plat1Id).orElseThrow();
+        Commande pickup = newCommande(client, r1, p1, StatutCommande.PRETE);
+        pickup.setModeReception(ma.mysuguclientapp.enumerations.ModeReceptionCommande.RETRAIT_SUR_PLACE);
+        commandeRepo.save(pickup);
+        try {
+            String t1 = token(owner1Email);
+            Resp r = post("/api/v3/seller/orders/order-detail-status/" + pickup.getId(),
+                    Map.of("_method", "put", "order_status", "delivered"), t1);
+            assertThat(r.status).isEqualTo(200);
+            assertThat(commandeRepo.findById(pickup.getId()).orElseThrow().getStatut()).isEqualTo(StatutCommande.LIVREE);
+        } finally {
+            commandeRepo.findById(pickup.getId()).ifPresent(commandeRepo::delete);
+        }
+    }
+
     private Commande newCommande(User client, Restaurant r, Plat p, StatutCommande statut) {
         Commande c = new Commande();
         c.setNumeroCommande("ORD-STAT-" + System.nanoTime());

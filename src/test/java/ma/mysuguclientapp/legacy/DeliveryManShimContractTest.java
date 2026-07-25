@@ -173,6 +173,9 @@ class DeliveryManShimContractTest {
         assertThat(c.get("language").isArray()).isTrue();
         assertThat(c.get("unit").isArray()).isTrue();
         assertThat(c.get("base_urls")).isNotNull();
+        // shipping_method = sellerwise_shipping : requis pour que l'app vendeur affiche
+        // le bouton d'assignation de livreur (delivery_man_assign_widget.dart).
+        assertThat(c.get("shipping_method").asText()).isEqualTo("sellerwise_shipping");
     }
 
     @Test

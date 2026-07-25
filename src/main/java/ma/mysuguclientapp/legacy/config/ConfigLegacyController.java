@@ -60,6 +60,10 @@ public class ConfigLegacyController {
         cfg.put("upload_picture_on_delivery", 1);
         cfg.put("order_verification", 1);
         cfg.put("digital_payment", true);
+        // Modèle de livraison MySugu = le vendeur assigne un livreur (pool), qui pilote la livraison.
+        // L'app vendeur n'affiche le bouton « assigner un livreur » QUE si shipping_method vaut
+        // "sellerwise_shipping" (delivery_man_assign_widget.dart) ; sinon le workflow est masqué.
+        cfg.put("shipping_method", "sellerwise_shipping");
         cfg.put("base_urls", baseUrls);
         return cfg;
     }
