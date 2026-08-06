@@ -11,6 +11,7 @@ import ma.mysuguclientapp.legacy.seller.SellerContext;
 import ma.mysuguclientapp.services.chat.ConversationService;
 import ma.mysuguclientapp.services.chat.ParticipantResolver;
 import ma.mysuguclientapp.services.implementations.MinioService;
+import ma.mysuguclientapp.services.implementations.CommandeAccessService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -43,6 +44,7 @@ public class SellerChatController {
     private final ConversationService chat;
     private final ParticipantResolver resolver;
     private final MinioService minioService;
+    private final CommandeAccessService commandeAccessService;
 
     /** Liste des conversations d'un type (customer | delivery-man | admin). */
     @GetMapping("/list/{type}")
@@ -51,7 +53,8 @@ public class SellerChatController {
                                     @RequestParam(defaultValue = "1") int offset) {
         ParticipantRef me = me(email);
         ParticipantType otherType = mapType(type);
-        List<ConversationUnifiee> convs = otherType == null ? List.of() : chat.conversationsFor(me, otherType);
+        List<ConversationUnifiee> convs = otherType == null ? List.of() : chat.conversationsFor(me, otherType).stream()
+                .filter(c -> commandeAccessService.canAccessConversation(me, chat.otherParty(c, me))).toList();
         int from = Math.max(0, (offset - 1) * limit);
         List<ConversationUnifiee> pageItems = from >= convs.size()
                 ? List.of() : convs.subList(from, Math.min(convs.size(), from + limit));
@@ -69,6 +72,7 @@ public class SellerChatController {
         ParticipantType otherType = mapType(type);
         if (otherType == null) return wrap("message", List.of(), 0, limit, offset);
         ParticipantRef other = new ParticipantRef(otherType, id);
+        commandeAccessService.requireConversationAccess(me, other);
         List<MessageUnifie> thread = chat.thread(me, other);
         List<Map<String, Object>> messages = thread.stream().map(m -> messageMap(m, me, other, type)).toList();
         return wrap("message", messages, thread.size(), limit, offset);
@@ -82,6 +86,7 @@ public class SellerChatController {
         ParticipantType otherType = mapType(type);
         if (otherType == null) return List.of();
         return chat.conversationsFor(me, otherType).stream()
+                .filter(c -> commandeAccessService.canAccessConversation(me, chat.otherParty(c, me)))
                 .filter(c -> search == null || search.isBlank() || matchesName(chat.otherParty(c, me), search))
                 .map(c -> chatMap(c, me, type))
                 .toList();
@@ -99,6 +104,7 @@ public class SellerChatController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Type interlocuteur inconnu : " + type);
         }
         ParticipantRef other = new ParticipantRef(otherType, recipientId);
+        commandeAccessService.requireConversationAccess(me, other);
         List<String> urls = new ArrayList<>();
         if (images != null) {
             for (MultipartFile img : images) {
@@ -124,6 +130,7 @@ public class SellerChatController {
         ParticipantRef other = chat.otherParty(c, me);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", c.getId());
+        out.put("order_id", c.getCommandeId());
         putCounterpartIds(out, other);
         out.put("message", c.getDernierMessage());
         ParticipantType lastSender = c.getDernierExpediteurType();
@@ -143,6 +150,7 @@ public class SellerChatController {
     private Map<String, Object> messageMap(MessageUnifie m, ParticipantRef me, ParticipantRef other, String type) {
         Map<String, Object> msg = new LinkedHashMap<>();
         msg.put("id", m.getId());
+        msg.put("order_id", m.getCommandeId());
         putCounterpartIds(msg, other);
         msg.put("message", m.getContenu());
         boolean mine = m.getExpediteurType() == me.type() && Objects.equals(m.getExpediteurId(), me.id());

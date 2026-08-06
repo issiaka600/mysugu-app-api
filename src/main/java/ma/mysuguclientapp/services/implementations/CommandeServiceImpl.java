@@ -42,6 +42,9 @@ import ma.mysuguclientapp.util.CommandeNumberGenerator;
 import ma.mysuguclientapp.util.Constants;
 import ma.mysuguclientapp.services.integrations.TikTakOrderIntegrationService;
 import ma.mysuguclientapp.services.tracking.TrackingLocationStore;
+import ma.mysuguclientapp.events.CommandeCreeeEvent;
+import ma.mysuguclientapp.events.DispatchLivraisonEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -81,6 +84,8 @@ public class CommandeServiceImpl implements CommandeService {
     private final TikTakOrderIntegrationService tikTakOrderIntegrationService;
     private final TrackingLocationStore trackingLocationStore;
     private final ma.mysuguclientapp.services.interfaces.OptionSelectionService optionSelectionService;
+    private final AlerteCommandeVendeurService alerteCommandeVendeurService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -343,6 +348,10 @@ public class CommandeServiceImpl implements CommandeService {
 
         tikTakOrderIntegrationService.pushCreatedOrder(savedCommande);
 
+        // L'alerte est créée dans la transaction ; son premier push part seulement après le commit.
+        alerteCommandeVendeurService.createForCommande(savedCommande);
+        applicationEventPublisher.publishEvent(new CommandeCreeeEvent(savedCommande.getId()));
+
         return dto;
     }
 
@@ -390,6 +399,15 @@ public class CommandeServiceImpl implements CommandeService {
         }
 
         Commande updatedCommande = commandeRepository.save(commande);
+
+        if (nouveauStatut == StatutCommande.CONFIRMEE) {
+            alerteCommandeVendeurService.stopForCommande(updatedCommande.getId(), "COMMANDE_ACCEPTEE");
+            if (resolveModeReception(updatedCommande) == ModeReceptionCommande.LIVRAISON) {
+                applicationEventPublisher.publishEvent(new DispatchLivraisonEvent(updatedCommande.getId()));
+            }
+        } else if (nouveauStatut == StatutCommande.ANNULEE) {
+            alerteCommandeVendeurService.stopForCommande(updatedCommande.getId(), "COMMANDE_REFUSEE_OU_ANNULEE");
+        }
 
         if (nouveauStatut == StatutCommande.LIVREE && updatedCommande.getMethodePaiement() == MethodePaiement.ESPECES) {
             try {
@@ -626,6 +644,7 @@ public class CommandeServiceImpl implements CommandeService {
         commande.setStatutPaiement(StatutPaiement.REMBOURSE);
 
         Commande cancelledCommande = commandeRepository.save(commande);
+        alerteCommandeVendeurService.stopForCommande(cancelledCommande.getId(), "COMMANDE_ANNULEE");
         log.info("Commande {} annulee", commande.getNumeroCommande());
         return convertToDTO(cancelledCommande);
     }
@@ -707,6 +726,12 @@ public class CommandeServiceImpl implements CommandeService {
                     "Commande confirmée",
                     "La commande " + numero + " est confirmée. Veuillez la préparer.",
                     TypeNotification.COMMANDE_CONFIRMEE, commandeId, "COMMANDE");
+        }
+
+        // Le dispatch séquentiel est lancé après commit par DispatchLivraisonEvent.
+        // Il remplace le broadcast / l'auto-assignation historique ci-dessous.
+        if (estLivraison) {
+            return;
         }
 
         // 3. Assignation si mode LIVRAISON.

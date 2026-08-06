@@ -3,6 +3,7 @@ package ma.mysuguclientapp.controllers;
 import lombok.RequiredArgsConstructor;
 import ma.mysuguclientapp.dtos.CommandeCreateDTO;
 import ma.mysuguclientapp.dtos.CommandeDTO;
+import ma.mysuguclientapp.dtos.CommandeContactsDTO;
 import ma.mysuguclientapp.dtos.CommandeUpdateStatusDTO;
 import ma.mysuguclientapp.dtos.AssignThirdPartyDeliveryDTO;
 import ma.mysuguclientapp.dtos.UpdatePaymentStatusDTO;
@@ -10,11 +11,14 @@ import ma.mysuguclientapp.dtos.DeliveryChargeDateUpdateDTO;
 import ma.mysuguclientapp.dtos.OrderWiseProductUploadDTO;
 import ma.mysuguclientapp.enumerations.StatutCommande;
 import ma.mysuguclientapp.services.interfaces.CommandeService;
+import ma.mysuguclientapp.services.implementations.CommandeContactService;
+import ma.mysuguclientapp.services.implementations.CommandeAccessService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import jakarta.validation.Valid;
 import java.util.List;
@@ -25,6 +29,8 @@ import java.util.List;
 public class CommandeController {
 
     private final CommandeService commandeService;
+    private final CommandeContactService commandeContactService;
+    private final CommandeAccessService commandeAccessService;
 
     /**
      * GET /api/commandes - Obtenir toutes les commandes
@@ -44,16 +50,32 @@ public class CommandeController {
      * GET /api/commandes/{id} - Obtenir une commande par ID
      */
     @GetMapping("/{id}")
-    public ResponseEntity<CommandeDTO> getCommandeById(@PathVariable Long id) {
+    public ResponseEntity<CommandeDTO> getCommandeById(@PathVariable Long id,
+                                                        @AuthenticationPrincipal String email) {
+        commandeAccessService.requireOrderAccess(email, id);
         CommandeDTO commande = commandeService.getCommandeById(id);
         return ResponseEntity.ok(commande);
+    }
+
+    /**
+     * Contacts utilisables pour l'appel ou la messagerie d'une commande. Le serveur déduit
+     * toujours l'utilisateur courant du JWT et ne fait jamais confiance à un id utilisateur
+     * envoyé par l'application.
+     */
+    @GetMapping("/{id}/contacts")
+    public ResponseEntity<CommandeContactsDTO> getCommandeContacts(
+            @PathVariable Long id,
+            @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(commandeContactService.getContacts(id, email));
     }
 
     /**
      * GET /api/commandes/numero/{numeroCommande} - Par numéro de commande
      */
     @GetMapping("/numero/{numeroCommande}")
-    public ResponseEntity<CommandeDTO> getCommandeByNumero(@PathVariable String numeroCommande) {
+    public ResponseEntity<CommandeDTO> getCommandeByNumero(@PathVariable String numeroCommande,
+                                                            @AuthenticationPrincipal String email) {
+        commandeAccessService.requireOrderAccessByNumero(email, numeroCommande);
         CommandeDTO commande = commandeService.getCommandeByNumero(numeroCommande);
         return ResponseEntity.ok(commande);
     }
@@ -62,7 +84,9 @@ public class CommandeController {
      * GET /api/commandes/client/{clientId} - Commandes d'un client
      */
     @GetMapping("/client/{clientId}")
-    public ResponseEntity<List<CommandeDTO>> getCommandesByClient(@PathVariable Long clientId) {
+    public ResponseEntity<List<CommandeDTO>> getCommandesByClient(@PathVariable Long clientId,
+                                                                    @AuthenticationPrincipal String email) {
+        commandeAccessService.requireClientListAccess(email, clientId);
         List<CommandeDTO> commandes = commandeService.getCommandesByClient(clientId);
         return ResponseEntity.ok(commandes);
     }
@@ -71,7 +95,9 @@ public class CommandeController {
      * GET /api/commandes/restaurant/{restaurantId} - Commandes d'un restaurant
      */
     @GetMapping("/restaurant/{restaurantId}")
-    public ResponseEntity<List<CommandeDTO>> getCommandesByRestaurant(@PathVariable Long restaurantId) {
+    public ResponseEntity<List<CommandeDTO>> getCommandesByRestaurant(@PathVariable Long restaurantId,
+                                                                        @AuthenticationPrincipal String email) {
+        commandeAccessService.requireRestaurantListAccess(email, restaurantId);
         List<CommandeDTO> commandes = commandeService.getCommandesByRestaurant(restaurantId);
         return ResponseEntity.ok(commandes);
     }
@@ -80,7 +106,9 @@ public class CommandeController {
      * GET /api/commandes/livreur/{livreurId} - Commandes d'un livreur
      */
     @GetMapping("/livreur/{livreurId}")
-    public ResponseEntity<List<CommandeDTO>> getCommandesByLivreur(@PathVariable Long livreurId) {
+    public ResponseEntity<List<CommandeDTO>> getCommandesByLivreur(@PathVariable Long livreurId,
+                                                                     @AuthenticationPrincipal String email) {
+        commandeAccessService.requireLivreurListAccess(email, livreurId);
         List<CommandeDTO> commandes = commandeService.getCommandesByLivreur(livreurId);
         return ResponseEntity.ok(commandes);
     }
@@ -188,7 +216,8 @@ public class CommandeController {
      * GET /api/commandes/{id}/tracking - Suivi de commande
      */
     @GetMapping("/{id}/tracking")
-    public ResponseEntity<?> trackCommande(@PathVariable Long id) {
+    public ResponseEntity<?> trackCommande(@PathVariable Long id, @AuthenticationPrincipal String email) {
+        commandeAccessService.requireOrderAccess(email, id);
         // Retourne les informations de tracking (position livreur, etc.)
         return ResponseEntity.ok(commandeService.getCommandeTracking(id));
     }

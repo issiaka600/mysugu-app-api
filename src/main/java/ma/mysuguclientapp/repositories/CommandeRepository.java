@@ -59,6 +59,14 @@ public interface CommandeRepository extends JpaRepository<Commande, Long> {
     List<Commande> findByStatutInAndLivreurIsNullOrderByCreatedAtAsc(List<StatutCommande> statuts);
     List<Commande> findByLivreurIdAndStatutInOrderByCreatedAtDesc(Long livreurId, List<StatutCommande> statuts);
 
+    /** Une paire de participants peut échanger uniquement si elle est liée par une commande. */
+    boolean existsByClientIdAndRestaurantId(Long clientId, Long restaurantId);
+    boolean existsByClientIdAndLivreurId(Long clientId, Long livreurId);
+    boolean existsByRestaurantIdAndLivreurId(Long restaurantId, Long livreurId);
+    Optional<Commande> findFirstByClientIdAndRestaurantIdOrderByCreatedAtDesc(Long clientId, Long restaurantId);
+    Optional<Commande> findFirstByClientIdAndLivreurIdOrderByCreatedAtDesc(Long clientId, Long livreurId);
+    Optional<Commande> findFirstByRestaurantIdAndLivreurIdOrderByCreatedAtDesc(Long restaurantId, Long livreurId);
+
     /** Verrou pessimiste pour la revendication FCFS d'une commande (POST /accept). */
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM Commande c WHERE c.id = :id")

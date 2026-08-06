@@ -2,12 +2,15 @@ package ma.mysuguclientapp.legacy.deliveryman.controller;
 
 import lombok.RequiredArgsConstructor;
 import ma.mysuguclientapp.entities.Commande;
+import ma.mysuguclientapp.entities.OffreLivraison;
 import ma.mysuguclientapp.entities.User;
 import ma.mysuguclientapp.enumerations.StatutCommande;
+import ma.mysuguclientapp.enumerations.StatutOffreLivraison;
 import ma.mysuguclientapp.enumerations.UserRole;
 import ma.mysuguclientapp.legacy.deliveryman.mapper.LegacyOrderMapper;
 import ma.mysuguclientapp.legacy.deliveryman.service.DeliveryManOrderService;
 import ma.mysuguclientapp.repositories.CommandeRepository;
+import ma.mysuguclientapp.repositories.OffreLivraisonRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,8 +25,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Commandes du livreur (contrat 6valley §3). current/all/details/search + accept FCFS.
- * current-orders inclut aussi les commandes NON assignées revendiquables (modèle FCFS, techspec §8).
+ * Commandes du livreur (contrat 6valley §3). current/all/details/search + acceptation d'offres.
+ * current-orders expose uniquement les courses assignées et les offres en cours pour ce livreur.
  */
 @RestController
 @RequestMapping("/api/v2/delivery-man")
@@ -31,21 +34,22 @@ import java.util.stream.Collectors;
 public class DeliveryManOrderController {
 
     private final CommandeRepository commandeRepository;
+    private final OffreLivraisonRepository offreLivraisonRepository;
     private final UserRepository userRepository;
     private final LegacyOrderMapper mapper;
     private final DeliveryManOrderService orderService;
 
-    /** Commandes en cours du livreur + commandes libres revendiquables (bare array). */
+    /** Commandes en cours du livreur + offres de livraison qui lui sont réservées (bare array). */
     @GetMapping("/current-orders")
     public List<Map<String, Object>> currentOrders(@AuthenticationPrincipal String email) {
         User l = livreur(email);
         List<Commande> mine = commandeRepository.findByLivreurIdAndStatutInOrderByCreatedAtDesc(
                 l.getId(), DeliveryManOrderService.ACTIFS);
-        List<Commande> libres = commandeRepository.findByStatutInAndLivreurIsNullOrderByCreatedAtAsc(
-                DeliveryManOrderService.REVENDIQUABLES);
+        List<OffreLivraison> offres = offreLivraisonRepository.findByLivreurIdAndStatutIn(
+                l.getId(), List.of(StatutOffreLivraison.PROPOSEE));
         List<Map<String, Object>> out = new ArrayList<>();
         mine.forEach(c -> out.add(mapper.toOrderMap(c, false)));
-        libres.forEach(c -> out.add(mapper.toOrderMap(c, false)));
+        offres.forEach(o -> out.add(mapper.toOrderMap(o.getCommande(), false)));
         return out;
     }
 
@@ -96,6 +100,11 @@ public class DeliveryManOrderController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("success", false, "message", "Cette commande est assignée à un autre livreur."));
         }
+        if (c.getLivreur() == null && offreLivraisonRepository
+                .findByCommandeIdAndLivreurIdAndStatut(orderId, l.getId(), StatutOffreLivraison.PROPOSEE).isEmpty()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("success", false, "message", "Cette commande ne vous est pas proposée."));
+        }
         Map<String, Object> order = mapper.toOrderMap(c, true);
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("success", true);
@@ -106,7 +115,7 @@ public class DeliveryManOrderController {
         return ResponseEntity.ok(body);
     }
 
-    /** POST /{orderId}/accept — revendication FCFS. Réponse {message, order}. */
+    /** POST /{orderId}/accept — accepte l'offre réservée au livreur. Réponse {message, order}. */
     @PostMapping("/{orderId}/accept")
     public ResponseEntity<?> accept(@AuthenticationPrincipal String email, @PathVariable Long orderId) {
         User l = livreur(email);
@@ -115,6 +124,14 @@ public class DeliveryManOrderController {
         body.put("message", "Commande acceptée avec succès.");
         body.put("order", order);
         return ResponseEntity.ok(body);
+    }
+
+    /** POST /{orderId}/reject — refuse l'offre courante et passe immédiatement au livreur suivant. */
+    @PostMapping("/{orderId}/reject")
+    public ResponseEntity<?> reject(@AuthenticationPrincipal String email, @PathVariable Long orderId) {
+        User l = livreur(email);
+        orderService.reject(orderId, l);
+        return ResponseEntity.ok(Map.of("message", "Offre refusée."));
     }
 
     private boolean matchesSearch(Commande c, String search) {

@@ -32,6 +32,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
+import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -208,6 +209,7 @@ public class UserServiceImpl implements UserService {
         localisation.setCodePostal(locationDTO.getCodePostal());
 
         user.setLocalisation(localisation);
+        user.setLastLocationAt(LocalDateTime.now());
         return convertToDTO(userRepository.save(user));
     }
 

@@ -11,6 +11,7 @@ import ma.mysuguclientapp.legacy.customer.CustomerChatMapper;
 import ma.mysuguclientapp.repositories.UserRepository;
 import ma.mysuguclientapp.services.chat.ConversationService;
 import ma.mysuguclientapp.services.implementations.MinioService;
+import ma.mysuguclientapp.services.implementations.CommandeAccessService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -46,13 +47,16 @@ public class CustomerChatController {
     private final CustomerChatMapper mapper;
     private final UserRepository userRepository;
     private final MinioService minioService;
+    private final CommandeAccessService commandeAccessService;
 
     @GetMapping("/list/{type}")
     public Map<String, Object> list(@AuthenticationPrincipal String email, @PathVariable String type,
                                     @RequestParam(defaultValue = "10") int limit,
                                     @RequestParam(defaultValue = "1") int offset) {
         ParticipantRef me = me(email);
-        List<ConversationUnifiee> all = chat.conversationsFor(me, counterpartType(type));
+        ParticipantType counterpartType = counterpartType(type);
+        List<ConversationUnifiee> all = chat.conversationsFor(me, counterpartType).stream()
+                .filter(c -> commandeAccessService.canAccessConversation(me, chat.otherParty(c, me))).toList();
         int from = Math.max(0, (offset - 1) * limit);
         List<ConversationUnifiee> page = from >= all.size() ? List.of()
                 : all.subList(from, Math.min(all.size(), from + limit));
@@ -66,7 +70,9 @@ public class CustomerChatController {
                                         @RequestParam(defaultValue = "30") int limit,
                                         @RequestParam(defaultValue = "1") int offset) {
         ParticipantRef me = me(email);
-        var thread = chat.thread(me, other(type, id));
+        ParticipantRef other = other(type, id);
+        commandeAccessService.requireConversationAccess(me, other);
+        var thread = chat.thread(me, other);
         List<Map<String, Object>> out = thread.stream().map(mapper::message).toList();
         return wrap("message", out, out.size(), limit, offset);
     }
@@ -77,6 +83,8 @@ public class CustomerChatController {
                                     @RequestParam(value = "message", required = false) String message,
                                     @RequestParam(value = "image", required = false) MultipartFile[] images) {
         ParticipantRef me = me(email);
+        ParticipantRef other = other(type, id);
+        commandeAccessService.requireConversationAccess(me, other);
         List<String> urls = new ArrayList<>();
         if (images != null) {
             for (MultipartFile f : images) {
@@ -88,7 +96,7 @@ public class CustomerChatController {
                 }
             }
         }
-        var saved = chat.append(me, other(type, id), message, urls);
+        var saved = chat.append(me, other, message, urls);
         Map<String, Object> o = new LinkedHashMap<>();
         o.put("message", message != null ? message : "");
         o.put("time", saved.getCreatedAt() != null ? saved.getCreatedAt().format(TS) : LocalDateTime.now().format(TS));
@@ -99,7 +107,10 @@ public class CustomerChatController {
     @PostMapping("/seen-message/{type}")
     public Map<String, Object> seen(@AuthenticationPrincipal String email, @PathVariable String type,
                                     @RequestParam("id") Long id) {
-        chat.markSeen(me(email), other(type, id));
+        ParticipantRef me = me(email);
+        ParticipantRef other = other(type, id);
+        commandeAccessService.requireConversationAccess(me, other);
+        chat.markSeen(me, other);
         return Map.of("message", "Successfully seen");
     }
 
@@ -115,11 +126,14 @@ public class CustomerChatController {
     }
 
     private ParticipantType counterpartType(String type) {
-        return "seller".equals(type) ? ParticipantType.RESTAURANT : ParticipantType.LIVREUR;
+        if ("seller".equalsIgnoreCase(type)) return ParticipantType.RESTAURANT;
+        if ("delivery-man".equalsIgnoreCase(type) || "delivery_man".equalsIgnoreCase(type)
+                || "deliveryman".equalsIgnoreCase(type)) return ParticipantType.LIVREUR;
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Type interlocuteur inconnu : " + type);
     }
 
     private ParticipantRef other(String type, Long id) {
-        if ("seller".equals(type)) {
+        if (counterpartType(type) == ParticipantType.RESTAURANT) {
             return (id != null && id == 0L) ? new ParticipantRef(ParticipantType.ADMIN, 0L)
                     : new ParticipantRef(ParticipantType.RESTAURANT, id);
         }

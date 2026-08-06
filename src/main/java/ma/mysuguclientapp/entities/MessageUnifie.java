@@ -17,6 +17,9 @@ public class MessageUnifie {
 
     @Column(name="conversation_id", nullable=false) private Long conversationId;
 
+    /** Commande qui autorise et contextualise ce message. */
+    @Column(name="commande_id") private Long commandeId;
+
     @Enumerated(EnumType.STRING) @Column(name="expediteur_type", nullable=false, length=20)
     private ParticipantType expediteurType;
     @Column(name="expediteur_id", nullable=false) private Long expediteurId;

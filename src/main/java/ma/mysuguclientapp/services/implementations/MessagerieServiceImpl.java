@@ -54,6 +54,7 @@ public class MessagerieServiceImpl implements MessagerieService {
     private final JwtTokenProvider jwtTokenProvider;
     /** Lecture seule, pour la recherche par mot-clé (ne doit jamais marquer les messages comme vus). */
     private final MessageUnifieRepository messageUnifieRepository;
+    private final CommandeAccessService commandeAccessService;
 
     @Override
     @Transactional(readOnly = true)
@@ -61,6 +62,7 @@ public class MessagerieServiceImpl implements MessagerieService {
         User user = getUserFromToken(accessToken);
         ParticipantRef me = resolveMe(user);
         return chat.conversationsFor(me, counterpartType(me)).stream()
+                .filter(c -> commandeAccessService.canAccessConversation(me, chat.otherParty(c, me)))
                 .map(c -> toConversationDTO(c, me))
                 .toList();
     }
@@ -70,7 +72,9 @@ public class MessagerieServiceImpl implements MessagerieService {
     public List<ConversationDTO> rechercherConversations(String accessToken, String motCle) {
         User user = getUserFromToken(accessToken);
         ParticipantRef me = resolveMe(user);
-        List<ConversationUnifiee> mesConversations = chat.conversationsFor(me, counterpartType(me));
+        List<ConversationUnifiee> mesConversations = chat.conversationsFor(me, counterpartType(me)).stream()
+                .filter(c -> commandeAccessService.canAccessConversation(me, chat.otherParty(c, me)))
+                .toList();
 
         if (motCle == null || motCle.isBlank() || mesConversations.isEmpty()) {
             return mesConversations.stream().map(c -> toConversationDTO(c, me)).toList();
@@ -90,6 +94,7 @@ public class MessagerieServiceImpl implements MessagerieService {
         ParticipantRef me = resolveMe(user);
         ConversationUnifiee conversation = findMyConversation(me, conversationId);
         ParticipantRef other = chat.otherParty(conversation, me);
+        commandeAccessService.requireConversationAccess(me, other);
 
         List<MessageUnifie> messages = chat.thread(me, other); // marque les messages reçus comme vus
 
@@ -108,6 +113,7 @@ public class MessagerieServiceImpl implements MessagerieService {
         ParticipantRef other = dto.getConversationId() != null
                 ? chat.otherParty(findMyConversation(me, dto.getConversationId()), me)
                 : resoudreDestinataireNouvelleConversation(me, dto);
+        commandeAccessService.requireConversationAccess(me, other);
 
         List<String> attachments = dto.getImageUrl() != null ? List.of(dto.getImageUrl()) : List.of();
         MessageUnifie saved = chat.append(me, other, dto.getContenu(), attachments, dto.getCommandeId());
@@ -138,6 +144,7 @@ public class MessagerieServiceImpl implements MessagerieService {
 
     private ConversationUnifiee findMyConversation(ParticipantRef me, Long conversationId) {
         return chat.conversationsFor(me, counterpartType(me)).stream()
+                .filter(c -> commandeAccessService.canAccessConversation(me, chat.otherParty(c, me)))
                 .filter(c -> c.getId().equals(conversationId))
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Conversation non trouvee avec l'ID: " + conversationId));
@@ -199,6 +206,7 @@ public class MessagerieServiceImpl implements MessagerieService {
         MessageChatDTO dto = new MessageChatDTO();
         dto.setId(m.getId());
         dto.setConversationId(m.getConversationId());
+        dto.setCommandeId(m.getCommandeId());
         dto.setExpediteurId(m.getExpediteurId());
         // userInfo: f_name=prenom, l_name=nom. restaurantInfo: f_name=nom (raison sociale), l_name="".
         dto.setExpediteurNom((String) senderInfo.get(expediteurEstRestaurant ? "f_name" : "l_name"));

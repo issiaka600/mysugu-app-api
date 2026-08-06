@@ -20,6 +20,10 @@ public interface NotificationService {
     void envoyerNotificationCommande(Long userId, String numeroCommande, TypeNotification type, Long commandeId);
     void envoyerNotificationSysteme(Long userId, String titre, String message);
 
+    /** Push visible de messagerie, avec contexte de navigation et badge non-lu réel. */
+    void envoyerNotificationMessage(Long destinataireUserId, String senderId, String senderType,
+                                    String senderName, Long conversationId, Long commandeId, long unreadCount);
+
     /** Envoie une campagne de notification (in-app + push) à un segment d'utilisateurs. */
     CampagneNotificationResultDTO envoyerCampagne(CampagneNotificationRequestDTO request);
 

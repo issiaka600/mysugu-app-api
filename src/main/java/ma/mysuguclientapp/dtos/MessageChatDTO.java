@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 public class MessageChatDTO {
     private Long id;
     private Long conversationId;
+    private Long commandeId;
     private Long expediteurId;
     private String expediteurNom;
     private String expediteurPrenom;

@@ -31,6 +31,7 @@ public class CustomerChatMapper {
     public Map<String, Object> message(MessageUnifie m) {
         Map<String, Object> o = new LinkedHashMap<>();
         o.put("id", m.getId());
+        o.put("order_id", m.getCommandeId());
         o.put("message", m.getContenu());
         o.put("sent_by_customer", m.getExpediteurType() == ParticipantType.CUSTOMER ? 1 : 0);
         o.put("sent_by_seller", m.getExpediteurType() == ParticipantType.RESTAURANT ? 1 : 0);
@@ -44,6 +45,7 @@ public class CustomerChatMapper {
         ParticipantRef other = chat.otherParty(c, me);
         Map<String, Object> o = new LinkedHashMap<>();
         o.put("id", c.getId());
+        o.put("order_id", c.getCommandeId());
         if ("seller".equals(type)) {
             o.put("seller_id", other.id());
             o.put("sellerInfo", resolver.restaurantInfo(other.id()));

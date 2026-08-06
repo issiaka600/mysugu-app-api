@@ -3,6 +3,7 @@ package ma.mysuguclientapp.legacy.deliveryman.controller;
 import lombok.RequiredArgsConstructor;
 import ma.mysuguclientapp.entities.Commande;
 import ma.mysuguclientapp.entities.HistoriqueGpsLivraison;
+import ma.mysuguclientapp.entities.Localisation;
 import ma.mysuguclientapp.entities.User;
 import ma.mysuguclientapp.enumerations.UserRole;
 import ma.mysuguclientapp.legacy.deliveryman.dto.MessageResponse;
@@ -44,33 +45,44 @@ public class DeliveryManLocationController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("errors", List.of(Map.of("code", "order", "message", "Commande introuvable."))));
         }
+        if (c.getLivreur() == null || !c.getLivreur().getId().equals(l.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("errors", List.of(Map.of("code", "order", "message", "Commande non assignée au livreur."))));
+        }
+        LocalDateTime now = LocalDateTime.now();
         gpsRepository.save(HistoriqueGpsLivraison.builder()
                 .commande(c).livreur(l)
                 .latitude(asDouble(body.get("latitude")))
                 .longitude(asDouble(body.get("longitude")))
                 .vitesse(asDouble(body.get("speed")))
                 .localisation(str(body.get("location")))
-                .pointAt(LocalDateTime.now())
+                .pointAt(now)
                 .build());
+        Localisation position = l.getLocalisation() != null ? l.getLocalisation() : new Localisation();
+        position.setLatitude(asDouble(body.get("latitude")));
+        position.setLongitude(asDouble(body.get("longitude")));
+        l.setLocalisation(position);
+        l.setLastLocationAt(now);
+        userRepository.save(l);
         return ResponseEntity.ok(new MessageResponse("location recorded"));
     }
 
     @GetMapping("/last-location")
     public Object lastLocation(@AuthenticationPrincipal String email, @RequestParam("order_id") Long orderId) {
-        livreur(email);
+        requireAssignedOrder(orderId, livreur(email));
         return gpsRepository.findFirstByCommandeIdOrderByPointAtDesc(orderId)
                 .map(this::toHistoryMap).orElse(null);
     }
 
     @GetMapping("/order-delivery-history")
     public List<Map<String, Object>> deliveryHistory(@AuthenticationPrincipal String email, @RequestParam("order_id") Long orderId) {
-        livreur(email);
+        requireAssignedOrder(orderId, livreur(email));
         return gpsRepository.findByCommandeIdOrderByPointAtAsc(orderId).stream().map(this::toHistoryMap).toList();
     }
 
     @PostMapping("/distance-api")
     public Map<String, Object> distance(@AuthenticationPrincipal String email, @RequestBody Map<String, Object> body) {
-        livreur(email);
+        User livreur = livreur(email);
         double oLat = asDouble(body.get("origin_lat")), oLng = asDouble(body.get("origin_lng"));
         double dLat = asDouble(body.get("destination_lat")), dLng = asDouble(body.get("destination_lng"));
         double meters = haversine(oLat, oLng, dLat, dLng);
@@ -99,11 +111,11 @@ public class DeliveryManLocationController {
     public Map<String, Object> sellerLocation(@AuthenticationPrincipal String email,
                                               @RequestParam(name = "order_id", required = false) Long orderId,
                                               @RequestParam(name = "seller_id", required = false) Long sellerId) {
-        livreur(email);
+        User livreur = livreur(email);
         Double lat = null, lng = null;
         if (orderId != null) {
-            Commande c = commandeRepository.findById(orderId).orElse(null);
-            if (c != null && c.getRestaurant() != null && c.getRestaurant().getLocalisation() != null) {
+            Commande c = requireAssignedOrder(orderId, livreur);
+            if (c.getRestaurant() != null && c.getRestaurant().getLocalisation() != null) {
                 lat = c.getRestaurant().getLocalisation().getLatitude();
                 lng = c.getRestaurant().getLocalisation().getLongitude();
             }
@@ -156,5 +168,14 @@ public class DeliveryManLocationController {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Réservé aux livreurs");
         }
         return u;
+    }
+
+    private Commande requireAssignedOrder(Long orderId, User livreur) {
+        Commande commande = commandeRepository.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Commande introuvable"));
+        if (commande.getLivreur() == null || !commande.getLivreur().getId().equals(livreur.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cette commande n'est pas assignée au livreur");
+        }
+        return commande;
     }
 }

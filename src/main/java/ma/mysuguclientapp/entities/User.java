@@ -66,6 +66,10 @@ public class User {
     
     @Embedded
     private Localisation localisation;
+
+    /** Horodatage de la dernière position reçue, utilisé pour ne proposer une course qu'aux livreurs réellement joignables. */
+    @Column(name = "last_location_at")
+    private LocalDateTime lastLocationAt;
     
     @Column(name = "is_active")
     private Boolean isActive = true;

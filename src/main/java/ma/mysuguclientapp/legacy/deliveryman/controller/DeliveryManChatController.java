@@ -12,6 +12,7 @@ import ma.mysuguclientapp.repositories.UserRepository;
 import ma.mysuguclientapp.services.chat.ConversationService;
 import ma.mysuguclientapp.services.chat.ParticipantResolver;
 import ma.mysuguclientapp.services.implementations.MinioService;
+import ma.mysuguclientapp.services.implementations.CommandeAccessService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -43,6 +44,7 @@ public class DeliveryManChatController {
     private final ConversationService chat;
     private final ParticipantResolver resolver;
     private final MinioService minioService;
+    private final CommandeAccessService commandeAccessService;
 
     /** Liste des conversations d'un type : dernier message par interlocuteur. */
     @GetMapping("/list/{type}")
@@ -52,7 +54,8 @@ public class DeliveryManChatController {
         User l = livreur(email);
         ParticipantRef me = livreurRef(l);
         ParticipantType otherType = mapType(type);
-        List<ConversationUnifiee> convs = otherType == null ? List.of() : chat.conversationsFor(me, otherType);
+        List<ConversationUnifiee> convs = otherType == null ? List.of() : chat.conversationsFor(me, otherType).stream()
+                .filter(c -> commandeAccessService.canAccessConversation(me, chat.otherParty(c, me))).toList();
         int from = Math.max(0, (offset - 1) * limit);
         List<ConversationUnifiee> pageItems = from >= convs.size() ? List.of() : convs.subList(from, Math.min(convs.size(), from + limit));
         List<Map<String, Object>> items = pageItems.stream().map(c -> chatMap(c, me, type)).toList();
@@ -70,6 +73,7 @@ public class DeliveryManChatController {
         ParticipantType otherType = mapType(type);
         if (otherType == null) return wrap("message", List.of(), 0, limit, offset);
         ParticipantRef other = new ParticipantRef(otherType, id);
+        commandeAccessService.requireConversationAccess(me, other);
         List<MessageUnifie> thread = chat.thread(me, other);
         List<Map<String, Object>> messages = thread.stream().map(m -> messageMap(m, me, other)).toList();
         return wrap("message", messages, thread.size(), limit, offset);
@@ -84,6 +88,7 @@ public class DeliveryManChatController {
         ParticipantType otherType = mapType(type);
         if (otherType == null) return List.of();
         return chat.conversationsFor(me, otherType).stream()
+                .filter(c -> commandeAccessService.canAccessConversation(me, chat.otherParty(c, me)))
                 .filter(c -> search == null || search.isBlank() || matchesName(chat.otherParty(c, me), search))
                 .map(c -> chatMap(c, me, type))
                 .toList();
@@ -102,6 +107,7 @@ public class DeliveryManChatController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Type interlocuteur inconnu : " + type);
         }
         ParticipantRef other = new ParticipantRef(otherType, recipientId);
+        commandeAccessService.requireConversationAccess(me, other);
         List<String> urls = new ArrayList<>();
         if (images != null) {
             for (MultipartFile img : images) {
@@ -127,6 +133,7 @@ public class DeliveryManChatController {
         ParticipantRef other = chat.otherParty(c, me);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", c.getId());
+        out.put("order_id", c.getCommandeId());
         out.put("user_id", other.id());
         out.put("seller_id", "seller".equalsIgnoreCase(type) ? other.id() : 0);
         out.put("message", c.getDernierMessage());
@@ -147,6 +154,7 @@ public class DeliveryManChatController {
     private Map<String, Object> messageMap(MessageUnifie m, ParticipantRef me, ParticipantRef other) {
         Map<String, Object> msg = new LinkedHashMap<>();
         msg.put("id", m.getId());
+        msg.put("order_id", m.getCommandeId());
         msg.put("message", m.getContenu());
         boolean mine = m.getExpediteurType() == me.type() && Objects.equals(m.getExpediteurId(), me.id());
         msg.put("sent_by_customer", !mine && m.getExpediteurType() == CUSTOMER);
