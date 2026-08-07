@@ -28,7 +28,7 @@ class ConversationRepositoryTest {
 
         assertTrue(convs.findByParties(ParticipantType.CUSTOMER, 7L, ParticipantType.RESTAURANT, 3L).isPresent());
         // customer 7 has 1 unseen (sent by restaurant)
-        long unseen = msgs.countByConversationIdAndSeenFalseAndExpediteurTypeNotAndExpediteurIdNot(
+        long unseen = msgs.countUnseenForParticipant(
             c.getId(), ParticipantType.CUSTOMER, 7L);
         assertEquals(1, unseen);
     }

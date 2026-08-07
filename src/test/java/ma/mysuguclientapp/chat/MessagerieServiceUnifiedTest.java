@@ -17,6 +17,7 @@ import ma.mysuguclientapp.repositories.RestaurantRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
 import ma.mysuguclientapp.services.chat.ConversationService;
 import ma.mysuguclientapp.services.chat.ParticipantResolver;
+import ma.mysuguclientapp.services.implementations.CommandeAccessService;
 import ma.mysuguclientapp.services.implementations.MessagerieServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,6 +51,7 @@ class MessagerieServiceUnifiedTest {
     @Mock UserRepository userRepository;
     @Mock JwtTokenProvider jwtTokenProvider;
     @Mock MessageUnifieRepository messageUnifieRepository;
+    @Mock CommandeAccessService commandeAccessService;
 
     MessagerieServiceImpl service;
 
@@ -61,7 +63,7 @@ class MessagerieServiceUnifiedTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         service = new MessagerieServiceImpl(chat, resolver, restaurantRepository, userRepository,
-                jwtTokenProvider, messageUnifieRepository);
+                jwtTokenProvider, messageUnifieRepository, commandeAccessService);
     }
 
     private static final Long OWNER_ID = 20L;
