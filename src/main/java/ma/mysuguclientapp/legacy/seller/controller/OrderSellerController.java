@@ -20,6 +20,7 @@ import ma.mysuguclientapp.repositories.CommandeRepository;
 import ma.mysuguclientapp.services.interfaces.CommandeService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -54,12 +55,19 @@ public class OrderSellerController {
     private final OrderStatusMapper statusMapper;
     private final CommandeRepository commandeRepository;
 
-    /** GET orders/list?limit&offset&status : commandes du restaurant du vendeur, forme 6valley paginée. */
+    /**
+     * GET orders/list?limit&offset&status&sort&order : commandes du restaurant du vendeur,
+     * forme 6valley paginée. Seul {@code createdAt} est triable ; sans {@code order}, les
+     * commandes actives sont présentées de la plus ancienne à la plus récente, les historiques
+     * de la plus récente à la plus ancienne.
+     */
     @GetMapping("/list")
     public Map<String, Object> list(@AuthenticationPrincipal String email,
                                      @RequestParam(defaultValue = "10") int limit,
                                      @RequestParam(defaultValue = "0") int offset,
-                                     @RequestParam(required = false) String status) {
+                                     @RequestParam(required = false) String status,
+                                     @RequestParam(defaultValue = "createdAt") String sort,
+                                     @RequestParam(required = false) String order) {
         Restaurant restaurant = sellerContext.currentRestaurant(email);
         StatutCommande statut = (status == null || status.isBlank() || "all".equalsIgnoreCase(status))
                 ? null
@@ -67,8 +75,28 @@ public class OrderSellerController {
         int safeLimit = Math.max(limit, 1);
         int page = offset / safeLimit;
         Page<CommandeDTO> commandes = commandeService.getAllCommandes(null, restaurant.getId(), statut,
-                PageRequest.of(page, safeLimit));
+                PageRequest.of(page, safeLimit, Sort.by(resolveSortDirection(status, order), resolveSort(sort))));
         return orderMapper.toListEnvelope(commandes, limit, offset);
+    }
+
+    private String resolveSort(String sort) {
+        if (sort == null || sort.isBlank() || "createdAt".equalsIgnoreCase(sort)) {
+            return "createdAt";
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Champ de tri non supporté: " + sort);
+    }
+
+    private Sort.Direction resolveSortDirection(String status, String order) {
+        if (order != null && !order.isBlank()) {
+            if ("asc".equalsIgnoreCase(order)) return Sort.Direction.ASC;
+            if ("desc".equalsIgnoreCase(order)) return Sort.Direction.DESC;
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ordre de tri non supporté: " + order);
+        }
+        String normalized = status != null ? status.trim().toLowerCase() : "all";
+        return switch (normalized) {
+            case "pending", "confirmed", "processing", "ready" -> Sort.Direction.ASC;
+            default -> Sort.Direction.DESC;
+        };
     }
 
     /** GET orders/{id} : détail (order-details, liste de lignes) d'une commande du vendeur. */

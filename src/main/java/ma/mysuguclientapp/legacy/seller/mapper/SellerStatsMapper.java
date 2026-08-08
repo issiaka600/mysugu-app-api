@@ -42,17 +42,19 @@ public class SellerStatsMapper {
     public Map<String, Object> orderStatistics(Map<StatutCommande, Long> countsByStatut) {
         long pending = c(countsByStatut, StatutCommande.EN_ATTENTE);
         long confirmed = c(countsByStatut, StatutCommande.CONFIRMEE);
-        long processing = c(countsByStatut, StatutCommande.EN_PREPARATION) + c(countsByStatut, StatutCommande.PRETE);
+        long processing = c(countsByStatut, StatutCommande.EN_PREPARATION);
+        long ready = c(countsByStatut, StatutCommande.PRETE);
         long outForDelivery = c(countsByStatut, StatutCommande.ASSIGNEE_LIVREUR) + c(countsByStatut, StatutCommande.EN_COURS);
         long delivered = c(countsByStatut, StatutCommande.LIVREE);
         long canceled = c(countsByStatut, StatutCommande.ANNULEE);
         long failed = c(countsByStatut, StatutCommande.NON_FINALISEE);
-        long total = pending + confirmed + processing + outForDelivery + delivered + canceled + failed;
+        long total = pending + confirmed + processing + ready + outForDelivery + delivered + canceled + failed;
 
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("pending", pending);
         m.put("confirmed", confirmed);
         m.put("processing", processing);
+        m.put("ready", ready);
         m.put("out_for_delivery", outForDelivery);
         m.put("delivered", delivered);
         m.put("canceled", canceled);

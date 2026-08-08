@@ -376,6 +376,14 @@ adresse. Le mobile ne doit pas appeler manuellement `/api/auth/send-verification
 
 ## 10. Commandes
 
+### GET /api/v3/seller/orders/list
+
+Liste des commandes du restaurant Vendor authentifié.
+
+- `status` accepte `pending`, `confirmed`, `processing`, `ready`, `out_for_delivery`, `delivered`, `canceled`, `returned`, `failed` et `all`.
+- Seul `sort=createdAt` est accepté.
+- `order=asc|desc` est optionnel. Sans `order`, `pending`, `confirmed`, `processing` et `ready` sont triés ancien → récent ; les autres vues récent → ancien.
+
 **Base :** `/api/commandes`
 
 | Méthode | Endpoint | Rôle | Description |

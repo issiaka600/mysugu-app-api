@@ -101,7 +101,8 @@ class SellerOrderStatisticsTest {
                 StatutCommande.NON_FINALISEE, 1L));
         assertThat(m.get("pending")).isEqualTo(2L);
         assertThat(m.get("confirmed")).isEqualTo(1L);
-        assertThat(m.get("processing")).isEqualTo(4L);        // EN_PREPARATION + PRETE
+        assertThat(m.get("processing")).isEqualTo(3L);
+        assertThat(m.get("ready")).isEqualTo(1L);
         assertThat(m.get("out_for_delivery")).isEqualTo(3L);  // ASSIGNEE_LIVREUR + EN_COURS
         assertThat(m.get("delivered")).isEqualTo(5L);
         assertThat(m.get("canceled")).isEqualTo(1L);

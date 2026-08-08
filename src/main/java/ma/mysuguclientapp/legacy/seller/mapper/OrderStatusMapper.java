@@ -25,7 +25,7 @@ public class OrderStatusMapper {
         OUTBOUND_STATUS.put(StatutCommande.EN_ATTENTE, "pending");
         OUTBOUND_STATUS.put(StatutCommande.CONFIRMEE, "confirmed");
         OUTBOUND_STATUS.put(StatutCommande.EN_PREPARATION, "processing");
-        OUTBOUND_STATUS.put(StatutCommande.PRETE, "processing");
+        OUTBOUND_STATUS.put(StatutCommande.PRETE, "ready");
         OUTBOUND_STATUS.put(StatutCommande.ASSIGNEE_LIVREUR, "out_for_delivery");
         OUTBOUND_STATUS.put(StatutCommande.EN_COURS, "out_for_delivery");
         OUTBOUND_STATUS.put(StatutCommande.LIVREE, "delivered");
@@ -38,6 +38,7 @@ public class OrderStatusMapper {
             "pending", StatutCommande.EN_ATTENTE,
             "confirmed", StatutCommande.CONFIRMEE,
             "processing", StatutCommande.EN_PREPARATION,
+            "ready", StatutCommande.PRETE,
             "out_for_delivery", StatutCommande.EN_COURS,
             "delivered", StatutCommande.LIVREE,
             "canceled", StatutCommande.ANNULEE,

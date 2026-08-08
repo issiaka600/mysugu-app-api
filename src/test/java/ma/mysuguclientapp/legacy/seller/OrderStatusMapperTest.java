@@ -25,7 +25,7 @@ class OrderStatusMapperTest {
         assertThat(mapper.toSixValleyStatus(StatutCommande.EN_ATTENTE)).isEqualTo("pending");
         assertThat(mapper.toSixValleyStatus(StatutCommande.CONFIRMEE)).isEqualTo("confirmed");
         assertThat(mapper.toSixValleyStatus(StatutCommande.EN_PREPARATION)).isEqualTo("processing");
-        assertThat(mapper.toSixValleyStatus(StatutCommande.PRETE)).isEqualTo("processing");
+        assertThat(mapper.toSixValleyStatus(StatutCommande.PRETE)).isEqualTo("ready");
         assertThat(mapper.toSixValleyStatus(StatutCommande.ASSIGNEE_LIVREUR)).isEqualTo("out_for_delivery");
         assertThat(mapper.toSixValleyStatus(StatutCommande.EN_COURS)).isEqualTo("out_for_delivery");
         assertThat(mapper.toSixValleyStatus(StatutCommande.LIVREE)).isEqualTo("delivered");
