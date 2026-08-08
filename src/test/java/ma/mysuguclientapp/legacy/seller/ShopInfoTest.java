@@ -63,6 +63,7 @@ class ShopInfoTest {
         r.setNom("Chez Foo");
         r.setDescription("desc");
         r.setLogoUrl("restaurants/logos/foo.png");
+        r.setBannerUrl("restaurants/banners/foo.png");
         r.setTempsLivraisonMoyen(30);
         r.setOwner(owner);
         r.setIsActive(true);
@@ -87,11 +88,16 @@ class ShopInfoTest {
         assertThat(n.get("temporary_close").asBoolean()).isFalse();
         // image mappé depuis logoUrl (URL publique dérivée de l'object name par le service natif).
         assertThat(n.get("image").asText()).contains("restaurants/logos/foo.png");
+        assertThat(n.get("banner").asText()).contains("restaurants/banners/foo.png");
         // Champs 6valley non mappés -> présents, valeurs bénignes (jamais absents/null-crash).
         assertThat(n.get("minimum_order_amount").asInt()).isEqualTo(0);
         assertThat(n.get("vacation_status").asBoolean()).isFalse();
         assertThat(n.has("rating")).isTrue();
         assertThat(n.has("delivery_charge")).isTrue();
+
+        Resp alias = get("/api/v3/seller/shop", t);
+        assertThat(alias.status).isEqualTo(200);
+        assertThat(M.readTree(alias.body).get("banner").asText()).contains("restaurants/banners/foo.png");
     }
 
     private String ownerToken() throws Exception {

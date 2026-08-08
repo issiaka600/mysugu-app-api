@@ -78,8 +78,7 @@ public class ShopMapper {
         m.put("image", r.getLogoUrl());
         m.put("created_at", r.getCreatedAt() != null ? r.getCreatedAt().toString() : null);
         m.put("updated_at", r.getCreatedAt() != null ? r.getCreatedAt().toString() : null);
-        // GAP: bannières 6valley sans équivalent natif -> null bénin (l'app tolère l'absence d'image).
-        m.put("banner", null);
+        m.put("banner", r.getBannerUrl());
         m.put("bottom_banner", null);
         m.put("offer_banner", null);
         m.put("rating", r.getAppreciation() != null ? r.getAppreciation() : 0.0);

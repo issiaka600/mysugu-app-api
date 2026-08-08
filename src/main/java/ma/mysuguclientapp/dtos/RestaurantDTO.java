@@ -13,6 +13,8 @@ public class RestaurantDTO {
     private String description;
     private String logoObjectName;
     private String logoUrl;
+    private String bannerObjectName;
+    private String bannerUrl;
     private Double appreciation;
     private Integer nombreAvis;
     private Integer tempsLivraisonMoyen;

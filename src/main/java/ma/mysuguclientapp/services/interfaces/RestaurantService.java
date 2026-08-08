@@ -45,6 +45,9 @@ public interface RestaurantService {
      */
     RestaurantDTO updateRestaurant(Long id, RestaurantCreateDTO restaurantDTO, MultipartFile logo);
 
+    /** Remplace la bannière de la boutique et retourne ses informations mises à jour. */
+    RestaurantDTO updateRestaurantBanner(Long id, MultipartFile banner);
+
     /**
      * Supprimer un restaurant
      */

@@ -221,6 +221,35 @@ public class RestaurantServiceImpl implements RestaurantService {
     }
 
     @Override
+    public RestaurantDTO updateRestaurantBanner(Long id, MultipartFile banner) {
+        Restaurant restaurant = restaurantRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Restaurant non trouvé"));
+        if (banner == null || banner.isEmpty()) {
+            return convertToDTO(restaurant, null, null);
+        }
+
+        final String previousBanner = restaurant.getBannerUrl();
+        final String uploadedBanner;
+        try {
+            uploadedBanner = minioService.uploadFile(banner, "restaurants/banners");
+        } catch (Exception e) {
+            log.error("Erreur lors de l'upload de la bannière", e);
+            throw new BadRequestException("Erreur lors de l'upload de la bannière");
+        }
+
+        restaurant.setBannerUrl(uploadedBanner);
+        Restaurant updatedRestaurant = restaurantRepository.save(restaurant);
+        if (previousBanner != null && !previousBanner.equals(uploadedBanner)) {
+            try {
+                minioService.deleteFile(previousBanner);
+            } catch (Exception e) {
+                log.warn("Erreur lors de la suppression de l'ancienne bannière", e);
+            }
+        }
+        return convertToDTO(updatedRestaurant, null, null);
+    }
+
+    @Override
     public void deleteRestaurant(Long id) {
         Restaurant restaurant = restaurantRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Restaurant non trouvé"));
@@ -230,6 +259,13 @@ public class RestaurantServiceImpl implements RestaurantService {
                 minioService.deleteFile(restaurant.getLogoUrl());
             } catch (Exception e) {
                 log.warn("Erreur lors de la suppression du logo", e);
+            }
+        }
+        if (restaurant.getBannerUrl() != null) {
+            try {
+                minioService.deleteFile(restaurant.getBannerUrl());
+            } catch (Exception e) {
+                log.warn("Erreur lors de la suppression de la bannière", e);
             }
         }
 
@@ -489,6 +525,8 @@ public class RestaurantServiceImpl implements RestaurantService {
         dto.setDescription(restaurant.getDescription());
         dto.setLogoObjectName(restaurant.getLogoUrl());
         dto.setLogoUrl(minioService.buildPublicFileUrl(restaurant.getLogoUrl()));
+        dto.setBannerObjectName(restaurant.getBannerUrl());
+        dto.setBannerUrl(minioService.buildPublicFileUrl(restaurant.getBannerUrl()));
         dto.setAppreciation(restaurant.getAppreciation());
         dto.setNombreAvis(restaurant.getNombreAvis());
         dto.setTempsLivraisonMoyen(restaurant.getTempsLivraisonMoyen());

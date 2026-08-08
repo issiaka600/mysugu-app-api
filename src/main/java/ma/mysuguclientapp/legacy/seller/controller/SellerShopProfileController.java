@@ -83,8 +83,8 @@ public class SellerShopProfileController {
         return sellerProfileMapper.toSellerInfo(result);
     }
 
-    /** GET shop-info : boutique du vendeur (son Restaurant), forme 6valley. */
-    @GetMapping("/shop-info")
+    /** GET shop-info ou shop : boutique du vendeur (son Restaurant), forme 6valley. */
+    @GetMapping({"/shop-info", "/shop"})
     public Map<String, Object> shopInfo(@AuthenticationPrincipal String email) {
         Restaurant entity = sellerContext.currentRestaurant(email); // 403 non-vendeur / 404 sans restaurant
         RestaurantDTO resto = restaurantService.getMonRestaurant(email);
@@ -98,7 +98,7 @@ public class SellerShopProfileController {
      * POST shop-update (multipart, {@code _method:put} toléré) : met à jour la boutique du
      * vendeur. L'id du Restaurant est TOUJOURS résolu via {@link SellerContext#currentRestaurant}
      * (jamais depuis le corps) — pas d'écriture cross-tenant. Champs 6valley sans équivalent natif
-     * (bannières, minimum_order_amount, delivery_charge, free_delivery) acceptés et ignorés.
+     * (minimum_order_amount, delivery_charge, free_delivery) acceptés et ignorés.
      */
     @PostMapping(value = "/shop-update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Map<String, Object> shopUpdate(
@@ -106,11 +106,15 @@ public class SellerShopProfileController {
             @RequestParam(value = "name", required = false) String name,
             @RequestParam(value = "address", required = false) String address,
             @RequestParam(value = "delivery_time", required = false) Integer deliveryTime,
-            @RequestParam(value = "logo", required = false) MultipartFile logo) {
+            @RequestParam(value = "logo", required = false) MultipartFile logo,
+            @RequestParam(value = "banner", required = false) MultipartFile banner) {
         Long restaurantId = sellerContext.currentRestaurant(email).getId(); // id serveur, jamais du corps
         RestaurantDTO current = restaurantService.getMonRestaurant(email);
         RestaurantDTO updated = restaurantService.updateRestaurant(restaurantId,
                 shopMapper.toRestaurantUpdate(current, name, address, deliveryTime), logo);
+        if (banner != null && !banner.isEmpty()) {
+            updated = restaurantService.updateRestaurantBanner(restaurantId, banner);
+        }
         return shopMapper.toShopInfo(updated);
     }
 

@@ -384,6 +384,10 @@ Liste des commandes du restaurant Vendor authentifié.
 - Seul `sort=createdAt` est accepté.
 - `order=asc|desc` est optionnel. Sans `order`, `pending`, `confirmed`, `processing` et `ready` sont triés ancien → récent ; les autres vues récent → ancien.
 
+### POST /api/v3/seller/shop-update
+
+Mise à jour de la boutique Vendor en `multipart/form-data`. Les champs `logo` et `banner` sont des fichiers optionnels. La réponse, comme `GET /api/v3/seller/shop` ou `/shop-info`, contient `image` pour le logo et `banner` pour l'URL publique de la bannière.
+
 **Base :** `/api/commandes`
 
 | Méthode | Endpoint | Rôle | Description |

@@ -32,6 +32,9 @@ public class Restaurant {
     private String description;
     
     private String logoUrl;
+
+    /** Object name MinIO de la bannière de la boutique. */
+    private String bannerUrl;
     
     @Column(name = "appreciation")
     private Double appreciation = 0.0; // Note moyenne (0-5)
