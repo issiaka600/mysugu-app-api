@@ -77,11 +77,8 @@ public class CustomerAuthController {
             return errors(HttpStatus.FORBIDDEN, "email", e.getMessage());
         }
 
-        LoginDTO loginDTO = new LoginDTO();
-        loginDTO.setEmail(email);
-        loginDTO.setPassword(password);
-        LoginResponseDTO resp = userService.login(loginDTO);
-        return ResponseEntity.ok(Map.of("token", resp.getToken())); // jamais temporary_token
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
+                "message", "Compte créé. Vérifiez votre e-mail avant de vous connecter."));
     }
 
     private static String str(Object o) {

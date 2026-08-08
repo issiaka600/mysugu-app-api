@@ -2,8 +2,6 @@ package ma.mysuguclientapp.controllers;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import ma.mysuguclientapp.dtos.LoginDTO;
-import ma.mysuguclientapp.dtos.LoginResponseDTO;
 import ma.mysuguclientapp.dtos.RegisterDTO;
 import ma.mysuguclientapp.dtos.RestaurantCreateDTO;
 import ma.mysuguclientapp.dtos.RestaurantDTO;
@@ -19,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Endpoints destinés à l'application mobile restaurateur.
@@ -39,17 +38,15 @@ public class RestaurateurController {
 
     /**
      * Inscription d'un compte restaurateur (public). Le rôle RESTAURANT_OWNER est
-     * forcé quelle que soit la valeur envoyée. Retourne directement un token de session.
+     * forcé quelle que soit la valeur envoyée. Un e-mail de vérification est envoyé et aucune
+     * session n'est délivrée avant sa validation.
      */
     @PostMapping("/register")
-    public ResponseEntity<LoginResponseDTO> register(@Valid @RequestBody RegisterDTO registerDTO) {
+    public ResponseEntity<Map<String, String>> register(@Valid @RequestBody RegisterDTO registerDTO) {
         registerDTO.setRole("RESTAURANT_OWNER");
         userService.register(registerDTO);
-
-        LoginDTO loginDTO = new LoginDTO();
-        loginDTO.setEmail(registerDTO.getEmail());
-        loginDTO.setPassword(registerDTO.getPassword());
-        return ResponseEntity.status(HttpStatus.CREATED).body(userService.login(loginDTO));
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
+                "message", "Compte créé. Vérifiez votre e-mail avant de vous connecter."));
     }
 
     /**

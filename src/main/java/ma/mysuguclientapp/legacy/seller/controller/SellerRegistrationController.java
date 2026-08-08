@@ -3,13 +3,10 @@ package ma.mysuguclientapp.legacy.seller.controller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import ma.mysuguclientapp.dtos.LocalisationDTO;
-import ma.mysuguclientapp.dtos.LoginDTO;
-import ma.mysuguclientapp.dtos.LoginResponseDTO;
 import ma.mysuguclientapp.dtos.RegisterDTO;
 import ma.mysuguclientapp.dtos.RestaurantCreateDTO;
 import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.legacy.seller.dto.ErrorsResponse;
-import ma.mysuguclientapp.legacy.seller.dto.TokenResponse;
 import ma.mysuguclientapp.services.interfaces.RestaurantService;
 import ma.mysuguclientapp.services.interfaces.UserService;
 import org.springframework.http.HttpStatus;
@@ -17,16 +14,17 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 /**
  * Inscription du shim vendeur (contrat 6valley POST /api/v3/seller/registration, multipart).
  * Réutilise le parcours natif d'inscription (comme {@code RestaurateurController.register}) en
- * forçant le rôle RESTAURANT_OWNER, puis renvoie le token 6valley {token} (auto-login).
+ * forçant le rôle RESTAURANT_OWNER. Un e-mail de vérification est envoyé et aucune session
+ * n'est délivrée avant sa validation.
  *
  * <p>Tranche 3b : après création du compte RESTAURANT_OWNER, la boutique est créée à partir des
  * champs {@code shop_name}/{@code shop_address} via le parcours natif
- * {@code RestaurantService.soumettreOnboarding} (statut EN_ATTENTE, isActive=false) afin que
- * {@code currentRestaurant} résolve immédiatement après l'inscription. La réponse {@code {token}}
- * reste inchangée (auto-login).</p>
+ * {@code RestaurantService.soumettreOnboarding} (statut EN_ATTENTE, isActive=false).</p>
  */
 @RestController
 @RequestMapping("/api/v3/seller")
@@ -88,11 +86,8 @@ public class SellerRegistrationController {
             log.warn("Onboarding boutique à l'inscription échoué pour {}: {}", email, e.getMessage());
         }
 
-        LoginDTO loginDTO = new LoginDTO();
-        loginDTO.setEmail(email);
-        loginDTO.setPassword(password);
-        LoginResponseDTO login = userService.login(loginDTO);
         log.info("Inscription vendeur réussie pour {}", email);
-        return ResponseEntity.ok(new TokenResponse(login.getToken()));
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
+                "message", "Compte créé. Vérifiez votre e-mail avant de vous connecter."));
     }
 }
