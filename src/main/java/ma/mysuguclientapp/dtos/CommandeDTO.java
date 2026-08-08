@@ -26,6 +26,8 @@ public class CommandeDTO {
     private String currencySymbol = "DH";
     private Integer tempsLivraisonEstime;
     private BigDecimal montantCommissionTotal;
+    /** Part nette du montant final revenant au vendeur, calculée côté serveur. */
+    private BigDecimal montantVendeur;
     private String commentaire;
     private String raisonAnnulation;
     private String modeReception;

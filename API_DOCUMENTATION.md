@@ -383,6 +383,7 @@ Liste des commandes du restaurant Vendor authentifié.
 - `status` accepte `pending`, `confirmed`, `processing`, `ready`, `out_for_delivery`, `delivered`, `canceled`, `returned`, `failed` et `all`.
 - Seul `sort=createdAt` est accepté.
 - `order=asc|desc` est optionnel. Sans `order`, `pending`, `confirmed`, `processing` et `ready` sont triés ancien → récent ; les autres vues récent → ancien.
+- Chaque commande expose `montant_vendeur` (montant final moins frais de livraison et commission) et `montant_commission_total`.
 
 ### POST /api/v3/seller/shop-update
 

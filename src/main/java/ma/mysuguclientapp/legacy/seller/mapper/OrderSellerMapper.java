@@ -42,6 +42,8 @@ public class OrderSellerMapper {
         m.put("order_amount", nonNull(dto.getMontantFinal()));
         m.put("shipping_cost", nonNull(dto.getFraisLivraison()));
         m.put("discount_amount", nonNull(dto.getMontantRemise()));
+        m.put("montant_vendeur", nonNull(dto.getMontantVendeur()));
+        m.put("montant_commission_total", nonNull(dto.getMontantCommissionTotal()));
         m.put("delivery_man_id", dto.getLivreur() != null ? dto.getLivreur().getId() : null);
         m.put("delivery_man", toDeliveryMan(dto.getLivreur()));
         m.put("expected_delivery_date", dto.getDateLivraisonPrevue() != null ? dto.getDateLivraisonPrevue().toString() : null);

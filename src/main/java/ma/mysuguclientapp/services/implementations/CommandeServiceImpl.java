@@ -1127,6 +1127,7 @@ public class CommandeServiceImpl implements CommandeService {
         dto.setCodePromoUtilise(commande.getCodePromoUtilise());
         dto.setFraisLivraison(commande.getFraisLivraison());
         dto.setMontantCommissionTotal(commande.getMontantCommissionTotal());
+        dto.setMontantVendeur(calculerMontantVendeur(commande));
         dto.setTempsLivraisonEstime(commande.getTempsLivraisonEstime());
         dto.setCommentaire(commande.getCommentaire());
         dto.setRaisonAnnulation(commande.getRaisonAnnulation());
@@ -1217,6 +1218,21 @@ public class CommandeServiceImpl implements CommandeService {
         }
 
         return dto;
+    }
+
+    /**
+     * Montant net vendeur : total payé après remises, hors livraison, moins la commission
+     * plateforme. Cette valeur est bornée à zéro pour les cas exceptionnels de remise élevée.
+     */
+    private BigDecimal calculerMontantVendeur(Commande commande) {
+        BigDecimal montantFinal = commande.getMontantFinal() != null
+                ? commande.getMontantFinal()
+                : (commande.getMontantTotal() != null ? commande.getMontantTotal() : BigDecimal.ZERO);
+        BigDecimal fraisLivraison = commande.getFraisLivraison() != null
+                ? commande.getFraisLivraison() : BigDecimal.ZERO;
+        BigDecimal commission = commande.getMontantCommissionTotal() != null
+                ? commande.getMontantCommissionTotal() : BigDecimal.ZERO;
+        return montantFinal.subtract(fraisLivraison).subtract(commission).max(BigDecimal.ZERO);
     }
 
     private LocalisationDTO toLocalisationDTO(Localisation localisation) {

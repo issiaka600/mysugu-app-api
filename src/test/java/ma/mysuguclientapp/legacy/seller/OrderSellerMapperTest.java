@@ -41,6 +41,8 @@ class OrderSellerMapperTest {
         dto.setMethodePaiement("CARTE_BANCAIRE");
         dto.setMontantFinal(new BigDecimal("120.00"));
         dto.setFraisLivraison(new BigDecimal("15.00"));
+        dto.setMontantCommissionTotal(new BigDecimal("10.00"));
+        dto.setMontantVendeur(new BigDecimal("95.00"));
         dto.setMontantRemise(new BigDecimal("5.00"));
         dto.setModeReception("LIVRAISON");
         dto.setCommentaire("Sonner à l'interphone");
@@ -102,6 +104,8 @@ class OrderSellerMapperTest {
         assertThat(order.get("payment_status")).isEqualTo("paid");
         assertThat(order.get("order_amount")).isEqualTo(new BigDecimal("120.00"));
         assertThat(order.get("shipping_cost")).isEqualTo(new BigDecimal("15.00"));
+        assertThat(order.get("montant_vendeur")).isEqualTo(new BigDecimal("95.00"));
+        assertThat(order.get("montant_commission_total")).isEqualTo(new BigDecimal("10.00"));
         assertThat(order.get("delivery_man_id")).isEqualTo(15L);
 
         @SuppressWarnings("unchecked")
