@@ -183,6 +183,9 @@ public class SecurityConfig {
                         // Device tokens FCM (authenticated)
                         .requestMatchers("/api/device-tokens/**").authenticated()
 
+                        // Accusés de réception du cycle de vie des notifications mobiles
+                        .requestMatchers("/api/mobile/notification-acks/**").authenticated()
+
                         // Disponibilité livreur (livreur uniquement)
                         .requestMatchers("/api/users/livreur/disponibilite").hasRole("LIVREUR")
 

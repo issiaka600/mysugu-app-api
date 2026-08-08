@@ -330,6 +330,7 @@ public class CommandeServiceImpl implements CommandeService {
         ligneCommandeRepository.saveAll(lignes);
         log.info("Commande creee: {} pour un montant de {} (remise: {})", savedCommande.getNumeroCommande(), savedCommande.getMontantTotal(), totalRemise);
         CommandeDTO dto = convertToDTO(savedCommande);
+        notifierPartiesCommande(savedCommande);
 
         // Si paiement par carte bancaire, créer un PaymentIntent Stripe
         if (savedCommande.getMethodePaiement() == MethodePaiement.CARTE_BANCAIRE) {
@@ -431,6 +432,7 @@ public class CommandeServiceImpl implements CommandeService {
         if (nouveauStatut == StatutCommande.CONFIRMEE) {
             envoyerNotificationsConfirmation(updatedCommande);
         }
+        notifierPartiesCommande(updatedCommande);
 
         log.info("Statut de la commande {} mis a jour: {}", commande.getNumeroCommande(), nouveauStatut);
         return convertToDTO(updatedCommande);
@@ -469,31 +471,7 @@ public class CommandeServiceImpl implements CommandeService {
         Commande updatedCommande = commandeRepository.save(commande);
         log.info("Livreur {} assigne a la commande {}", livreur.getNom(), commande.getNumeroCommande());
 
-        // Notifier le livreur qu'une livraison lui est assignée
-        notificationService.envoyerNotificationCommande(
-                livreur.getId(),
-                updatedCommande.getNumeroCommande(),
-                TypeNotification.LIVREUR_ASSIGNE,
-                updatedCommande.getId()
-        );
-
-        // Notifier le client qu'un livreur a été assigné à sa commande
-        notificationService.envoyerNotificationCommande(
-                updatedCommande.getClient().getId(),
-                updatedCommande.getNumeroCommande(),
-                TypeNotification.LIVREUR_ASSIGNE,
-                updatedCommande.getId()
-        );
-
-        // Notifier le restaurant que la livraison est en cours
-        if (updatedCommande.getRestaurant().getOwner() != null) {
-            notificationService.envoyerNotificationCommande(
-                    updatedCommande.getRestaurant().getOwner().getId(),
-                    updatedCommande.getNumeroCommande(),
-                    TypeNotification.LIVREUR_ASSIGNE,
-                    updatedCommande.getId()
-            );
-        }
+        notifierPartiesCommande(updatedCommande);
 
         return convertToDTO(updatedCommande);
     }
@@ -525,12 +503,7 @@ public class CommandeServiceImpl implements CommandeService {
         Commande updatedCommande = commandeRepository.save(commande);
         log.info("Livreur tiers '{}' assigne a la commande {}", dto.getNom(), commande.getNumeroCommande());
 
-        notificationService.envoyerNotificationCommande(
-                updatedCommande.getClient().getId(),
-                updatedCommande.getNumeroCommande(),
-                TypeNotification.LIVREUR_ASSIGNE,
-                updatedCommande.getId()
-        );
+        notifierPartiesCommande(updatedCommande);
 
         return convertToDTO(updatedCommande);
     }
@@ -645,6 +618,7 @@ public class CommandeServiceImpl implements CommandeService {
 
         Commande cancelledCommande = commandeRepository.save(commande);
         alerteCommandeVendeurService.stopForCommande(cancelledCommande.getId(), "COMMANDE_ANNULEE");
+        notifierPartiesCommande(cancelledCommande);
         log.info("Commande {} annulee", commande.getNumeroCommande());
         return convertToDTO(cancelledCommande);
     }
@@ -714,20 +688,6 @@ public class CommandeServiceImpl implements CommandeService {
         Long commandeId = commande.getId();
         boolean estLivraison = resolveModeReception(commande) == ModeReceptionCommande.LIVRAISON;
 
-        // 1. Notifier le client (toujours)
-        notificationService.envoyerNotificationCommande(
-                commande.getClient().getId(), numero,
-                TypeNotification.COMMANDE_CONFIRMEE, commandeId);
-
-        // 2. Notifier le restaurant (toujours)
-        if (commande.getRestaurant().getOwner() != null) {
-            notificationService.envoyerNotification(
-                    commande.getRestaurant().getOwner().getId(),
-                    "Commande confirmée",
-                    "La commande " + numero + " est confirmée. Veuillez la préparer.",
-                    TypeNotification.COMMANDE_CONFIRMEE, commandeId, "COMMANDE");
-        }
-
         // Le dispatch séquentiel est lancé après commit par DispatchLivraisonEvent.
         // Il remplace le broadcast / l'auto-assignation historique ci-dessous.
         if (estLivraison) {
@@ -752,11 +712,8 @@ public class CommandeServiceImpl implements CommandeService {
                         numero, livreur.getEmail());
 
                 // Notifier le livreur assigné
-                notificationService.envoyerNotification(
-                        livreur.getId(),
-                        "Nouvelle livraison assignée",
-                        "La commande " + numero + " vous a été assignée automatiquement. Préparez-vous !",
-                        TypeNotification.LIVREUR_ASSIGNE, commandeId, "COMMANDE");
+                notificationService.envoyerNotificationStatutCommande(
+                        livreur.getId(), numero, commandeId, commande.getStatut());
 
                 // Notifier les admins de l'assignation automatique
                 userRepository.findByRoleAndIsActive(UserRole.ADMIN, true)
@@ -773,11 +730,8 @@ public class CommandeServiceImpl implements CommandeService {
                         Constants.AUTO_ASSIGN_RADIUS_KM, numero);
 
                 userRepository.findByRoleAndIsActiveAndLivreurDisponible(UserRole.LIVREUR, true, true)
-                        .forEach(livreur -> notificationService.envoyerNotification(
-                                livreur.getId(),
-                                "Nouvelle commande disponible",
-                                "La commande " + numero + " est disponible pour livraison.",
-                                TypeNotification.COMMANDE_CONFIRMEE, commandeId, "COMMANDE"));
+                        .forEach(livreur -> notificationService.envoyerNotificationStatutCommande(
+                                livreur.getId(), numero, commandeId, commande.getStatut()));
 
                 userRepository.findByRoleAndIsActive(UserRole.ADMIN, true)
                         .forEach(admin -> notificationService.envoyerNotification(
@@ -795,6 +749,25 @@ public class CommandeServiceImpl implements CommandeService {
                             "Commande confirmée (retrait)",
                             "La commande " + numero + " est confirmée pour retrait sur place.",
                             TypeNotification.COMMANDE_CONFIRMEE, commandeId, "COMMANDE"));
+        }
+    }
+
+    /** Notifie les acteurs actuellement liés à la commande avec le même statut de suivi. */
+    private void notifierPartiesCommande(Commande commande) {
+        if (commande == null || commande.getStatut() == null) return;
+        Long commandeId = commande.getId();
+        String numero = commande.getNumeroCommande();
+        if (commande.getClient() != null) {
+            notificationService.envoyerNotificationStatutCommande(
+                    commande.getClient().getId(), numero, commandeId, commande.getStatut());
+        }
+        if (commande.getRestaurant() != null && commande.getRestaurant().getOwner() != null) {
+            notificationService.envoyerNotificationStatutCommande(
+                    commande.getRestaurant().getOwner().getId(), numero, commandeId, commande.getStatut());
+        }
+        if (commande.getLivreur() != null) {
+            notificationService.envoyerNotificationStatutCommande(
+                    commande.getLivreur().getId(), numero, commandeId, commande.getStatut());
         }
     }
 

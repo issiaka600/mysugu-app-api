@@ -83,11 +83,22 @@
 ```
 **Réponse 201 :** `UserDTO`
 
+Un e-mail de vérification est envoyé automatiquement. Le compte ne peut pas se connecter
+avec le mot de passe tant que l'e-mail n'a pas été vérifié.
+
 ### POST /auth/login
 ```json
 { "email": "user@example.com", "password": "motdepasse" }
 ```
 **Réponse 200 :** `{ "token": "...", "refreshToken": "...", "user": UserDTO }`
+
+Un compte avec `emailVerified: false` reçoit `403 Forbidden` et doit vérifier son e-mail.
+
+### PUT /users/profile — changement d'e-mail
+
+`Content-Type: multipart/form-data`, JWT requis. Si le champ `email` change, le backend met
+`emailVerified` à `false` et envoie automatiquement un lien de vérification à la nouvelle
+adresse. Le mobile ne doit pas appeler manuellement `/api/auth/send-verification` dans ce cas.
 
 ### POST /api/auth/refresh
 ```json
@@ -662,6 +673,27 @@
 ### GET /api/notifications/count
 **Réponse :** `{ "nonLues": 3, "total": 12 }`
 
+### Push client — changement de statut de commande
+À chaque transition de commande, le client reçoit une notification FCM avec les données :
+
+```json
+{
+  "type": "order_status",
+  "event": "order_status_changed",
+  "order_id": "123",
+  "status": "processing",
+  "badge": "2",
+  "screen": "order_tracking"
+}
+```
+
+Les statuts exposés sont `pending`, `confirmed`, `processing`, `ready`, `assigned`,
+`out_for_delivery`, `delivered` et `canceled`. Le titre et le message sont adaptés au
+statut ; Android utilise `order_alert` et iOS `order_alert.wav`. Les canaux sont
+`mysuku_customer_notifications_v1` (Customer), `mysuku_seller_orders_v1` (Vendor) et
+`mysuku_delivery_orders_v2` (Delivery). Le clic doit ouvrir le
+suivi de la commande à partir de `order_id` (`GET /api/commandes/{id}/tracking`).
+
 ---
 
 ## 19. Device Tokens (FCM)
@@ -678,6 +710,30 @@
 ```json
 { "userId": 4, "token": "fcm_token_here", "platform": "ANDROID" }
 ```
+
+### POST /api/mobile/notification-acks
+Enregistre un accusé de réception envoyé par l'application mobile. Authentification JWT
+obligatoire ; l'utilisateur est toujours déterminé depuis le JWT, jamais depuis le corps.
+
+Événements autorisés : `RECEIVED`, `DISPLAYED`, `OPENED`, `ACCEPTED`, `REJECTED`.
+L'envoi Firebase (`tokensSent` / identifiants Firebase) reste une trace serveur et ne doit
+pas être déclaré comme un accusé mobile.
+
+```json
+{
+  "event": "OPENED",
+  "notificationId": 987,
+  "orderId": 123,
+  "deliveryOfferId": 456,
+  "firebaseMessageId": "projects/.../messages/0:...",
+  "deviceToken": "fcm_token_here",
+  "occurredAt": "2026-08-07T12:30:00"
+}
+```
+
+`notificationId`, `orderId`, `deliveryOfferId`, `firebaseMessageId`, `deviceToken` et
+`occurredAt` sont facultatifs selon le contexte ; `occurredAt` vaut l'heure serveur s'il
+est absent. Réponse `202 Accepted` : `{ "id": 1, "event": "OPENED", "receivedAt": "..." }`.
 
 ---
 

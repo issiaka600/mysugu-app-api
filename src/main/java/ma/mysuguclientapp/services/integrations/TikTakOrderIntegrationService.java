@@ -186,14 +186,7 @@ public class TikTakOrderIntegrationService {
         }
 
         if (deliveryManAssigned) {
-            notificationService.envoyerNotification(
-                    commande.getClient().getId(),
-                    "Livreur assigné",
-                    "Un livreur a accepté votre commande " + commande.getNumeroCommande() + ".",
-                    TypeNotification.LIVREUR_ASSIGNE,
-                    commande.getId(),
-                    "COMMANDE"
-            );
+            notifyAllParties(commande);
             return;
         }
 
@@ -212,12 +205,23 @@ public class TikTakOrderIntegrationService {
         };
 
         if (type != null) {
-            notificationService.envoyerNotificationCommande(
-                    commande.getClient().getId(),
-                    commande.getNumeroCommande(),
-                    type,
-                    commande.getId()
-            );
+            notifyAllParties(commande);
+        }
+    }
+
+    private void notifyAllParties(Commande commande) {
+        Long orderId = commande.getId();
+        if (commande.getClient() != null) {
+            notificationService.envoyerNotificationStatutCommande(
+                    commande.getClient().getId(), commande.getNumeroCommande(), orderId, commande.getStatut());
+        }
+        if (commande.getRestaurant() != null && commande.getRestaurant().getOwner() != null) {
+            notificationService.envoyerNotificationStatutCommande(
+                    commande.getRestaurant().getOwner().getId(), commande.getNumeroCommande(), orderId, commande.getStatut());
+        }
+        if (commande.getLivreur() != null) {
+            notificationService.envoyerNotificationStatutCommande(
+                    commande.getLivreur().getId(), commande.getNumeroCommande(), orderId, commande.getStatut());
         }
     }
 

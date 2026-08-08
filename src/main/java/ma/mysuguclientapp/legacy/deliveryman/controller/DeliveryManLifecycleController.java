@@ -75,17 +75,16 @@ public class DeliveryManLifecycleController {
                 if (cause != null) c.setRaisonAnnulation(cause);
                 libererLivreur(c);
                 commandeRepository.save(c);
-                notifier(c.getLivreur(), c, "Commande annulée", "La commande " + c.getNumeroCommande() + " a été annulée.");
             }
             case "out_for_delivery" -> {
                 c.setStatut(StatutCommande.EN_COURS);
                 commandeRepository.save(c);
-                notifier(c.getClient(), c, "Commande en route", "Votre commande " + c.getNumeroCommande() + " est en cours de livraison.");
             }
             default -> {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorsResponse.of("status", "Statut non supporté."));
             }
         }
+        notifierPartiesStatut(c);
         return ResponseEntity.ok(new MessageResponse("Order status updated successfully!"));
     }
 
@@ -110,7 +109,6 @@ public class DeliveryManLifecycleController {
                 log.warn("Gains livreur commande {} : {}", c.getNumeroCommande(), e.getMessage());
             }
         }
-        notifier(c.getClient(), c, "Commande livrée", "Votre commande " + c.getNumeroCommande() + " a été livrée.");
     }
 
     @PostMapping("/update-expected-delivery")
@@ -237,6 +235,21 @@ public class DeliveryManLifecycleController {
                     TypeNotification.COMMANDE_CONFIRMEE, c.getId(), "COMMANDE");
         } catch (Exception e) {
             log.warn("Notification commande {} : {}", c.getNumeroCommande(), e.getMessage());
+        }
+    }
+
+    private void notifierPartiesStatut(Commande c) {
+        if (c.getClient() != null) {
+            notificationService.envoyerNotificationStatutCommande(
+                    c.getClient().getId(), c.getNumeroCommande(), c.getId(), c.getStatut());
+        }
+        if (c.getRestaurant() != null && c.getRestaurant().getOwner() != null) {
+            notificationService.envoyerNotificationStatutCommande(
+                    c.getRestaurant().getOwner().getId(), c.getNumeroCommande(), c.getId(), c.getStatut());
+        }
+        if (c.getLivreur() != null) {
+            notificationService.envoyerNotificationStatutCommande(
+                    c.getLivreur().getId(), c.getNumeroCommande(), c.getId(), c.getStatut());
         }
     }
 

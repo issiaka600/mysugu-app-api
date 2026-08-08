@@ -22,10 +22,13 @@ import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
 import ma.mysuguclientapp.exceptions.UnauthorizedException;
 import ma.mysuguclientapp.repositories.UserRepository;
 import ma.mysuguclientapp.services.interfaces.UserService;
+import ma.mysuguclientapp.services.interfaces.AuthEnhancedService;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -48,6 +51,7 @@ public class UserServiceImpl implements UserService {
     private final MinioService minioService;
     private final GoogleAuthService googleAuthService;
     private final AppleAuthService appleAuthService;
+    private final AuthEnhancedService authEnhancedService;
 
     @Override
     public UserDTO register(RegisterDTO registerDTO) {
@@ -65,6 +69,7 @@ public class UserServiceImpl implements UserService {
         user.setIsActive(true);
 
         User savedUser = userRepository.save(user);
+        authEnhancedService.envoyerEmailVerification(savedUser.getId());
         log.info("Utilisateur créé avec succès: {}", savedUser.getEmail());
         return convertToDTO(savedUser);
     }
@@ -79,6 +84,10 @@ public class UserServiceImpl implements UserService {
         }
         if (!user.getIsActive()) {
             throw new UnauthorizedException("Compte désactivé");
+        }
+        if (!Boolean.TRUE.equals(user.getEmailVerified())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Email non vérifié. Consultez votre boîte e-mail pour vérifier votre compte.");
         }
 
         return buildLoginResponse(user);
@@ -141,6 +150,7 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND_MESSAGE));
 
+        boolean emailChanged = false;
         if (updateDTO.getEmail() != null && !updateDTO.getEmail().isBlank()) {
             String newEmail = updateDTO.getEmail().trim().toLowerCase();
             if (!newEmail.equalsIgnoreCase(user.getEmail())) {
@@ -151,6 +161,7 @@ public class UserServiceImpl implements UserService {
                 });
                 user.setEmail(newEmail);
                 user.setEmailVerified(false);
+                emailChanged = true;
             }
         }
         if (updateDTO.getNom() != null) {
@@ -185,7 +196,11 @@ public class UserServiceImpl implements UserService {
             }
         }
 
-        return convertToDTO(userRepository.save(user));
+        User savedUser = userRepository.save(user);
+        if (emailChanged) {
+            authEnhancedService.envoyerEmailVerification(savedUser.getId());
+        }
+        return convertToDTO(savedUser);
     }
 
     @Override

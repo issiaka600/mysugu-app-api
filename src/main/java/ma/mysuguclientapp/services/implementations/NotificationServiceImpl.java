@@ -10,6 +10,7 @@ import ma.mysuguclientapp.entities.Notification;
 import ma.mysuguclientapp.entities.TentativeNotificationFcm;
 import ma.mysuguclientapp.entities.User;
 import ma.mysuguclientapp.enumerations.TypeNotification;
+import ma.mysuguclientapp.enumerations.StatutCommande;
 import ma.mysuguclientapp.enumerations.UserRole;
 import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
@@ -117,6 +118,57 @@ public class NotificationServiceImpl implements NotificationService {
         String titre = buildTitreCommande(type);
         String message = buildMessageCommande(type, numeroCommande);
         envoyerNotification(userId, titre, message, type, commandeId, "COMMANDE");
+    }
+
+    @Override
+    public void envoyerNotificationStatutCommandeClient(Long userId, String numeroCommande,
+                                                         Long commandeId, StatutCommande statut) {
+        envoyerNotificationStatutCommande(userId, numeroCommande, commandeId, statut);
+    }
+
+    @Override
+    public void envoyerNotificationStatutCommande(Long userId, String numeroCommande,
+                                                  Long commandeId, StatutCommande statut) {
+        if (statut == null) return;
+        userRepository.findById(userId).ifPresent(user -> {
+            String externalStatus = externalOrderStatus(statut);
+            String titre = buildTitreStatutCommande(statut);
+            String message = buildMessageStatutCommande(statut, numeroCommande);
+            Notification notification = notificationRepository.save(Notification.builder()
+                    .destinataire(user).titre(titre).message(message)
+                    .type(notificationType(statut)).entityId(commandeId)
+                    .entityType("COMMANDE").lue(false).build());
+
+            long badge = notificationRepository.countByDestinataireIdAndLueFalse(userId);
+            Map<String, String> data = new java.util.HashMap<>();
+            data.put("type", "order_status");
+            data.put("event", "order_status_changed");
+            data.put("order_id", String.valueOf(commandeId));
+            data.put("status", externalStatus);
+            data.put("badge", String.valueOf(badge));
+            data.put("screen", "order_tracking");
+            data.put("entityId", String.valueOf(commandeId));
+            data.put("entityType", "COMMANDE");
+            data.put("channelId", statusChannelFor(user));
+            data.put("androidSound", "order_alert");
+            data.put("apnsSound", "order_alert.wav");
+            data.put("priority", "high");
+            data.put("androidVisibility", "public");
+            data.put("notificationTag", "order-" + commandeId);
+            data.put("collapseKey", "order-" + commandeId);
+            data.put("apnsPushType", "alert");
+            data.put("apnsPriority", "10");
+            data.put("apnsThreadId", "order-" + commandeId);
+
+            FcmDeliveryResult result = fcmService.sendToUserWithResult(userId, titre, message, data);
+            tentativeNotificationFcmRepository.save(TentativeNotificationFcm.builder()
+                    .notification(notification)
+                    .tokensAttempted(result.tokensAttempted())
+                    .tokensSent(result.tokensSent())
+                    .firebaseMessageIds(String.join(",", result.firebaseMessageIds()))
+                    .errors(String.join(" | ", result.errors()))
+                    .build());
+        });
     }
 
     @Override
@@ -255,6 +307,70 @@ public class NotificationServiceImpl implements NotificationService {
             case COMMANDE_ANNULEE -> "Commande annulée";
             case LIVREUR_ASSIGNE -> "Livreur assigné";
             default -> "Mise à jour de votre commande";
+        };
+    }
+
+    private String externalOrderStatus(StatutCommande statut) {
+        return switch (statut) {
+            case EN_ATTENTE -> "pending";
+            case CONFIRMEE -> "confirmed";
+            case EN_PREPARATION -> "processing";
+            case PRETE -> "ready";
+            case ASSIGNEE_LIVREUR -> "assigned";
+            case EN_COURS -> "out_for_delivery";
+            case LIVREE -> "delivered";
+            case ANNULEE -> "canceled";
+            case NON_FINALISEE -> "pending";
+        };
+    }
+
+    private String buildTitreStatutCommande(StatutCommande statut) {
+        return switch (statut) {
+            case EN_ATTENTE -> "Commande reçue";
+            case CONFIRMEE -> "Commande confirmée";
+            case EN_PREPARATION -> "Préparation en cours";
+            case PRETE -> "Commande prête";
+            case ASSIGNEE_LIVREUR -> "Livreur assigné";
+            case EN_COURS -> "Commande en livraison";
+            case LIVREE -> "Commande livrée";
+            case ANNULEE -> "Commande annulée";
+            case NON_FINALISEE -> "Commande en attente";
+        };
+    }
+
+    private String buildMessageStatutCommande(StatutCommande statut, String numeroCommande) {
+        String numero = numeroCommande != null ? numeroCommande : "";
+        return switch (statut) {
+            case EN_ATTENTE -> "Votre commande " + numero + " a été reçue.";
+            case CONFIRMEE -> "Votre commande " + numero + " a été confirmée par le restaurant.";
+            case EN_PREPARATION -> "Le restaurant prépare votre commande " + numero + ".";
+            case PRETE -> "Votre commande " + numero + " est prête.";
+            case ASSIGNEE_LIVREUR -> "Un livreur a été assigné à votre commande " + numero + ".";
+            case EN_COURS -> "Votre commande " + numero + " est en cours de livraison.";
+            case LIVREE -> "Votre commande " + numero + " a été livrée.";
+            case ANNULEE -> "Votre commande " + numero + " a été annulée.";
+            case NON_FINALISEE -> "Votre commande " + numero + " est en attente de finalisation.";
+        };
+    }
+
+    private TypeNotification notificationType(StatutCommande statut) {
+        return switch (statut) {
+            case CONFIRMEE -> TypeNotification.COMMANDE_CONFIRMEE;
+            case EN_PREPARATION -> TypeNotification.COMMANDE_EN_PREPARATION;
+            case PRETE -> TypeNotification.COMMANDE_PRETE;
+            case EN_COURS -> TypeNotification.COMMANDE_EN_COURS;
+            case LIVREE -> TypeNotification.COMMANDE_LIVREE;
+            case ANNULEE -> TypeNotification.COMMANDE_ANNULEE;
+            case ASSIGNEE_LIVREUR -> TypeNotification.LIVREUR_ASSIGNE;
+            default -> TypeNotification.SYSTEME;
+        };
+    }
+
+    private String statusChannelFor(User user) {
+        return switch (user.getRole()) {
+            case LIVREUR -> "mysuku_delivery_orders_v2";
+            case RESTAURANT_OWNER, RESTAURANT_STAFF -> "mysuku_seller_orders_v1";
+            default -> "mysuku_customer_notifications_v1";
         };
     }
 

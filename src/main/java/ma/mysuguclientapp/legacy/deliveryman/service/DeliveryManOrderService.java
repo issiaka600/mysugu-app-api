@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import ma.mysuguclientapp.entities.Commande;
 import ma.mysuguclientapp.entities.User;
 import ma.mysuguclientapp.enumerations.StatutCommande;
-import ma.mysuguclientapp.enumerations.TypeNotification;
 import ma.mysuguclientapp.enumerations.UserRole;
 import ma.mysuguclientapp.legacy.deliveryman.mapper.LegacyOrderMapper;
 import ma.mysuguclientapp.repositories.CommandeRepository;
@@ -55,17 +54,15 @@ public class DeliveryManOrderService {
         String numero = c.getNumeroCommande();
         try {
             if (c.getClient() != null) {
-                notificationService.envoyerNotification(c.getClient().getId(),
-                        "Livreur en route",
-                        "Votre commande " + numero + " a été prise en charge par un livreur.",
-                        TypeNotification.LIVREUR_ASSIGNE, c.getId(), "COMMANDE");
+                notificationService.envoyerNotificationStatutCommande(
+                        c.getClient().getId(), numero, c.getId(), c.getStatut());
             }
             if (c.getRestaurant() != null && c.getRestaurant().getOwner() != null) {
-                notificationService.envoyerNotification(c.getRestaurant().getOwner().getId(),
-                        "Livreur assigné",
-                        "Un livreur a pris la commande " + numero + ".",
-                        TypeNotification.LIVREUR_ASSIGNE, c.getId(), "COMMANDE");
+                notificationService.envoyerNotificationStatutCommande(
+                        c.getRestaurant().getOwner().getId(), numero, c.getId(), c.getStatut());
             }
+            notificationService.envoyerNotificationStatutCommande(
+                    livreur.getId(), numero, c.getId(), c.getStatut());
         } catch (Exception e) {
             log.warn("Notifications post-acceptation commande {} : {}", numero, e.getMessage());
         }

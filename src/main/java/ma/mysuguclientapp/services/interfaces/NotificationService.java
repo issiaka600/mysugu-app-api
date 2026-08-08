@@ -4,6 +4,7 @@ import ma.mysuguclientapp.dtos.CampagneNotificationRequestDTO;
 import ma.mysuguclientapp.dtos.CampagneNotificationResultDTO;
 import ma.mysuguclientapp.dtos.NotificationDTO;
 import ma.mysuguclientapp.enumerations.TypeNotification;
+import ma.mysuguclientapp.enumerations.StatutCommande;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -18,6 +19,12 @@ public interface NotificationService {
 
     void envoyerNotification(Long userId, String titre, String message, TypeNotification type, Long entityId, String entityType);
     void envoyerNotificationCommande(Long userId, String numeroCommande, TypeNotification type, Long commandeId);
+    /** Push client standardisé pour chaque statut de commande. */
+    void envoyerNotificationStatutCommandeClient(Long userId, String numeroCommande,
+                                                 Long commandeId, StatutCommande statut);
+    /** Push de statut pour n'importe quel acteur (client, vendeur ou livreur). */
+    void envoyerNotificationStatutCommande(Long userId, String numeroCommande,
+                                           Long commandeId, StatutCommande statut);
     void envoyerNotificationSysteme(Long userId, String titre, String message);
 
     /** Push visible de messagerie, avec contexte de navigation et badge non-lu réel. */
