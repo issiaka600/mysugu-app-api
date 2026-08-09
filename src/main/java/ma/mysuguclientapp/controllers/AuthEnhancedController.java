@@ -33,6 +33,15 @@ public class AuthEnhancedController {
         return ResponseEntity.ok(Map.of("message", "Email de vérification envoyé"));
     }
 
+    /** Permet de remplacer un lien expiré avant la première connexion. */
+    @PostMapping("/api/auth/resend-verification")
+    public ResponseEntity<Map<String, String>> renvoyerVerification(@RequestBody ForgotPasswordDTO dto) {
+        authEnhancedService.renvoyerEmailVerification(dto.getEmail());
+        return ResponseEntity.ok(Map.of(
+                "message", "Si cette adresse nécessite une vérification, un nouvel email a été envoyé"
+        ));
+    }
+
     @PostMapping("/api/auth/verify-email")
     public ResponseEntity<Map<String, String>> verifierEmail(@RequestBody VerifyEmailDTO dto) {
         authEnhancedService.verifierEmail(dto);

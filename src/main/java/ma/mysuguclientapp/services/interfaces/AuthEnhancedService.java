@@ -6,6 +6,7 @@ import java.util.List;
 
 public interface AuthEnhancedService {
     void envoyerEmailVerification(Long userId);
+    void renvoyerEmailVerification(String email);
     void verifierEmail(VerifyEmailDTO dto);
     void demanderReinitialisationMotDePasse(ForgotPasswordDTO dto);
     void reinitialiserMotDePasse(ResetPasswordDTO dto);
