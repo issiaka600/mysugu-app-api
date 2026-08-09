@@ -86,6 +86,7 @@ public class CommandeServiceImpl implements CommandeService {
     private final ma.mysuguclientapp.services.interfaces.OptionSelectionService optionSelectionService;
     private final AlerteCommandeVendeurService alerteCommandeVendeurService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final CommandeStatusHistoryService commandeStatusHistoryService;
 
     @Override
     @Transactional(readOnly = true)
@@ -328,6 +329,7 @@ public class CommandeServiceImpl implements CommandeService {
 
         Commande savedCommande = commandeRepository.save(commande);
         ligneCommandeRepository.saveAll(lignes);
+        commandeStatusHistoryService.record(savedCommande);
         log.info("Commande creee: {} pour un montant de {} (remise: {})", savedCommande.getNumeroCommande(), savedCommande.getMontantTotal(), totalRemise);
         CommandeDTO dto = convertToDTO(savedCommande);
         notifierPartiesCommande(savedCommande);
@@ -400,6 +402,7 @@ public class CommandeServiceImpl implements CommandeService {
         }
 
         Commande updatedCommande = commandeRepository.save(commande);
+        commandeStatusHistoryService.record(updatedCommande);
 
         if (nouveauStatut == StatutCommande.CONFIRMEE) {
             alerteCommandeVendeurService.stopForCommande(updatedCommande.getId(), "COMMANDE_ACCEPTEE");
@@ -1121,6 +1124,7 @@ public class CommandeServiceImpl implements CommandeService {
         dto.setNumeroCommande(commande.getNumeroCommande());
         dto.setStatut(commande.getStatut().name());
         dto.setTrackingStatut(mapTrackingStatus(commande));
+        dto.setStatusHistory(commandeStatusHistoryService.getHistory(commande.getId()));
         dto.setMontantTotal(commande.getMontantTotal());
         dto.setMontantRemise(commande.getMontantRemise());
         dto.setMontantFinal(commande.getMontantFinal() != null ? commande.getMontantFinal() : commande.getMontantTotal());

@@ -452,6 +452,14 @@ Mise à jour de la boutique Vendor en `multipart/form-data`. Les champs `logo` e
   "numeroCommande": "CMD-20260221062843-7941",
   "statut": "LIVREE",
   "trackingStatut": "COMMANDE_LIVREE",
+  "statusHistory": [
+    { "status": "pending", "changedAt": "2026-08-09T16:30:00" },
+    { "status": "confirmed", "changedAt": "2026-08-09T16:35:00" },
+    { "status": "processing", "changedAt": "2026-08-09T16:40:00" },
+    { "status": "ready", "changedAt": "2026-08-09T16:55:00" },
+    { "status": "out_for_delivery", "changedAt": "2026-08-09T17:00:00" },
+    { "status": "delivered", "changedAt": "2026-08-09T17:20:00" }
+  ],
   "client": { "id": 4, "nom": "TRAORE", "prenom": "Client", "email": "...", "telephone": "...", "role": "CLIENT", "avatar": null },
   "restaurant": { "id": 1, "nom": "Chez Fatou", "commissionPourcentage": 15.0, "..." : "..." },
   "livreur": { "id": 3, "nom": "TRAORE", "prenom": "Livreur", "telephone": "...", "..." : "..." },

@@ -16,6 +16,7 @@ import ma.mysuguclientapp.enumerations.TypeNotification;
 import ma.mysuguclientapp.repositories.CommandeRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
 import ma.mysuguclientapp.services.interfaces.NotificationService;
+import ma.mysuguclientapp.services.implementations.CommandeStatusHistoryService;
 import ma.mysuguclientapp.services.tracking.TrackingLocationStore;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -43,6 +44,7 @@ public class TikTakOrderIntegrationService {
     private final CommandeRepository commandeRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final CommandeStatusHistoryService commandeStatusHistoryService;
     private final TrackingLocationStore trackingLocationStore;
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
@@ -155,6 +157,7 @@ public class TikTakOrderIntegrationService {
 
         commande.setTiktakSyncStatus("STATUS_" + dto.getStatus());
         commandeRepository.save(commande);
+        commandeStatusHistoryService.record(commande, statut);
         saveAndBroadcastLocation(commande, dto);
         notifyClientFromTikTakStatus(commande, ancienStatut, dto.getTiktakDeliveryManId() != null);
     }
