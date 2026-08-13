@@ -114,12 +114,18 @@ class VerticalFilterTest {
     }
 
     @Test
-    @org.springframework.transaction.annotation.Transactional
     void creationTuileAvecVerticalePersisteLaVerticale() {
         var dto = serviceCategorieService.createService(
                 "Tuile avec vertical " + System.nanoTime(), null, null, null, null,
                 "alimentaire", 0, true, null, null);
-        assertThat(dto.getVertical()).isEqualTo("ALIMENTAIRE");
+        try {
+            // Relecture indépendante (hors transaction du create) : preuve d'écriture en base,
+            // pas seulement de l'entité en mémoire renvoyée par repository.save().
+            var relue = serviceCategorieService.getServiceById(dto.getId());
+            assertThat(relue.getVertical()).isEqualTo("ALIMENTAIRE");
+        } finally {
+            serviceCategorieRepository.deleteById(dto.getId());
+        }
     }
 
     @Test
@@ -140,11 +146,17 @@ class VerticalFilterTest {
     }
 
     @Test
-    @org.springframework.transaction.annotation.Transactional
     void creationCategorieRestaurantAvecVerticalePersisteLaVerticale() {
         var dto = categorieRestaurantService.createCategorie(
                 "Categorie avec vertical " + System.nanoTime(), null, "cosmetique", null, null, null);
-        assertThat(dto.getVertical()).isEqualTo("COSMETIQUE");
+        try {
+            // Relecture indépendante (hors transaction du create) : preuve d'écriture en base,
+            // pas seulement de l'entité en mémoire renvoyée par repository.save().
+            var relue = categorieRestaurantService.getCategorieById(dto.getId());
+            assertThat(relue.getVertical()).isEqualTo("COSMETIQUE");
+        } finally {
+            categorieRepository.deleteById(dto.getId());
+        }
     }
 
     @Test
