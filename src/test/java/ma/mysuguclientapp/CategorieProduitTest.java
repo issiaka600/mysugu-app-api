@@ -5,6 +5,7 @@ import ma.mysuguclientapp.repositories.CategorieProduitRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -54,7 +55,15 @@ class CategorieProduitTest {
     }
 
     @Test
+    @Transactional
     void creerPuisModifierPuisDesactiverUnRayon() {
+        // Défensif : si une exécution antérieure à l'introduction de @Transactional a laissé
+        // une ligne "maquillage" désactivée en base (existsByVerticalAndCode ne filtre pas sur
+        // actif), on la retire avant de créer, pour que le test reste rejouable quel que soit
+        // l'état initial de la base.
+        repository.findByVerticalAndCode(Vertical.COSMETIQUE, "maquillage")
+                .ifPresent(repository::delete);
+
         var creation = new ma.mysuguclientapp.dtos.CategorieProduitDTO();
         creation.setVertical("COSMETIQUE");
         creation.setCode("maquillage");
