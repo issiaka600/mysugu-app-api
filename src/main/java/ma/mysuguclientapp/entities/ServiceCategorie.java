@@ -32,6 +32,11 @@ public class ServiceCategorie {
 
     private String type;
 
+    /** Verticale ouverte par cette tuile. Null = la tuile n'ouvre aucune liste d'établissements. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "vertical")
+    private ma.mysuguclientapp.enumerations.Vertical vertical;
+
     private Integer ordre = 0;
 
     private Boolean isActive = true;

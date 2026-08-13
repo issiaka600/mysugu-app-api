@@ -158,6 +158,7 @@ public class ServiceCategorieServiceImpl implements ServiceCategorieService {
         dto.setImageBannerUrl(minioService.buildPublicFileUrl(service.getImageBannerUrl()));
         dto.setIcon(service.getIcon());
         dto.setType(service.getType());
+        dto.setVertical(service.getVertical() != null ? service.getVertical().name() : null);
         dto.setOrdre(service.getOrdre());
         dto.setIsActive(service.getIsActive());
         return dto;

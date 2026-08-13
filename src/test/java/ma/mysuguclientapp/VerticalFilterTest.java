@@ -20,6 +20,8 @@ class VerticalFilterTest {
     @Autowired RestaurantRepository restaurantRepository;
     @Autowired TransactionTemplate tx;
     @Autowired ma.mysuguclientapp.repositories.CategoriesRestaurantRepository categorieRepository;
+    @Autowired ma.mysuguclientapp.repositories.ServiceCategorieRepository serviceCategorieRepository;
+    @Autowired ma.mysuguclientapp.services.interfaces.ServiceCategorieService serviceCategorieService;
 
     private Long alimId;
     private Long restoId;
@@ -90,5 +92,21 @@ class VerticalFilterTest {
         var sauvee = categorieRepository.save(cuisine);
         assertThat(categorieRepository.findByVerticalEffectif(Vertical.RESTAURANT))
                 .extracting("id").contains(sauvee.getId());
+    }
+
+    @Test
+    void laTuileDAccueilPorteSaVerticale() {
+        var tuile = new ma.mysuguclientapp.entities.ServiceCategorie();
+        tuile.setNom("Boutiques test " + System.nanoTime());
+        tuile.setVertical(Vertical.ALIMENTAIRE);
+        tuile.setIsActive(true);
+        var sauvee = serviceCategorieRepository.save(tuile);
+        try {
+            assertThat(serviceCategorieService.getAllServices())
+                    .filteredOn(s -> s.getId().equals(sauvee.getId()))
+                    .allMatch(s -> "ALIMENTAIRE".equals(s.getVertical()));
+        } finally {
+            serviceCategorieRepository.deleteById(sauvee.getId());
+        }
     }
 }
