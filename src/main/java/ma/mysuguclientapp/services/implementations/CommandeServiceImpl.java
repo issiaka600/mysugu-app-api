@@ -198,9 +198,24 @@ public class CommandeServiceImpl implements CommandeService {
 
         // Ordre de verrouillage stable : évite les interblocages entre commandes concurrentes
         // portant les mêmes produits dans un ordre différent.
+        for (LigneCommandeCreateDTO l : commandeDTO.getLignes()) {
+            if (l.getPlatId() == null) {
+                throw new BadRequestException("Identifiant de plat manquant sur une ligne de commande");
+            }
+        }
         List<LigneCommandeCreateDTO> lignesTriees = commandeDTO.getLignes().stream()
-                .sorted(java.util.Comparator.comparing(LigneCommandeCreateDTO::getPlatId))
+                .sorted(Comparator.comparing(LigneCommandeCreateDTO::getPlatId))
                 .toList();
+
+        // Quantité totale par produit : reserver() n'est appelé qu'une fois par plat distinct
+        // (avec la quantité cumulée), plutôt qu'une fois par ligne — supprime la dépendance à
+        // l'auto-flush Hibernate entre deux verrous successifs sur le même plat, et réduit le
+        // nombre de verrous pris.
+        Map<Long, Integer> quantitesParPlat = new LinkedHashMap<>();
+        for (LigneCommandeCreateDTO l : lignesTriees) {
+            quantitesParPlat.merge(l.getPlatId(), l.getQuantite(), Integer::sum);
+        }
+        Set<Long> platsReserves = new HashSet<>();
 
         for (LigneCommandeCreateDTO ligneDTO : lignesTriees) {
             Plat plat = platRepository.findById(ligneDTO.getPlatId())
@@ -213,7 +228,9 @@ public class CommandeServiceImpl implements CommandeService {
             if (!plat.isEffectivementDisponible()) {
                 throw new BadRequestException("Le plat " + plat.getNom() + " n'est pas disponible");
             }
-            stockService.reserver(plat.getId(), ligneDTO.getQuantite());
+            if (platsReserves.add(plat.getId())) {
+                stockService.reserver(plat.getId(), quantitesParPlat.get(plat.getId()));
+            }
 
             ma.mysuguclientapp.services.interfaces.OptionSelectionService.Selection sel =
                     optionSelectionService.resolve(plat, ligneDTO.getOptionItemIds());

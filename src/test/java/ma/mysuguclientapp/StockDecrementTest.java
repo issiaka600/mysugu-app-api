@@ -25,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -264,54 +266,139 @@ class StockDecrementTest {
         assertThat(result).isNotNull();
     }
 
+    /** Nombre de répétitions des tests de course : sans mise en course forcée, un seul essai
+     * peut passer par chance de timing (T1 committe avant que T2 ne démarre) sans jamais avoir
+     * exercé le chevauchement des deux transactions. Répéter augmente la probabilité que les
+     * deux threads soient effectivement en vol en même temps sur au moins une itération. */
+    private static final int ITERATIONS_COURSE = 8;
+
     /**
      * Piège n°1 du brief : deux commandes concurrentes portant les deux mêmes produits mais
      * soumis dans un ordre différent ne doivent jamais s'interbloquer. Ce test lance deux
      * vraies transactions en parallèle (deux threads, deux connexions) — contrairement aux
      * tests ci-dessus, il n'est PAS @Transactional : le verrouillage pessimiste n'a de sens
      * qu'entre transactions réellement distinctes. Le nettoyage est donc fait manuellement.
+     *
+     * Un {@link CountDownLatch} force les deux threads à démarrer leur appel à createCommande()
+     * au même instant (plutôt que deux pool.submit() consécutifs, où rien ne garantit que les
+     * transactions se chevauchent réellement) ; répété {@link #ITERATIONS_COURSE} fois pour
+     * maximiser la probabilité d'un chevauchement effectif sur au moins une itération.
      */
     @Test
     void createCommandeSimultaneesOrdreInverseNeSeBloquentPas() throws Exception {
-        Restaurant boutique = creerBoutique();
-        Plat platA = creerProduitEnStock(50, boutique);
-        Plat platB = creerProduitEnStock(50, boutique);
-        User clientA = creerClient();
-        User clientB = creerClient();
-
         ExecutorService pool = Executors.newFixedThreadPool(2);
         try {
-            Future<CommandeDTO> f1 = pool.submit(() ->
-                    commandeService.createCommande(commandeAvecLignes(
-                            clientA.getId(), boutique.getId(), platA.getId(), platB.getId())));
-            Future<CommandeDTO> f2 = pool.submit(() ->
-                    commandeService.createCommande(commandeAvecLignes(
-                            clientB.getId(), boutique.getId(), platB.getId(), platA.getId())));
+            for (int i = 0; i < ITERATIONS_COURSE; i++) {
+                Restaurant boutique = creerBoutique();
+                Plat platA = creerProduitEnStock(50, boutique);
+                Plat platB = creerProduitEnStock(50, boutique);
+                User clientA = creerClient();
+                User clientB = creerClient();
 
-            // Si le tri par platId avant verrouillage n'était pas fait, ces deux commandes
-            // verrouilleraient A puis B et B puis A respectivement : interblocage garanti.
-            CommandeDTO c1 = f1.get(20, TimeUnit.SECONDS);
-            CommandeDTO c2 = f2.get(20, TimeUnit.SECONDS);
+                try {
+                    CountDownLatch depart = new CountDownLatch(1);
+                    Future<CommandeDTO> f1 = pool.submit(() -> {
+                        depart.await();
+                        return commandeService.createCommande(commandeAvecLignes(
+                                clientA.getId(), boutique.getId(), platA.getId(), platB.getId()));
+                    });
+                    Future<CommandeDTO> f2 = pool.submit(() -> {
+                        depart.await();
+                        return commandeService.createCommande(commandeAvecLignes(
+                                clientB.getId(), boutique.getId(), platB.getId(), platA.getId()));
+                    });
+                    depart.countDown();
 
-            assertThat(c1).isNotNull();
-            assertThat(c2).isNotNull();
+                    // Si le tri par platId avant verrouillage n'était pas fait, ces deux commandes
+                    // verrouilleraient A puis B et B puis A respectivement : interblocage garanti.
+                    CommandeDTO c1 = f1.get(20, TimeUnit.SECONDS);
+                    CommandeDTO c2 = f2.get(20, TimeUnit.SECONDS);
 
-            // Chaque commande prend 1 unité de A et 1 de B : les deux décréments doivent
-            // s'être appliqués (50 - 2 = 48), preuve qu'aucune des deux transactions n'a été
-            // perdue ni bloquée indéfiniment.
-            assertThat(platRepository.findById(platA.getId()).orElseThrow().getQuantiteStock()).isEqualTo(48);
-            assertThat(platRepository.findById(platB.getId()).orElseThrow().getQuantiteStock()).isEqualTo(48);
+                    assertThat(c1).as("iteration %d", i).isNotNull();
+                    assertThat(c2).as("iteration %d", i).isNotNull();
+
+                    // Chaque commande prend 1 unité de A et 1 de B : les deux décréments doivent
+                    // s'être appliqués (50 - 2 = 48), preuve qu'aucune des deux transactions n'a été
+                    // perdue ni bloquée indéfiniment.
+                    assertThat(platRepository.findById(platA.getId()).orElseThrow().getQuantiteStock())
+                            .as("iteration %d : stock A", i).isEqualTo(48);
+                    assertThat(platRepository.findById(platB.getId()).orElseThrow().getQuantiteStock())
+                            .as("iteration %d : stock B", i).isEqualTo(48);
+                } finally {
+                    nettoyerCommandesEtBoutique(boutique.getId());
+                    platRepository.deleteById(platA.getId());
+                    platRepository.deleteById(platB.getId());
+                    restaurantRepository.deleteById(boutique.getId());
+                    // Les clients ne sont volontairement PAS supprimés : notifierPartiesCommande()
+                    // leur a créé des Notification, elles-mêmes référencées par
+                    // tentatives_notification_fcm — remonter toute cette chaîne FK dans un test
+                    // n'apporte rien. Emails uniques par nanoTime() : ne compromet pas la
+                    // rejouabilité (juste un peu de garbage inoffensif dans la base de test).
+                }
+            }
         } finally {
             pool.shutdownNow();
-            nettoyerCommandesEtBoutique(boutique.getId());
-            platRepository.deleteById(platA.getId());
-            platRepository.deleteById(platB.getId());
-            restaurantRepository.deleteById(boutique.getId());
-            // Les clients ne sont volontairement PAS supprimés : notifierPartiesCommande() leur a
-            // créé des Notification, elles-mêmes référencées par tentatives_notification_fcm —
-            // remonter toute cette chaîne FK dans un test n'apporte rien. Les emails étant
-            // uniques par nanoTime(), laisser ces users en base ne compromet pas la rejouabilité
-            // du test (juste un peu de garbage inoffensif dans la base de test persistante).
+        }
+    }
+
+    /**
+     * Propriété métier centrale de la tâche, celle que le test précédent ne démontre pas :
+     * sur un stock unitaire, deux acheteurs simultanés ne peuvent pas tous les deux repartir
+     * avec le produit. Exactement une des deux commandes réussit, l'autre échoue avec
+     * {@link BadRequestException} ("stock insuffisant"), et le stock final est 0 — jamais -1,
+     * jamais encore 1. Même dispositif de mise en course que le test précédent (CountDownLatch
+     * + répétitions) pour ne pas dépendre d'un hasard de timing.
+     */
+    @Test
+    void deuxAcheteursSimultanesSurStockUnitaireUnSeulReussit() throws Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            for (int i = 0; i < ITERATIONS_COURSE; i++) {
+                Restaurant boutique = creerBoutique();
+                Plat produit = creerProduitEnStock(1, boutique);
+                User clientA = creerClient();
+                User clientB = creerClient();
+
+                try {
+                    CountDownLatch depart = new CountDownLatch(1);
+                    Future<CommandeDTO> f1 = pool.submit(() -> {
+                        depart.await();
+                        return commandeService.createCommande(
+                                commandeUneLigne(clientA.getId(), boutique.getId(), produit.getId()));
+                    });
+                    Future<CommandeDTO> f2 = pool.submit(() -> {
+                        depart.await();
+                        return commandeService.createCommande(
+                                commandeUneLigne(clientB.getId(), boutique.getId(), produit.getId()));
+                    });
+                    depart.countDown();
+
+                    int succes = 0;
+                    int refus = 0;
+                    for (Future<CommandeDTO> f : List.of(f1, f2)) {
+                        try {
+                            CommandeDTO c = f.get(20, TimeUnit.SECONDS);
+                            assertThat(c).as("iteration %d", i).isNotNull();
+                            succes++;
+                        } catch (ExecutionException e) {
+                            assertThat(e.getCause()).as("iteration %d : cause du refus", i)
+                                    .isInstanceOf(BadRequestException.class);
+                            refus++;
+                        }
+                    }
+
+                    assertThat(succes).as("iteration %d : exactement un succes", i).isEqualTo(1);
+                    assertThat(refus).as("iteration %d : exactement un refus", i).isEqualTo(1);
+                    assertThat(platRepository.findById(produit.getId()).orElseThrow().getQuantiteStock())
+                            .as("iteration %d : stock final", i).isEqualTo(0);
+                } finally {
+                    nettoyerCommandesEtBoutique(boutique.getId());
+                    platRepository.deleteById(produit.getId());
+                    restaurantRepository.deleteById(boutique.getId());
+                }
+            }
+        } finally {
+            pool.shutdownNow();
         }
     }
 
@@ -329,6 +416,20 @@ class StockDecrementTest {
         l2.setPlatId(platId2);
         l2.setQuantite(1);
         dto.setLignes(List.of(l1, l2));
+        return dto;
+    }
+
+    private CommandeCreateDTO commandeUneLigne(Long clientId, Long restaurantId, Long platId) {
+        CommandeCreateDTO dto = new CommandeCreateDTO();
+        dto.setClientId(clientId);
+        dto.setRestaurantId(restaurantId);
+        dto.setMethodePaiement("ESPECES");
+        dto.setModeReception("RETRAIT_SUR_PLACE");
+
+        LigneCommandeCreateDTO l = new LigneCommandeCreateDTO();
+        l.setPlatId(platId);
+        l.setQuantite(1);
+        dto.setLignes(List.of(l));
         return dto;
     }
 
