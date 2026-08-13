@@ -24,4 +24,12 @@ public interface PlatRepository extends JpaRepository<Plat, Long> {
             "(LOWER(p.nom) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "LOWER(p.description) LIKE LOWER(CONCAT('%', :keyword, '%')))")
     List<Plat> searchByKeyword(@Param("keyword") String keyword);
+
+    /**
+     * Charge un plat en verrouillant sa ligne jusqu'à la fin de la transaction.
+     * Utilisé uniquement pour le décrément de stock, afin d'empêcher la survente concurrente.
+     */
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Plat p WHERE p.id = :id")
+    java.util.Optional<Plat> findByIdForUpdate(@Param("id") Long id);
 }

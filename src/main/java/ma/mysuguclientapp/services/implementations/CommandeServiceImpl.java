@@ -86,6 +86,7 @@ public class CommandeServiceImpl implements CommandeService {
     private final ma.mysuguclientapp.services.interfaces.OptionSelectionService optionSelectionService;
     private final AlerteCommandeVendeurService alerteCommandeVendeurService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final StockService stockService;
 
     @Override
     @Transactional(readOnly = true)
@@ -195,7 +196,13 @@ public class CommandeServiceImpl implements CommandeService {
         BigDecimal montantTotal = BigDecimal.ZERO;
         List<LigneCommande> lignes = new ArrayList<>();
 
-        for (LigneCommandeCreateDTO ligneDTO : commandeDTO.getLignes()) {
+        // Ordre de verrouillage stable : évite les interblocages entre commandes concurrentes
+        // portant les mêmes produits dans un ordre différent.
+        List<LigneCommandeCreateDTO> lignesTriees = commandeDTO.getLignes().stream()
+                .sorted(java.util.Comparator.comparing(LigneCommandeCreateDTO::getPlatId))
+                .toList();
+
+        for (LigneCommandeCreateDTO ligneDTO : lignesTriees) {
             Plat plat = platRepository.findById(ligneDTO.getPlatId())
                     .orElseThrow(() -> new ResourceNotFoundException("Plat non trouve: " + ligneDTO.getPlatId()));
 
@@ -203,9 +210,10 @@ public class CommandeServiceImpl implements CommandeService {
             if (!plat.getRestaurant().getId().equals(restaurant.getId())) {
                 throw new BadRequestException("Tous les plats doivent provenir du meme restaurant");
             }
-            if (!Boolean.TRUE.equals(plat.getIsAvailable())) {
+            if (!plat.isEffectivementDisponible()) {
                 throw new BadRequestException("Le plat " + plat.getNom() + " n'est pas disponible");
             }
+            stockService.reserver(plat.getId(), ligneDTO.getQuantite());
 
             ma.mysuguclientapp.services.interfaces.OptionSelectionService.Selection sel =
                     optionSelectionService.resolve(plat, ligneDTO.getOptionItemIds());
