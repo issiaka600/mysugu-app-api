@@ -201,6 +201,20 @@ Aucun écran à créer, une dimension à ajouter.
   un restaurant
 - `Filtres` : rien à faire, les trois contextes sont déjà gérés
 
+### ⚠️ Limitation connue à l'attention du panneau d'admin
+
+`vertical` est renseignable en écriture sur les tuiles d'accueil (`ServiceCategorie`) et sur les
+catégories d'établissement (`CategorieRestaurant`), via un paramètre optionnel sur les endpoints
+de création et de mise à jour. Mais **il est impossible de remettre une verticale à `null` une fois
+positionnée** : « paramètre absent » et « chaîne vide » sont traités de la même façon, la valeur
+existante est conservée. C'est la sémantique déjà en production sur `RestaurantServiceImpl.updateRestaurant`,
+suivie ici par cohérence.
+
+Conséquence concrète : on peut faire passer une tuile d'ALIMENTAIRE à COSMETIQUE, mais pas la
+« désaffecter » pour qu'elle n'ouvre plus aucune liste. Si l'admin doit pouvoir le faire, il faudra
+introduire une valeur sentinelle explicite (par exemple `vertical=NONE`) côté backend — ce n'est
+pas dans le socle livré.
+
 ## 10. Découpage en sous-projets
 
 Séquentiels, chacun avec son spec et son plan, chacun livrable et vérifiable seul.
