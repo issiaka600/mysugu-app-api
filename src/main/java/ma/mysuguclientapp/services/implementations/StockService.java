@@ -29,8 +29,10 @@ public class StockService {
     private final EntityManager entityManager;
 
     /**
-     * Réserve {@code quantite} unités du produit, sous verrou pessimiste.
-     * À appeler dans la transaction qui écrit la commande.
+     * Réserve {@code quantite} unités du produit. Si son stock est géré
+     * ({@code quantiteStock != null}), la réservation se fait sous verrou pessimiste. Si son
+     * stock n'est pas géré (cas de tous les plats de restaurant), aucun verrou n'est pris et
+     * l'appel est un no-op. À appeler dans la transaction qui écrit la commande.
      *
      * @throws BadRequestException si le stock disponible est insuffisant
      */

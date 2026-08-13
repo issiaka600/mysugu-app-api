@@ -178,10 +178,12 @@ class StockDecrementTest {
 
     /**
      * Piège n°2 du brief : le même produit apparaît sur deux lignes de la même commande
-     * (options différentes, même plat). Le décrément doit être cumulatif dans la même
-     * transaction — l'instance managée par le premier appel à StockService.reserver()
-     * porte déjà la valeur décrémentée au second appel, grâce à l'identity map Hibernate
-     * (même EntityManager, même transaction).
+     * (options différentes, même plat). Le décrément doit être cumulatif. CommandeServiceImpl
+     * agrège les quantités par {@code platId} avant la boucle de construction des lignes et
+     * n'appelle {@code StockService.reserver} qu'une seule fois par produit distinct, avec la
+     * quantité totale déjà sommée (2 + 3 = 5 unités réservées en un seul appel, pas deux appels
+     * de 2 puis 3) — le cumul est donc garanti par l'agrégation en amont, pas par un enchaînement
+     * de deux verrous successifs sur le même plat.
      */
     @Test
     @Transactional
@@ -295,14 +297,16 @@ class StockDecrementTest {
                 User clientA = creerClient();
                 User clientB = creerClient();
 
+                Future<CommandeDTO> f1 = null;
+                Future<CommandeDTO> f2 = null;
                 try {
                     CountDownLatch depart = new CountDownLatch(1);
-                    Future<CommandeDTO> f1 = pool.submit(() -> {
+                    f1 = pool.submit(() -> {
                         depart.await();
                         return commandeService.createCommande(commandeAvecLignes(
                                 clientA.getId(), boutique.getId(), platA.getId(), platB.getId()));
                     });
-                    Future<CommandeDTO> f2 = pool.submit(() -> {
+                    f2 = pool.submit(() -> {
                         depart.await();
                         return commandeService.createCommande(commandeAvecLignes(
                                 clientB.getId(), boutique.getId(), platB.getId(), platA.getId()));
@@ -325,6 +329,13 @@ class StockDecrementTest {
                     assertThat(platRepository.findById(platB.getId()).orElseThrow().getQuantiteStock())
                             .as("iteration %d : stock B", i).isEqualTo(48);
                 } finally {
+                    // Si un get(20s) a timeout — précisément le scénario d'interblocage que ce
+                    // test doit attraper — l'autre thread peut être encore en vol avec sa
+                    // transaction ouverte : annuler les deux Future avant de toucher aux données
+                    // évite qu'un deleteById ne se bloque à son tour sur le verrou encore tenu, ce
+                    // qui masquerait l'échec d'origine derrière une erreur secondaire.
+                    if (f1 != null) f1.cancel(true);
+                    if (f2 != null) f2.cancel(true);
                     nettoyerCommandesEtBoutique(boutique.getId());
                     platRepository.deleteById(platA.getId());
                     platRepository.deleteById(platB.getId());
@@ -359,14 +370,16 @@ class StockDecrementTest {
                 User clientA = creerClient();
                 User clientB = creerClient();
 
+                Future<CommandeDTO> f1 = null;
+                Future<CommandeDTO> f2 = null;
                 try {
                     CountDownLatch depart = new CountDownLatch(1);
-                    Future<CommandeDTO> f1 = pool.submit(() -> {
+                    f1 = pool.submit(() -> {
                         depart.await();
                         return commandeService.createCommande(
                                 commandeUneLigne(clientA.getId(), boutique.getId(), produit.getId()));
                     });
-                    Future<CommandeDTO> f2 = pool.submit(() -> {
+                    f2 = pool.submit(() -> {
                         depart.await();
                         return commandeService.createCommande(
                                 commandeUneLigne(clientB.getId(), boutique.getId(), produit.getId()));
@@ -392,6 +405,12 @@ class StockDecrementTest {
                     assertThat(platRepository.findById(produit.getId()).orElseThrow().getQuantiteStock())
                             .as("iteration %d : stock final", i).isEqualTo(0);
                 } finally {
+                    // Cf. commentaire équivalent dans le test précédent : annuler les Future avant
+                    // de toucher aux données évite qu'un timeout (le scénario même que ce test
+                    // doit attraper) ne soit masqué par un deleteById bloqué sur un verrou encore
+                    // tenu par un thread toujours en vol.
+                    if (f1 != null) f1.cancel(true);
+                    if (f2 != null) f2.cancel(true);
                     nettoyerCommandesEtBoutique(boutique.getId());
                     platRepository.deleteById(produit.getId());
                     restaurantRepository.deleteById(boutique.getId());
