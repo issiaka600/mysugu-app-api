@@ -16,6 +16,8 @@ public class PlatCreateDTO {
     private String categorieProduit;
     private Long restaurantId;
     private Integer tempsPreparation;
+    private Integer quantiteStock;
+    private Integer seuilAlerteStock;
     private String availabilityMode;
     private LocalDateTime indisponibleJusqua;
     private Boolean removeImage;

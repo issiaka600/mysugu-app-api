@@ -23,6 +23,9 @@ public class PlatDTO {
     private String availabilityMode;
     private LocalDateTime indisponibleJusqua;
     private Integer tempsPreparation;
+    private Integer quantiteStock;
+    private Boolean stockGere;
+    private Boolean alerteStockBas;
     private Long restaurantId;
     private String restaurantNom;
     private List<OptionGroupDTO> optionGroups;

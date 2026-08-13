@@ -52,7 +52,7 @@ public class PlatServiceImpl implements PlatService {
 
         List<PlatDTO> filtered = plats.stream()
                 .map(this::refreshAvailabilityIfNeeded)
-                .filter(plat -> available == null || plat.getIsAvailable().equals(available))
+                .filter(plat -> available == null || plat.isEffectivementDisponible() == available)
                 .map(this::convertToDTO)
                 .toList();
 
@@ -72,7 +72,7 @@ public class PlatServiceImpl implements PlatService {
     public List<PlatDTO> getPlatsByRestaurant(Long restaurantId) {
         return platRepository.findByRestaurantId(restaurantId).stream()
                 .map(this::refreshAvailabilityIfNeeded)
-                .filter(Plat::getIsAvailable)
+                .filter(Plat::isEffectivementDisponible)
                 .map(this::convertToDTO)
                 .toList();
     }
@@ -98,6 +98,8 @@ public class PlatServiceImpl implements PlatService {
         plat.setPrix(platDTO.getPrix());
         plat.setRestaurant(restaurant);
         plat.setTempsPreparation(platDTO.getTempsPreparation());
+        plat.setQuantiteStock(platDTO.getQuantiteStock());
+        plat.setSeuilAlerteStock(platDTO.getSeuilAlerteStock());
 
         if (platDTO.getCategoriePlat() != null) {
             plat.setCategoriePlat(parseCategorie(platDTO.getCategoriePlat()));
@@ -138,6 +140,12 @@ public class PlatServiceImpl implements PlatService {
             plat.setDescription(platDTO.getDescription());
             plat.setPrix(platDTO.getPrix());
             plat.setTempsPreparation(platDTO.getTempsPreparation());
+            if (platDTO.getQuantiteStock() != null) {
+                plat.setQuantiteStock(platDTO.getQuantiteStock());
+            }
+            if (platDTO.getSeuilAlerteStock() != null) {
+                plat.setSeuilAlerteStock(platDTO.getSeuilAlerteStock());
+            }
 
             if (platDTO.getCategoriePlat() != null) {
                 plat.setCategoriePlat(parseCategorie(platDTO.getCategoriePlat()));
@@ -286,7 +294,13 @@ public class PlatServiceImpl implements PlatService {
         dto.setImageObjectName(plat.getImageUrl());
         dto.setImageUrl(minioService.buildPublicFileUrl(plat.getImageUrl()));
         dto.setIngredients(plat.getIngredients());
-        dto.setIsAvailable(plat.getIsAvailable());
+        // Disponibilité effective : le client ne doit jamais se voir proposer un produit en rupture.
+        dto.setIsAvailable(plat.isEffectivementDisponible());
+        dto.setQuantiteStock(plat.getQuantiteStock());
+        dto.setStockGere(plat.getQuantiteStock() != null);
+        dto.setAlerteStockBas(plat.getQuantiteStock() != null
+                && plat.getSeuilAlerteStock() != null
+                && plat.getQuantiteStock() <= plat.getSeuilAlerteStock());
         dto.setTempsPreparation(plat.getTempsPreparation());
         dto.setIndisponibleJusqua(plat.getIndisponibleJusqua());
 
