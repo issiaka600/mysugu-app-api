@@ -46,13 +46,15 @@ public class CategorieRestaurantController {
     public ResponseEntity<CategorieRestaurantDTO> createCategorie(
             @Valid @RequestParam String nom,
             @RequestParam(required = false) String description,
+            @RequestParam(required = false) String vertical,
             @RequestParam(required = false) MultipartFile image,
             @RequestParam(required = false) MultipartFile imageTop,
             @RequestParam(required = false) MultipartFile imageBanner) {
-        
+
         CategorieRestaurantDTO created = categorieService.createCategorie(
                 nom,
                 description,
+                vertical,
                 image,
                 imageTop,
                 imageBanner);
@@ -67,14 +69,16 @@ public class CategorieRestaurantController {
             @PathVariable Long id,
             @RequestParam String nom,
             @RequestParam(required = false) String description,
+            @RequestParam(required = false) String vertical,
             @RequestParam(required = false) MultipartFile image,
             @RequestParam(required = false) MultipartFile imageTop,
             @RequestParam(required = false) MultipartFile imageBanner) {
-        
+
         CategorieRestaurantDTO updated = categorieService.updateCategorie(
                 id,
                 nom,
                 description,
+                vertical,
                 image,
                 imageTop,
                 imageBanner);

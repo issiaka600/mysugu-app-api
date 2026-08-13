@@ -54,6 +54,7 @@ public class CategorieRestaurantServiceImpl implements CategorieRestaurantServic
     public CategorieRestaurantDTO createCategorie(
             String nom,
             String description,
+            String vertical,
             MultipartFile image,
             MultipartFile imageTop,
             MultipartFile imageBanner) {
@@ -65,6 +66,7 @@ public class CategorieRestaurantServiceImpl implements CategorieRestaurantServic
         CategorieRestaurant categorie = new CategorieRestaurant();
         categorie.setNom(nom);
         categorie.setDescription(description);
+        categorie.setVertical(parseVerticalNullable(vertical));
 
         categorie.setImageUrl(uploadCategorieImage(image));
         categorie.setImageTopUrl(uploadCategorieImage(imageTop));
@@ -81,6 +83,7 @@ public class CategorieRestaurantServiceImpl implements CategorieRestaurantServic
             Long id,
             String nom,
             String description,
+            String vertical,
             MultipartFile image,
             MultipartFile imageTop,
             MultipartFile imageBanner) {
@@ -96,6 +99,9 @@ public class CategorieRestaurantServiceImpl implements CategorieRestaurantServic
 
         categorie.setNom(nom);
         categorie.setDescription(description);
+        if (vertical != null && !vertical.isBlank()) {
+            categorie.setVertical(parseVerticalNullable(vertical));
+        }
 
         categorie.setImageUrl(replaceCategorieImage(categorie.getImageUrl(), image));
         categorie.setImageTopUrl(replaceCategorieImage(categorie.getImageTopUrl(), imageTop));
@@ -157,6 +163,18 @@ public class CategorieRestaurantServiceImpl implements CategorieRestaurantServic
     }
 
     // ========== MÉTHODES UTILITAIRES ==========
+
+    /** Absent/vide ⇒ null (catégorie de restaurant, comportement historique). Valeur inconnue ⇒ 400. Tolère la casse. */
+    private Vertical parseVerticalNullable(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Vertical.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("Vertical invalide: " + value);
+        }
+    }
 
     private CategorieRestaurantDTO convertToDTO(CategorieRestaurant categorie) {
         CategorieRestaurantDTO dto = new CategorieRestaurantDTO();

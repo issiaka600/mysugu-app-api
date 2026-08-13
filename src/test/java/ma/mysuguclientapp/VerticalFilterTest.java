@@ -2,6 +2,7 @@ package ma.mysuguclientapp;
 
 import ma.mysuguclientapp.entities.Restaurant;
 import ma.mysuguclientapp.enumerations.Vertical;
+import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.repositories.RestaurantRepository;
 import ma.mysuguclientapp.services.interfaces.RestaurantService;
 import org.junit.jupiter.api.*;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -22,6 +24,7 @@ class VerticalFilterTest {
     @Autowired ma.mysuguclientapp.repositories.CategoriesRestaurantRepository categorieRepository;
     @Autowired ma.mysuguclientapp.repositories.ServiceCategorieRepository serviceCategorieRepository;
     @Autowired ma.mysuguclientapp.services.interfaces.ServiceCategorieService serviceCategorieService;
+    @Autowired ma.mysuguclientapp.services.interfaces.CategorieRestaurantService categorieRestaurantService;
 
     private Long alimId;
     private Long restoId;
@@ -108,5 +111,54 @@ class VerticalFilterTest {
         } finally {
             serviceCategorieRepository.deleteById(sauvee.getId());
         }
+    }
+
+    @Test
+    @org.springframework.transaction.annotation.Transactional
+    void creationTuileAvecVerticalePersisteLaVerticale() {
+        var dto = serviceCategorieService.createService(
+                "Tuile avec vertical " + System.nanoTime(), null, null, null, null,
+                "alimentaire", 0, true, null, null);
+        assertThat(dto.getVertical()).isEqualTo("ALIMENTAIRE");
+    }
+
+    @Test
+    @org.springframework.transaction.annotation.Transactional
+    void creationTuileSansVerticaleGardeComportementHistorique() {
+        var dto = serviceCategorieService.createService(
+                "Tuile sans vertical " + System.nanoTime(), null, null, null, null,
+                null, 0, true, null, null);
+        assertThat(dto.getVertical()).isNull();
+    }
+
+    @Test
+    void creationTuileVerticaleInvalideRejetee() {
+        assertThatThrownBy(() -> serviceCategorieService.createService(
+                "Tuile invalide " + System.nanoTime(), null, null, null, null,
+                "PHARMACIE", 0, true, null, null))
+                .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    @org.springframework.transaction.annotation.Transactional
+    void creationCategorieRestaurantAvecVerticalePersisteLaVerticale() {
+        var dto = categorieRestaurantService.createCategorie(
+                "Categorie avec vertical " + System.nanoTime(), null, "cosmetique", null, null, null);
+        assertThat(dto.getVertical()).isEqualTo("COSMETIQUE");
+    }
+
+    @Test
+    @org.springframework.transaction.annotation.Transactional
+    void creationCategorieRestaurantSansVerticaleGardeComportementHistorique() {
+        var dto = categorieRestaurantService.createCategorie(
+                "Categorie sans vertical " + System.nanoTime(), null, null, null, null, null);
+        assertThat(dto.getVertical()).isEqualTo("RESTAURANT");
+    }
+
+    @Test
+    void creationCategorieRestaurantVerticaleInvalideRejetee() {
+        assertThatThrownBy(() -> categorieRestaurantService.createCategorie(
+                "Categorie invalide " + System.nanoTime(), null, "PHARMACIE", null, null, null))
+                .isInstanceOf(BadRequestException.class);
     }
 }

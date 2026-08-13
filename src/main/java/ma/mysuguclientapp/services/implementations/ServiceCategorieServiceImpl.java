@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import ma.mysuguclientapp.dtos.ServiceCategorieDTO;
 import ma.mysuguclientapp.entities.ServiceCategorie;
+import ma.mysuguclientapp.enumerations.Vertical;
 import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
 import ma.mysuguclientapp.repositories.ServiceCategorieRepository;
@@ -52,6 +53,7 @@ public class ServiceCategorieServiceImpl implements ServiceCategorieService {
             String description,
             String icon,
             String type,
+            String vertical,
             Integer ordre,
             Boolean isActive,
             MultipartFile imageTop,
@@ -62,6 +64,7 @@ public class ServiceCategorieServiceImpl implements ServiceCategorieService {
 
         ServiceCategorie service = new ServiceCategorie();
         applyFields(service, nom, tag, description, icon, type, ordre, isActive);
+        service.setVertical(parseVerticalNullable(vertical));
         service.setImageTopUrl(uploadImage(imageTop));
         service.setImageBannerUrl(uploadImage(imageBanner));
         return toDTO(repository.save(service));
@@ -75,6 +78,7 @@ public class ServiceCategorieServiceImpl implements ServiceCategorieService {
             String description,
             String icon,
             String type,
+            String vertical,
             Integer ordre,
             Boolean isActive,
             MultipartFile imageTop,
@@ -87,6 +91,9 @@ public class ServiceCategorieServiceImpl implements ServiceCategorieService {
         });
 
         applyFields(service, nom, tag, description, icon, type, ordre, isActive);
+        if (vertical != null && !vertical.isBlank()) {
+            service.setVertical(parseVerticalNullable(vertical));
+        }
         service.setImageTopUrl(replaceImage(service.getImageTopUrl(), imageTop));
         service.setImageBannerUrl(replaceImage(service.getImageBannerUrl(), imageBanner));
         return toDTO(repository.save(service));
@@ -121,6 +128,18 @@ public class ServiceCategorieServiceImpl implements ServiceCategorieService {
         service.setType(type);
         service.setOrdre(ordre != null ? ordre : 0);
         service.setIsActive(isActive == null || isActive);
+    }
+
+    /** Absent/vide ⇒ null (aucune verticale : la tuile n'ouvre aucune liste). Valeur inconnue ⇒ 400. Tolère la casse. */
+    private Vertical parseVerticalNullable(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Vertical.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("Vertical invalide: " + value);
+        }
     }
 
     private String uploadImage(MultipartFile image) {
