@@ -32,4 +32,24 @@ class CategorieProduitTest {
     void aucunRayonPourLaVerticaleRestaurant() {
         assertThat(repository.findByVerticalAndActifTrueOrderByOrdreAsc(Vertical.RESTAURANT)).isEmpty();
     }
+
+    @Autowired ma.mysuguclientapp.services.interfaces.CategorieProduitService service;
+
+    @Test
+    void listerPublicRenvoieValueEtLabel() {
+        var options = service.listerPublic("ALIMENTAIRE");
+        assertThat(options).extracting("value")
+                .containsExactly("fruits_legumes", "epicerie", "boissons", "produits_frais");
+        assertThat(options.get(0).getLabel()).isEqualTo("Fruits & légumes");
+    }
+
+    @Test
+    void listerPublicEstInsensibleALaCasse() {
+        assertThat(service.listerPublic("alimentaire")).hasSize(4);
+    }
+
+    @Test
+    void listerPublicRenvoieVideSiVerticaleInconnue() {
+        assertThat(service.listerPublic("PHARMACIE")).isEmpty();
+    }
 }
