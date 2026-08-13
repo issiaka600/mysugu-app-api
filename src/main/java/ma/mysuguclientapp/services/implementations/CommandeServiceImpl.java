@@ -391,6 +391,7 @@ public class CommandeServiceImpl implements CommandeService {
 
         if (nouveauStatut == StatutCommande.ANNULEE) {
             commande.setRaisonAnnulation(statusDTO.getRaisonAnnulation());
+            stockService.restituer(commande);
             // Libérer le livreur si déjà assigné
             if (commande.getLivreur() != null) {
                 commande.getLivreur().setLivreurDisponible(true);
@@ -623,6 +624,7 @@ public class CommandeServiceImpl implements CommandeService {
         }
 
         commande.setStatut(StatutCommande.ANNULEE);
+        stockService.restituer(commande);
         if (commande.getRaisonAnnulation() == null || commande.getRaisonAnnulation().isBlank()) {
             commande.setRaisonAnnulation("Commande annulee");
         }

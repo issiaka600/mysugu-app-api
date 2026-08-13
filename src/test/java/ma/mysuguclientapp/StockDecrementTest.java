@@ -2,8 +2,11 @@ package ma.mysuguclientapp;
 
 import ma.mysuguclientapp.dtos.CommandeCreateDTO;
 import ma.mysuguclientapp.dtos.CommandeDTO;
+import ma.mysuguclientapp.dtos.CommandeUpdateStatusDTO;
 import ma.mysuguclientapp.dtos.LigneCommandeCreateDTO;
 import ma.mysuguclientapp.dtos.cart.AjouterItemDTO;
+import ma.mysuguclientapp.entities.Commande;
+import ma.mysuguclientapp.entities.LigneCommande;
 import ma.mysuguclientapp.entities.Plat;
 import ma.mysuguclientapp.entities.Restaurant;
 import ma.mysuguclientapp.entities.User;
@@ -174,6 +177,146 @@ class StockDecrementTest {
             platRepository.deleteById(produit.getId());
             restaurantRepository.deleteById(boutiqueId);
         }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Restitution du stock à l'annulation (tâche 8)
+    // ────────────────────────────────────────────────────────────────────────
+
+    @Test
+    @Transactional
+    void restituerRendLeStockUneSeuleFois() {
+        Plat produit = creerProduitEnStock(10);
+        stockService.reserver(produit.getId(), 4);
+
+        Commande commande = new Commande();
+        LigneCommande ligne = new LigneCommande();
+        ligne.setPlat(platRepository.findById(produit.getId()).orElseThrow());
+        ligne.setQuantite(4);
+        ligne.setCommande(commande);
+        commande.setLignesCommande(new java.util.ArrayList<>(java.util.List.of(ligne)));
+
+        stockService.restituer(commande);
+        assertThat(platRepository.findById(produit.getId()).orElseThrow().getQuantiteStock()).isEqualTo(10);
+        assertThat(commande.getStockRestitue()).isTrue();
+
+        stockService.restituer(commande); // second appel : ne doit rien faire
+        assertThat(platRepository.findById(produit.getId()).orElseThrow().getQuantiteStock()).isEqualTo(10);
+    }
+
+    /**
+     * Symétrique du test de cumul au décrément : le même produit apparaît sur deux lignes de la
+     * même commande annulée (options différentes, même plat). La restitution doit être
+     * cumulative (2 + 3 = 5 unités re-créditées), pas seulement la dernière ligne traitée.
+     */
+    @Test
+    @Transactional
+    void restituerCumuleLesLignesDuMemeProduit() {
+        Plat produit = creerProduitEnStock(10);
+        stockService.reserver(produit.getId(), 5);
+        assertThat(platRepository.findById(produit.getId()).orElseThrow().getQuantiteStock()).isEqualTo(5);
+
+        Commande commande = new Commande();
+        LigneCommande ligne1 = new LigneCommande();
+        ligne1.setPlat(platRepository.findById(produit.getId()).orElseThrow());
+        ligne1.setQuantite(2);
+        ligne1.setCommande(commande);
+        LigneCommande ligne2 = new LigneCommande();
+        ligne2.setPlat(platRepository.findById(produit.getId()).orElseThrow());
+        ligne2.setQuantite(3);
+        ligne2.setCommande(commande);
+        commande.setLignesCommande(new java.util.ArrayList<>(java.util.List.of(ligne1, ligne2)));
+
+        stockService.restituer(commande);
+        assertThat(platRepository.findById(produit.getId()).orElseThrow().getQuantiteStock()).isEqualTo(10);
+    }
+
+    /**
+     * Une ligne portant sur un plat à stock non géré (quantiteStock == null, cas de tous les
+     * plats de restaurant) ne doit rien restituer, ni prendre de verrou, ni lever d'erreur.
+     */
+    @Test
+    @Transactional
+    void restituerIgnoreUnePlatSansStockGere() {
+        Plat plat = creerProduitEnStock(5);
+        plat.setQuantiteStock(null);
+        platRepository.save(plat);
+
+        Commande commande = new Commande();
+        LigneCommande ligne = new LigneCommande();
+        ligne.setPlat(platRepository.findById(plat.getId()).orElseThrow());
+        ligne.setQuantite(2);
+        ligne.setCommande(commande);
+        commande.setLignesCommande(new java.util.ArrayList<>(java.util.List.of(ligne)));
+
+        stockService.restituer(commande);
+        assertThat(platRepository.findById(plat.getId()).orElseThrow().getQuantiteStock()).isNull();
+        assertThat(commande.getStockRestitue()).isTrue();
+    }
+
+    /**
+     * Un produit supprimé entre-temps ne doit pas faire échouer l'annulation : la ligne
+     * correspondante est ignorée silencieusement, et le marqueur d'idempotence est quand même
+     * posé (l'annulation d'une commande doit aboutir).
+     */
+    @Test
+    @Transactional
+    void restituerIgnoreUnProduitSupprimeSansFaireEchouerLAnnulation() {
+        Restaurant boutique = creerBoutique();
+        Plat produitSupprime = creerProduitEnStock(5, boutique);
+        Long platId = produitSupprime.getId();
+
+        Commande commande = new Commande();
+        LigneCommande ligne = new LigneCommande();
+        Plat referenceSupprimee = new Plat();
+        referenceSupprimee.setId(platId);
+        ligne.setPlat(referenceSupprimee);
+        ligne.setQuantite(2);
+        ligne.setCommande(commande);
+        commande.setLignesCommande(new java.util.ArrayList<>(java.util.List.of(ligne)));
+
+        platRepository.deleteById(platId);
+
+        stockService.restituer(commande);
+        assertThat(commande.getStockRestitue()).isTrue();
+        assertThat(platRepository.findById(platId)).isEmpty();
+    }
+
+    /**
+     * Propriété centrale de la tâche : les deux chemins d'annulation (cancelCommande,
+     * updateCommandeStatus) restituent tous deux le stock, mais jamais deux fois. On annule via
+     * cancelCommande, on vérifie la restitution, puis on repasse par updateCommandeStatus avec le
+     * même statut ANNULEE sur la commande déjà annulée (validateStatusTransition laisse passer
+     * une transition vers le statut déjà courant) : le stock ne doit pas être re-crédité une
+     * seconde fois.
+     */
+    @Test
+    @Transactional
+    void annulationParLesDeuxCheminsNeRestitueJamaisDeuxFois() {
+        Restaurant boutique = creerBoutique();
+        Plat produit = creerProduitEnStock(10, boutique);
+        User client = creerClient();
+
+        CommandeCreateDTO dto = new CommandeCreateDTO();
+        dto.setClientId(client.getId());
+        dto.setRestaurantId(boutique.getId());
+        dto.setMethodePaiement("ESPECES");
+        dto.setModeReception("RETRAIT_SUR_PLACE");
+        LigneCommandeCreateDTO ligneDTO = new LigneCommandeCreateDTO();
+        ligneDTO.setPlatId(produit.getId());
+        ligneDTO.setQuantite(4);
+        dto.setLignes(List.of(ligneDTO));
+
+        CommandeDTO commande = commandeService.createCommande(dto);
+        assertThat(platRepository.findById(produit.getId()).orElseThrow().getQuantiteStock()).isEqualTo(6);
+
+        commandeService.cancelCommande(commande.getId());
+        assertThat(platRepository.findById(produit.getId()).orElseThrow().getQuantiteStock()).isEqualTo(10);
+
+        CommandeUpdateStatusDTO statusDTO = new CommandeUpdateStatusDTO();
+        statusDTO.setStatut("ANNULEE");
+        commandeService.updateCommandeStatus(commande.getId(), statusDTO);
+        assertThat(platRepository.findById(produit.getId()).orElseThrow().getQuantiteStock()).isEqualTo(10);
     }
 
     /**
