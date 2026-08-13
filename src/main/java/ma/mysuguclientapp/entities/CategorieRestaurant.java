@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import ma.mysuguclientapp.enumerations.Vertical;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +30,12 @@ public class CategorieRestaurant {
     private String imageTopUrl;
 
     private String imageBannerUrl;
-    
+
+    /** Verticale à laquelle cette catégorie d'établissement s'applique. Null = RESTAURANT (données historiques). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "vertical")
+    private Vertical vertical;
+
     @OneToMany(mappedBy = "categorie", cascade = CascadeType.ALL)
     private List<Restaurant> restaurants = new ArrayList<>();
 }

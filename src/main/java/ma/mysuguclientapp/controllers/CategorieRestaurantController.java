@@ -21,10 +21,12 @@ public class CategorieRestaurantController {
 
     /**
      * GET /api/categories - Obtenir toutes les catégories
+     * @param vertical filtre optionnel : absent ⇒ RESTAURANT, "ALL" ⇒ toutes verticales
      */
     @GetMapping
-    public ResponseEntity<List<CategorieRestaurantDTO>> getAllCategories() {
-        List<CategorieRestaurantDTO> categories = categorieService.getAllCategories();
+    public ResponseEntity<List<CategorieRestaurantDTO>> getAllCategories(
+            @RequestParam(required = false) String vertical) {
+        List<CategorieRestaurantDTO> categories = categorieService.getAllCategories(vertical);
         return ResponseEntity.ok(categories);
     }
 

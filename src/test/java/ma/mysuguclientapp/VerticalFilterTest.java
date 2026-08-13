@@ -19,6 +19,7 @@ class VerticalFilterTest {
     @Autowired RestaurantService restaurantService;
     @Autowired RestaurantRepository restaurantRepository;
     @Autowired TransactionTemplate tx;
+    @Autowired ma.mysuguclientapp.repositories.CategoriesRestaurantRepository categorieRepository;
 
     private Long alimId;
     private Long restoId;
@@ -65,5 +66,29 @@ class VerticalFilterTest {
         var page = restaurantService.getAllRestaurants(null, null, null, null, "ALL", PageRequest.of(0, 100));
         assertThat(page.getContent()).anyMatch(r -> r.getId().equals(alimId));
         assertThat(page.getContent()).anyMatch(r -> r.getId().equals(restoId));
+    }
+
+    @Test
+    @org.springframework.transaction.annotation.Transactional
+    void categoriesFiltreesParVerticale() {
+        var cosmetique = new ma.mysuguclientapp.entities.CategorieRestaurant();
+        cosmetique.setNom("Parfumerie " + System.nanoTime());
+        cosmetique.setVertical(Vertical.COSMETIQUE);
+        var sauvee = categorieRepository.save(cosmetique);
+        assertThat(categorieRepository.findByVerticalEffectif(Vertical.COSMETIQUE))
+                .extracting("id").contains(sauvee.getId());
+        assertThat(categorieRepository.findByVerticalEffectif(Vertical.RESTAURANT))
+                .extracting("id").doesNotContain(sauvee.getId());
+    }
+
+    @Test
+    @org.springframework.transaction.annotation.Transactional
+    void categoriesSansVerticaleSontDesCategoriesRestaurant() {
+        var cuisine = new ma.mysuguclientapp.entities.CategorieRestaurant();
+        cuisine.setNom("Cuisine test " + System.nanoTime());
+        // vertical volontairement null : donnée historique
+        var sauvee = categorieRepository.save(cuisine);
+        assertThat(categorieRepository.findByVerticalEffectif(Vertical.RESTAURANT))
+                .extracting("id").contains(sauvee.getId());
     }
 }

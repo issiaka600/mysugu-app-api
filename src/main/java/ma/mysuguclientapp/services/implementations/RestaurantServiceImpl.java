@@ -72,7 +72,8 @@ public class RestaurantServiceImpl implements RestaurantService {
         return new PageImpl<>(restaurantDTOs, pageable, restaurants.getTotalElements());
     }
 
-    private Vertical parseVertical(String value) {
+    /** Convention partagée pour interpréter le paramètre de filtrage par verticale : absent ⇒ RESTAURANT, inconnu ⇒ 400. */
+    static Vertical parseVertical(String value) {
         if (value == null || value.isBlank()) {
             return Vertical.RESTAURANT;
         }

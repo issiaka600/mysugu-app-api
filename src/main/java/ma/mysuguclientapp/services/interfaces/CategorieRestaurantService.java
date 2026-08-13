@@ -7,7 +7,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 public interface CategorieRestaurantService {
-    List<CategorieRestaurantDTO> getAllCategories();
+    /** @param vertical filtre optionnel : absent ⇒ RESTAURANT, "ALL" ⇒ toutes verticales, valeur inconnue ⇒ 400. */
+    List<CategorieRestaurantDTO> getAllCategories(String vertical);
     CategorieRestaurantDTO getCategorieById(Long id);
     CategorieRestaurantDTO createCategorie(
             String nom,
