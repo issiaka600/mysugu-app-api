@@ -52,4 +52,36 @@ class CategorieProduitTest {
     void listerPublicRenvoieVideSiVerticaleInconnue() {
         assertThat(service.listerPublic("PHARMACIE")).isEmpty();
     }
+
+    @Test
+    void creerPuisModifierPuisDesactiverUnRayon() {
+        var creation = new ma.mysuguclientapp.dtos.CategorieProduitDTO();
+        creation.setVertical("COSMETIQUE");
+        creation.setCode("maquillage");
+        creation.setLibelle("Maquillage");
+        creation.setOrdre(9);
+        var cree = service.creer(creation);
+        assertThat(cree.getId()).isNotNull();
+        assertThat(cree.getActif()).isTrue();
+
+        var modification = new ma.mysuguclientapp.dtos.CategorieProduitDTO();
+        modification.setLibelle("Maquillage & teint");
+        assertThat(service.modifier(cree.getId(), modification).getLibelle())
+                .isEqualTo("Maquillage & teint");
+
+        service.supprimer(cree.getId());
+        assertThat(service.listerPublic("COSMETIQUE")).extracting("value").doesNotContain("maquillage");
+        assertThat(service.listerAdmin("COSMETIQUE")).extracting("code").contains("maquillage");
+    }
+
+    @Test
+    void refuseUnCodeDejaPrisDansLaMemeVerticale() {
+        var doublon = new ma.mysuguclientapp.dtos.CategorieProduitDTO();
+        doublon.setVertical("ALIMENTAIRE");
+        doublon.setCode("epicerie");
+        doublon.setLibelle("Épicerie bis");
+        org.junit.jupiter.api.Assertions.assertThrows(
+                ma.mysuguclientapp.exceptions.BadRequestException.class,
+                () -> service.creer(doublon));
+    }
 }
