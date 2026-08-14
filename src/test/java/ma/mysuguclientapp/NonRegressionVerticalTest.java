@@ -31,6 +31,7 @@ class NonRegressionVerticalTest {
     private Long produitBoutiqueId;
     private Long platRestoId;
     private Long restoHistoriqueId;
+    private Long platHistoriqueId;
 
     // NB : un seul @BeforeAll (plutôt que deux, comme suggéré littéralement par le brief) — l'ordre
     // d'exécution entre plusieurs méthodes @BeforeAll n'est pas garanti par JUnit 5, et setupProduits
@@ -75,6 +76,16 @@ class NonRegressionVerticalTest {
         plat.setIsAvailable(true);
         plat.setRestaurant(restaurantRepository.findById(restoId).orElseThrow());
         platRestoId = platRepository.save(plat).getId();
+
+        // Plat rattaché au restaurant historique (vertical NULL) : preuve, côté PlatService cette
+        // fois, que la clause JPQL "vertical = RESTAURANT AND p.restaurant.vertical IS NULL" couvre
+        // bien ce cas — pas seulement RestaurantService (cf. 4769c6c / 055a848).
+        var platHistorique = new ma.mysuguclientapp.entities.Plat();
+        platHistorique.setNom(marqueur + " CoucousHistorique");
+        platHistorique.setPrix(new java.math.BigDecimal("60.00"));
+        platHistorique.setIsAvailable(true);
+        platHistorique.setRestaurant(restaurantRepository.findById(restoHistoriqueId).orElseThrow());
+        platHistoriqueId = platRepository.save(platHistorique).getId();
     }
 
     @AfterAll
@@ -82,6 +93,7 @@ class NonRegressionVerticalTest {
         tx.executeWithoutResult(s -> {
             platRepository.deleteById(produitBoutiqueId);
             platRepository.deleteById(platRestoId);
+            platRepository.deleteById(platHistoriqueId);
             restaurantRepository.deleteById(boutiqueId);
             restaurantRepository.deleteById(restoId);
             restaurantRepository.deleteById(restoHistoriqueId);
@@ -208,5 +220,23 @@ class NonRegressionVerticalTest {
                 org.springframework.data.domain.PageRequest.of(0, 500));
         assertThat(page.getContent()).extracting("id")
                 .contains(restoHistoriqueId, restoId).doesNotContain(boutiqueId);
+    }
+
+    // Même preuve que ci-dessus, côté PlatService : un plat rattaché à un établissement historique
+    // (vertical jamais renseigné) doit être PRÉSENT dans le listing sans paramètre "vertical". Une
+    // assertion de présence, pas d'absence : une requête cassée qui ne renverrait rien satisferait
+    // à tort une assertion d'absence.
+
+    @Test
+    void platsSansVerticalVoitAussiLePlatDuRestaurantHistoriqueSansVertical() {
+        var page = platService.getAllPlats(null, null, null, null, null,
+                org.springframework.data.domain.PageRequest.of(0, 500));
+        assertThat(page.getContent()).extracting("id").contains(platHistoriqueId);
+    }
+
+    @Test
+    void searchPlatsSansVerticalVoitAussiLePlatDuRestaurantHistoriqueSansVertical() {
+        assertThat(platService.searchPlats(marqueur, null)).extracting("id")
+                .contains(platHistoriqueId);
     }
 }
