@@ -387,11 +387,21 @@ public class CommandeServiceImpl implements CommandeService {
         StatutCommande nouveauStatut = parseStatut(statusDTO.getStatut());
 
         validateStatusTransition(commande, nouveauStatut);
+
+        if (nouveauStatut == StatutCommande.ANNULEE) {
+            // Restituer AVANT toute mutation de `commande` (y compris setStatut juste en dessous) :
+            // StockService.restituer() verrouille la ligne commandes puis la rafraîchit depuis la
+            // base. Si `commande` portait déjà une modification en attente à cet instant, Hibernate
+            // (pas de @DynamicUpdate ici) ré-écrirait TOUTES les colonnes avec les valeurs en
+            // mémoire lors de l'auto-flush qui précède la requête verrouillante — y compris
+            // stock_restitue, avec sa valeur obsolète (false) — écrasant silencieusement le crédit
+            // d'une transaction concurrente déjà committée entre-temps.
+            stockService.restituer(commande);
+        }
         commande.setStatut(nouveauStatut);
 
         if (nouveauStatut == StatutCommande.ANNULEE) {
             commande.setRaisonAnnulation(statusDTO.getRaisonAnnulation());
-            stockService.restituer(commande);
             // Libérer le livreur si déjà assigné
             if (commande.getLivreur() != null) {
                 commande.getLivreur().setLivreurDisponible(true);
@@ -623,8 +633,14 @@ public class CommandeServiceImpl implements CommandeService {
             userRepository.save(commande.getLivreur());
         }
 
-        commande.setStatut(StatutCommande.ANNULEE);
+        // Restituer AVANT toute mutation de `commande` (setStatut compris) : StockService.restituer()
+        // verrouille la ligne commandes puis la rafraîchit depuis la base. Si `commande` portait déjà
+        // une modification en attente à cet instant, Hibernate (pas de @DynamicUpdate ici) ré-écrirait
+        // TOUTES les colonnes avec les valeurs en mémoire lors de l'auto-flush qui précède la requête
+        // verrouillante — y compris stock_restitue, avec sa valeur obsolète (false) — écrasant
+        // silencieusement le crédit d'une transaction concurrente déjà committée entre-temps.
         stockService.restituer(commande);
+        commande.setStatut(StatutCommande.ANNULEE);
         if (commande.getRaisonAnnulation() == null || commande.getRaisonAnnulation().isBlank()) {
             commande.setRaisonAnnulation("Commande annulee");
         }

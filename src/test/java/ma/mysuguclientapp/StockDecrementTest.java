@@ -21,6 +21,8 @@ import ma.mysuguclientapp.repositories.UserRepository;
 import ma.mysuguclientapp.services.implementations.PanierServiceImpl;
 import ma.mysuguclientapp.services.implementations.StockService;
 import ma.mysuguclientapp.services.interfaces.CommandeService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -90,6 +92,8 @@ class StockDecrementTest {
     AlerteCommandeVendeurRepository alerteCommandeVendeurRepository;
     @Autowired
     PanierServiceImpl panierService;
+    @PersistenceContext
+    EntityManager entityManager;
 
     private Restaurant creerBoutique() {
         Restaurant boutique = new Restaurant();
@@ -237,7 +241,7 @@ class StockDecrementTest {
      */
     @Test
     @Transactional
-    void restituerIgnoreUnePlatSansStockGere() {
+    void restituerIgnoreUnPlatSansStockGere() {
         Plat plat = creerProduitEnStock(5);
         plat.setQuantiteStock(null);
         platRepository.save(plat);
@@ -289,6 +293,14 @@ class StockDecrementTest {
      * même statut ANNULEE sur la commande déjà annulée (validateStatusTransition laisse passer
      * une transition vers le statut déjà courant) : le stock ne doit pas être re-crédité une
      * seconde fois.
+     *
+     * <p>Constat de revue : sans le {@code flush()}/{@code clear()} entre les deux appels, ce
+     * test resterait dans une seule transaction et un seul contexte de persistance — les deux
+     * appels à {@code findCommande(id)} à l'intérieur de {@code cancelCommande} puis
+     * {@code updateCommandeStatus} renverraient alors la MÊME instance Java (identity map
+     * Hibernate), et le test passerait même si {@code stock_restitue} n'était jamais réellement
+     * écrit en base. Le {@code clear()} force la seconde lecture à repartir de zéro depuis la
+     * base, ce qui rapproche le test du cas réel (deux requêtes HTTP, deux transactions).</p>
      */
     @Test
     @Transactional
@@ -313,10 +325,88 @@ class StockDecrementTest {
         commandeService.cancelCommande(commande.getId());
         assertThat(platRepository.findById(produit.getId()).orElseThrow().getQuantiteStock()).isEqualTo(10);
 
+        // Détache tout le contexte de persistance : la relecture ci-dessous doit repartir d'un
+        // SELECT frais, pas de l'instance Java déjà en mémoire.
+        entityManager.flush();
+        entityManager.clear();
+        assertThat(commandeRepository.findById(commande.getId()).orElseThrow().getStockRestitue()).isTrue();
+
         CommandeUpdateStatusDTO statusDTO = new CommandeUpdateStatusDTO();
         statusDTO.setStatut("ANNULEE");
         commandeService.updateCommandeStatus(commande.getId(), statusDTO);
         assertThat(platRepository.findById(produit.getId()).orElseThrow().getQuantiteStock()).isEqualTo(10);
+
+        entityManager.flush();
+        entityManager.clear();
+        assertThat(commandeRepository.findById(commande.getId()).orElseThrow().getStockRestitue()).isTrue();
+    }
+
+    /**
+     * Constat Important n°1 de la revue : la garde d'idempotence doit survivre à un entrelacement
+     * de deux VRAIES transactions concurrentes (double clic sur « annuler », ou annulation client
+     * et vendeur simultanées) — pas seulement à un rejeu séquentiel dans la même transaction.
+     * Avant correction, le scénario exact était : T1 lit {@code stockRestitue = false}, T2 lit
+     * {@code false} aussi (avant le commit de T1) ; T1 verrouille la commande, crédite, committe
+     * {@code stock_restitue = true} ; T2 obtient le verrou à son tour et crédite une seconde fois
+     * — unités fantômes, sur-stock silencieux. Corrigé par un verrou pessimiste explicite sur la
+     * ligne {@code commandes} ({@link StockService#restituer}, cf. {@link
+     * ma.mysuguclientapp.repositories.CommandeRepository#findByIdForUpdate}) — et, découverte
+     * pendant l'investigation de ce test, par la RÈGLE D'ORDRE que {@code restituer()} doit être
+     * appelé avant toute autre mutation de la commande (voir javadoc de {@code restituer}) : sans
+     * cet ordre, l'auto-flush Hibernate qui précède la requête verrouillante ré-écrit toutes les
+     * colonnes avec des valeurs obsolètes et écrase silencieusement un crédit concurrent déjà
+     * committé. Même dispositif de mise en course (CountDownLatch + répétitions) que les tests de
+     * la tâche 7.
+     */
+    @Test
+    void annulationsSimultaneesDeLaMemeCommandeNeCreditentQuUneFois() throws Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            for (int i = 0; i < ITERATIONS_COURSE; i++) {
+                Restaurant boutique = creerBoutique();
+                Plat produit = creerProduitEnStock(10, boutique);
+                User client = creerClient();
+
+                CommandeDTO commande = commandeService.createCommande(
+                        commandeUneLigneQuantite(client.getId(), boutique.getId(), produit.getId(), 4));
+                Long commandeId = commande.getId();
+                assertThat(platRepository.findById(produit.getId()).orElseThrow().getQuantiteStock())
+                        .as("iteration %d : stock apres creation", i).isEqualTo(6);
+
+                Future<CommandeDTO> f1 = null;
+                Future<CommandeDTO> f2 = null;
+                try {
+                    CountDownLatch depart = new CountDownLatch(1);
+                    f1 = pool.submit(() -> {
+                        depart.await();
+                        return commandeService.cancelCommande(commandeId);
+                    });
+                    f2 = pool.submit(() -> {
+                        depart.await();
+                        return commandeService.cancelCommande(commandeId);
+                    });
+                    depart.countDown();
+
+                    f1.get(20, TimeUnit.SECONDS);
+                    f2.get(20, TimeUnit.SECONDS);
+
+                    // Une seule des deux annulations doit avoir crédité le stock : 6 + 4 = 10,
+                    // jamais 14 (double crédit).
+                    assertThat(platRepository.findById(produit.getId()).orElseThrow().getQuantiteStock())
+                            .as("iteration %d : stock final", i).isEqualTo(10);
+                    assertThat(commandeRepository.findById(commandeId).orElseThrow().getStockRestitue())
+                            .as("iteration %d", i).isTrue();
+                } finally {
+                    if (f1 != null) f1.cancel(true);
+                    if (f2 != null) f2.cancel(true);
+                    nettoyerCommandesEtBoutique(boutique.getId());
+                    platRepository.deleteById(produit.getId());
+                    restaurantRepository.deleteById(boutique.getId());
+                }
+            }
+        } finally {
+            pool.shutdownNow();
+        }
     }
 
     /**
@@ -582,6 +672,10 @@ class StockDecrementTest {
     }
 
     private CommandeCreateDTO commandeUneLigne(Long clientId, Long restaurantId, Long platId) {
+        return commandeUneLigneQuantite(clientId, restaurantId, platId, 1);
+    }
+
+    private CommandeCreateDTO commandeUneLigneQuantite(Long clientId, Long restaurantId, Long platId, int quantite) {
         CommandeCreateDTO dto = new CommandeCreateDTO();
         dto.setClientId(clientId);
         dto.setRestaurantId(restaurantId);
@@ -590,7 +684,7 @@ class StockDecrementTest {
 
         LigneCommandeCreateDTO l = new LigneCommandeCreateDTO();
         l.setPlatId(platId);
-        l.setQuantite(1);
+        l.setQuantite(quantite);
         dto.setLignes(List.of(l));
         return dto;
     }

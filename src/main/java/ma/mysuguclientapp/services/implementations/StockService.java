@@ -8,6 +8,7 @@ import ma.mysuguclientapp.entities.LigneCommande;
 import ma.mysuguclientapp.entities.Plat;
 import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
+import ma.mysuguclientapp.repositories.CommandeRepository;
 import ma.mysuguclientapp.repositories.PlatRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -31,6 +32,7 @@ import java.util.TreeMap;
 public class StockService {
 
     private final PlatRepository platRepository;
+    private final CommandeRepository commandeRepository;
     private final EntityManager entityManager;
 
     /**
@@ -82,12 +84,75 @@ public class StockService {
     /**
      * Re-crédite le stock des lignes d'une commande annulée. Idempotent : une commande
      * déjà restituée n'est jamais re-créditée une seconde fois — c'est le marqueur
-     * {@code Commande.stockRestitue} qui porte cette garantie, pas l'appelant : les deux
-     * chemins d'annulation ({@code cancelCommande} et {@code updateCommandeStatus}) appellent
-     * cette méthode sans se coordonner entre eux.
+     * {@code Commande.stockRestitue} qui porte cette garantie, pas l'appelant : les quatre
+     * chemins d'annulation connus ({@code cancelCommande}, {@code updateCommandeStatus},
+     * {@code DeliveryManLifecycleController.updateOrderStatus}, {@code TikTakOrderIntegrationService
+     * .applyStatusFromTikTak}) appellent cette méthode sans se coordonner entre eux.
+     *
+     * <p>Pour une commande persistée, la garde d'idempotence est protégée par un verrou
+     * pessimiste sur la ligne {@code commandes} elle-même ({@link CommandeRepository#findByIdForUpdate}),
+     * même patron que le verrou sur {@code Plat} dans {@link #reserver}. C'est délibéré : une
+     * garde purement en mémoire sur {@code commande.getStockRestitue()} ne suffit pas à empêcher
+     * un entrelacement de deux <em>transactions</em> concurrentes (double clic sur « annuler »,
+     * annulation client et vendeur simultanées) — les deux peuvent lire {@code false} avant que
+     * l'une des deux ne committe. Une première tentative avec un simple {@code UPDATE ... WHERE
+     * stock_restitue = false} conditionnel (sans verrou explicite) s'est révélée insuffisante à
+     * l'usage : sous charge réelle, les deux transactions concurrentes obtenaient chacune une
+     * ligne affectée. D'où le verrou pessimiste explicite.
+     *
+     * <p><b>Appeler CETTE méthode avant toute autre mutation de {@code commande}</b> — avant
+     * {@code setStatut}, {@code setRaisonAnnulation}, etc. C'est une contrainte réelle, pas une
+     * préférence de style : {@code Commande} n'a pas {@code @DynamicUpdate}, donc le prochain
+     * flush Hibernate ré-écrit TOUTES ses colonnes avec les valeurs actuellement en mémoire. Si
+     * l'appelant a déjà modifié {@code commande} (ex. {@code setStatut(ANNULEE)}) avant d'appeler
+     * {@code restituer()}, ce changement est en attente (non flushé) au moment où
+     * {@link CommandeRepository#findByIdForUpdate} s'exécute ; l'auto-flush qui précède cette
+     * requête verrouillante écrit alors la ligne entière — {@code stock_restitue} inclus — avec
+     * l'état obsolète encore en mémoire (celui d'avant le verrou). Concrètement : si une autre
+     * transaction a entre-temps committé {@code stock_restitue = true}, cet auto-flush
+     * <em>l'écrase silencieusement à false</em>, et le {@code refresh()} qui suit relit cette
+     * valeur tout juste ré-écrite — la garde d'idempotence croit alors, à tort, que rien n'a
+     * encore été restitué, et crédite le stock une seconde fois. Bug réel, reproduit et corrigé
+     * pendant cette tâche : les quatre appelants respectent maintenant cet ordre.</p>
+     *
+     * <p>Pour une commande transitoire ({@code id == null}, cas des appels directs en test sur un
+     * objet jamais persisté), il n'y a pas de ligne en base à verrouiller : un simple test en
+     * mémoire suffit, il n'y a rien de concurrent à protéger.</p>
+     *
+     * <p><b>Restitution partielle assumée</b> : si une ligne porte sur un produit supprimé
+     * entre-temps, elle est ignorée silencieusement (voir plus bas), et le marqueur est quand
+     * même posé — il n'y a pas de reprise ultérieure pour recréditer cette ligne-là. C'est
+     * volontaire : une commande doit toujours pouvoir être annulée, y compris quand une partie de
+     * son stock n'est plus recréditable.</p>
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void restituer(Commande commande) {
+        if (commande.getId() != null) {
+            commande = commandeRepository.findByIdForUpdate(commande.getId()).orElse(commande);
+
+            // Même piège Hibernate que pour Plat dans reserver() : le SELECT ... FOR UPDATE
+            // acquiert bien le verrou en base mais Hibernate renvoie l'instance déjà managée
+            // (chargée plus haut dans la pile d'appel par findCommande()) SANS la réhydrater.
+            // Sans un rafraîchissement, la transaction qui obtient le verrou en second ne voit pas
+            // que stockRestitue est déjà passé à true par la première, et crédite le stock une
+            // seconde fois — exactement le bug que le verrou est censé empêcher.
+            //
+            // Rafraîchissement CIBLÉ sur ce seul champ, PAS entityManager.refresh(commande) sur
+            // l'entité entière : Commande.lignesCommande est cascade=ALL (donc REFRESH inclus), et
+            // LigneCommande.options l'est aussi — un refresh() complet cascade dans ces collections
+            // et peut entrer en conflit avec une collection déjà chargée ailleurs dans le même
+            // contexte de persistance (Hibernate : "Found two representations of same collection"),
+            // un vrai crash reproduit pendant cette tâche dès qu'une commande venait d'être créée
+            // puis annulée dans la même transaction. On n'a besoin de fraîcheur que sur
+            // stockRestitue ; une simple projection scalaire l'obtient sans jamais toucher aux
+            // collections.
+            Boolean stockRestitueFrais = entityManager.createQuery(
+                            "SELECT c.stockRestitue FROM Commande c WHERE c.id = :id", Boolean.class)
+                    .setParameter("id", commande.getId())
+                    .getSingleResult();
+            commande.setStockRestitue(stockRestitueFrais);
+        }
+
         if (Boolean.TRUE.equals(commande.getStockRestitue())) {
             return;
         }
