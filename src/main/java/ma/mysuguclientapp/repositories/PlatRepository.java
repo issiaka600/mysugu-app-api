@@ -2,6 +2,7 @@ package ma.mysuguclientapp.repositories;
 
 import ma.mysuguclientapp.entities.Plat;
 import ma.mysuguclientapp.enumerations.CategoriePlat;
+import ma.mysuguclientapp.enumerations.Vertical;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -24,6 +25,33 @@ public interface PlatRepository extends JpaRepository<Plat, Long> {
             "(LOWER(p.nom) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "LOWER(p.description) LIKE LOWER(CONCAT('%', :keyword, '%')))")
     List<Plat> searchByKeyword(@Param("keyword") String keyword);
+
+    /**
+     * Listing paginé filtré en base. Tous les critères sont optionnels (null = pas de filtre),
+     * sauf la verticale : null y signifie « toutes verticales », l'aiguillage RESTAURANT-par-défaut
+     * étant fait par le service.
+     */
+    @Query("SELECT p FROM Plat p WHERE " +
+            "(:restaurantId IS NULL OR p.restaurant.id = :restaurantId) AND " +
+            "(:categoriePlat IS NULL OR p.categoriePlat = :categoriePlat) AND " +
+            "(:categorieProduit IS NULL OR p.categorieProduit = :categorieProduit) AND " +
+            "(:vertical IS NULL OR " +
+            " (:vertical = ma.mysuguclientapp.enumerations.Vertical.RESTAURANT AND p.restaurant.vertical IS NULL) " +
+            " OR p.restaurant.vertical = :vertical)")
+    Page<Plat> rechercheFiltree(@Param("restaurantId") Long restaurantId,
+                                @Param("categoriePlat") CategoriePlat categoriePlat,
+                                @Param("categorieProduit") String categorieProduit,
+                                @Param("vertical") Vertical vertical,
+                                Pageable pageable);
+
+    @Query("SELECT p FROM Plat p WHERE " +
+            "(LOWER(p.nom) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "LOWER(p.description) LIKE LOWER(CONCAT('%', :keyword, '%'))) AND " +
+            "(:vertical IS NULL OR " +
+            " (:vertical = ma.mysuguclientapp.enumerations.Vertical.RESTAURANT AND p.restaurant.vertical IS NULL) " +
+            " OR p.restaurant.vertical = :vertical)")
+    List<Plat> searchByKeywordAndVertical(@Param("keyword") String keyword,
+                                          @Param("vertical") Vertical vertical);
 
     /**
      * Charge un plat en verrouillant sa ligne jusqu'à la fin de la transaction.

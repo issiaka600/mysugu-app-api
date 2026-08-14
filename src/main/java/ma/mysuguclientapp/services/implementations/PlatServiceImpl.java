@@ -9,6 +9,7 @@ import ma.mysuguclientapp.entities.Plat;
 import ma.mysuguclientapp.entities.Restaurant;
 import ma.mysuguclientapp.enumerations.CategoriePlat;
 import ma.mysuguclientapp.enumerations.ModeDisponibilitePlat;
+import ma.mysuguclientapp.enumerations.Vertical;
 import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
 import ma.mysuguclientapp.repositories.PlatRepository;
@@ -36,27 +37,25 @@ public class PlatServiceImpl implements PlatService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<PlatDTO> getAllPlats(Long restaurantId, String categorie, Boolean available, Pageable pageable) {
+    public Page<PlatDTO> getAllPlats(Long restaurantId, String categorie, String categorieProduit,
+                                     Boolean available, String vertical, Pageable pageable) {
         CategoriePlat categoriePlat = parseCategorie(categorie);
-        List<Plat> plats;
+        Vertical v = "ALL".equalsIgnoreCase(vertical) ? null : parseVertical(vertical);
 
-        if (restaurantId != null && categoriePlat != null) {
-            plats = platRepository.findByRestaurantIdAndCategoriePlat(restaurantId, categoriePlat);
-        } else if (restaurantId != null) {
-            plats = platRepository.findByRestaurantId(restaurantId);
-        } else if (categoriePlat != null) {
-            plats = platRepository.findByCategoriePlat(categoriePlat);
-        } else {
-            plats = platRepository.findAll();
-        }
+        Page<Plat> page = platRepository.rechercheFiltree(
+                restaurantId, categoriePlat, categorieProduit, v, pageable);
 
-        List<PlatDTO> filtered = plats.stream()
+        // Le filtre `available` porte sur la disponibilité EFFECTIVE (flag vendeur pondéré par le
+        // stock + expiration d'une indisponibilité temporaire), pas expressible en SQL seul : il
+        // reste donc appliqué ici, en mémoire, après la requête paginée. Conséquence assumée : le
+        // total de pagination (page.getTotalElements()) porte sur la requête SQL, avant ce filtre.
+        List<PlatDTO> contenu = page.getContent().stream()
                 .map(this::refreshAvailabilityIfNeeded)
                 .filter(plat -> available == null || plat.isEffectivementDisponible() == available)
                 .map(this::convertToDTO)
                 .toList();
 
-        return toPage(filtered, pageable);
+        return new PageImpl<>(contenu, pageable, page.getTotalElements());
     }
 
     @Override
@@ -79,11 +78,17 @@ public class PlatServiceImpl implements PlatService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<PlatDTO> searchPlats(String keyword) {
-        return platRepository.searchByKeyword(keyword).stream()
+    public List<PlatDTO> searchPlats(String keyword, String vertical) {
+        Vertical v = "ALL".equalsIgnoreCase(vertical) ? null : parseVertical(vertical);
+        return platRepository.searchByKeywordAndVertical(keyword, v).stream()
                 .map(this::refreshAvailabilityIfNeeded)
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
+    }
+
+    /** Convention partagée (voir {@link RestaurantServiceImpl#parseVertical}) : absent ⇒ RESTAURANT, inconnue ⇒ 400. */
+    private Vertical parseVertical(String value) {
+        return RestaurantServiceImpl.parseVertical(value);
     }
 
     @Override
@@ -277,12 +282,6 @@ public class PlatServiceImpl implements PlatService {
         } catch (IllegalArgumentException e) {
             throw new BadRequestException("Catégorie de plat invalide: " + value);
         }
-    }
-
-    private Page<PlatDTO> toPage(List<PlatDTO> plats, Pageable pageable) {
-        int start = Math.min((int) pageable.getOffset(), plats.size());
-        int end = Math.min(start + pageable.getPageSize(), plats.size());
-        return new PageImpl<>(plats.subList(start, end), pageable, plats.size());
     }
 
     private PlatDTO convertToDTO(Plat plat) {

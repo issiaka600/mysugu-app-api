@@ -2,7 +2,9 @@ package ma.mysuguclientapp;
 
 import ma.mysuguclientapp.entities.Restaurant;
 import ma.mysuguclientapp.enumerations.Vertical;
+import ma.mysuguclientapp.repositories.PlatRepository;
 import ma.mysuguclientapp.repositories.RestaurantRepository;
+import ma.mysuguclientapp.services.interfaces.PlatService;
 import ma.mysuguclientapp.services.interfaces.RestaurantService;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +19,8 @@ class NonRegressionVerticalTest {
 
     @Autowired RestaurantService restaurantService;
     @Autowired RestaurantRepository restaurantRepository;
+    @Autowired PlatRepository platRepository;
+    @Autowired PlatService platService;
     @Autowired TransactionTemplate tx;
 
     // Suffixe System.nanoTime() : rejouable à l'infini, jamais de collision avec une donnée
@@ -24,7 +28,12 @@ class NonRegressionVerticalTest {
     private final String marqueur = "ZzMarqueurNonRegression" + System.nanoTime();
     private Long boutiqueId;
     private Long restoId;
+    private Long produitBoutiqueId;
+    private Long platRestoId;
 
+    // NB : un seul @BeforeAll (plutôt que deux, comme suggéré littéralement par le brief) — l'ordre
+    // d'exécution entre plusieurs méthodes @BeforeAll n'est pas garanti par JUnit 5, et setupProduits
+    // dépend de boutiqueId/restoId déjà persistés.
     @BeforeAll
     void setup() {
         Restaurant boutique = new Restaurant();
@@ -40,11 +49,28 @@ class NonRegressionVerticalTest {
         resto.setVertical(Vertical.RESTAURANT);
         resto.setAppreciation(5.0);
         restoId = restaurantRepository.save(resto).getId();
+
+        var produit = new ma.mysuguclientapp.entities.Plat();
+        produit.setNom(marqueur + " Savon");
+        produit.setPrix(new java.math.BigDecimal("20.00"));
+        produit.setIsAvailable(true);
+        produit.setCategorieProduit("epicerie");
+        produit.setRestaurant(restaurantRepository.findById(boutiqueId).orElseThrow());
+        produitBoutiqueId = platRepository.save(produit).getId();
+
+        var plat = new ma.mysuguclientapp.entities.Plat();
+        plat.setNom(marqueur + " Tajine");
+        plat.setPrix(new java.math.BigDecimal("80.00"));
+        plat.setIsAvailable(true);
+        plat.setRestaurant(restaurantRepository.findById(restoId).orElseThrow());
+        platRestoId = platRepository.save(plat).getId();
     }
 
     @AfterAll
     void cleanup() {
         tx.executeWithoutResult(s -> {
+            platRepository.deleteById(produitBoutiqueId);
+            platRepository.deleteById(platRestoId);
             restaurantRepository.deleteById(boutiqueId);
             restaurantRepository.deleteById(restoId);
         });
@@ -104,5 +130,33 @@ class NonRegressionVerticalTest {
     void verticaleInconnueEstRejetee() {
         Assertions.assertThrows(ma.mysuguclientapp.exceptions.BadRequestException.class,
                 () -> restaurantService.searchRestaurants(marqueur, "PHARMACIE"));
+    }
+
+    @Test
+    void platsSansVerticalNeVoientQueLesPlatsDeRestaurant() {
+        var page = platService.getAllPlats(null, null, null, null, null,
+                org.springframework.data.domain.PageRequest.of(0, 500));
+        assertThat(page.getContent()).extracting("id")
+                .contains(platRestoId).doesNotContain(produitBoutiqueId);
+    }
+
+    @Test
+    void platsFiltresParRayon() {
+        var page = platService.getAllPlats(null, null, "epicerie", null, "ALIMENTAIRE",
+                org.springframework.data.domain.PageRequest.of(0, 500));
+        assertThat(page.getContent()).extracting("id").contains(produitBoutiqueId);
+    }
+
+    @Test
+    void platsRayonInexistantRenvoieVide() {
+        var page = platService.getAllPlats(null, null, "rayon_inexistant", null, "ALIMENTAIRE",
+                org.springframework.data.domain.PageRequest.of(0, 500));
+        assertThat(page.getContent()).isEmpty();
+    }
+
+    @Test
+    void searchPlatsSansVerticalNeVoitQueLeRestaurant() {
+        assertThat(platService.searchPlats(marqueur, null)).extracting("id")
+                .contains(platRestoId).doesNotContain(produitBoutiqueId);
     }
 }
