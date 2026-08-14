@@ -30,6 +30,7 @@ class NonRegressionVerticalTest {
     private Long restoId;
     private Long produitBoutiqueId;
     private Long platRestoId;
+    private Long restoHistoriqueId;
 
     // NB : un seul @BeforeAll (plutôt que deux, comme suggéré littéralement par le brief) — l'ordre
     // d'exécution entre plusieurs méthodes @BeforeAll n'est pas garanti par JUnit 5, et setupProduits
@@ -49,6 +50,16 @@ class NonRegressionVerticalTest {
         resto.setVertical(Vertical.RESTAURANT);
         resto.setAppreciation(5.0);
         restoId = restaurantRepository.save(resto).getId();
+
+        // Donnée historique : vertical volontairement NON renseigné (NULL en base), comme les
+        // restaurants créés avant l'introduction de la colonne. C'est le cas que la garantie
+        // "paramètre absent => que des restaurants" doit couvrir contre une simple égalité SQL
+        // (vertical = 'RESTAURANT' ne matche jamais NULL).
+        Restaurant restoHistorique = new Restaurant();
+        restoHistorique.setNom(marqueur + " RestoHistorique");
+        restoHistorique.setIsActive(true);
+        restoHistorique.setAppreciation(5.0);
+        restoHistoriqueId = restaurantRepository.save(restoHistorique).getId();
 
         var produit = new ma.mysuguclientapp.entities.Plat();
         produit.setNom(marqueur + " Savon");
@@ -73,6 +84,7 @@ class NonRegressionVerticalTest {
             platRepository.deleteById(platRestoId);
             restaurantRepository.deleteById(boutiqueId);
             restaurantRepository.deleteById(restoId);
+            restaurantRepository.deleteById(restoHistoriqueId);
         });
     }
 
@@ -158,5 +170,35 @@ class NonRegressionVerticalTest {
     void searchPlatsSansVerticalNeVoitQueLeRestaurant() {
         assertThat(platService.searchPlats(marqueur, null)).extracting("id")
                 .contains(platRestoId).doesNotContain(produitBoutiqueId);
+    }
+
+    // ===================== Preuve : les restaurants historiques (vertical NULL) restent visibles =====================
+    // Une requête dérivée Spring Data sur "vertical = RESTAURANT" ne matche jamais une ligne NULL en
+    // SQL. Ces trois tests prouvent que ce n'est pas le cas ici : le restaurant historique créé dans
+    // setup() (vertical non renseigné) doit apparaître dans les résultats sans paramètre "vertical".
+
+    @Test
+    void searchSansVerticalVoitAussiLeRestaurantHistoriqueSansVertical() {
+        var resultats = restaurantService.searchRestaurants(marqueur, null);
+        assertThat(resultats).extracting("id").contains(restoHistoriqueId);
+    }
+
+    @Test
+    void topRatedSansVerticalVoitAussiLeRestaurantHistoriqueSansVertical() {
+        var resultats = restaurantService.getTopRatedRestaurants(200, null);
+        assertThat(resultats).extracting("id").contains(restoHistoriqueId);
+    }
+
+    @Test
+    void nearbySansVerticalVoitAussiLeRestaurantHistoriqueSansVertical() {
+        Restaurant restoHistorique = restaurantRepository.findById(restoHistoriqueId).orElseThrow();
+        var loc = new ma.mysuguclientapp.entities.Localisation();
+        loc.setLatitude(33.5731);
+        loc.setLongitude(-7.5898);
+        restoHistorique.setLocalisation(loc);
+        restaurantRepository.save(restoHistorique);
+
+        var resultats = restaurantService.getNearbyRestaurants(33.5731, -7.5898, 5.0, null);
+        assertThat(resultats).extracting("id").contains(restoHistoriqueId);
     }
 }

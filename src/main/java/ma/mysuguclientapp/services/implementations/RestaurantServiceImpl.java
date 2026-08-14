@@ -120,7 +120,7 @@ public class RestaurantServiceImpl implements RestaurantService {
     public List<RestaurantDTO> getNearbyRestaurants(Double latitude, Double longitude, Double radiusKm, String vertical) {
         List<Restaurant> restaurants = "ALL".equalsIgnoreCase(vertical)
                 ? restaurantRepository.findByIsActive(true)
-                : restaurantRepository.findByVerticalAndIsActive(parseVertical(vertical), true);
+                : restaurantRepository.findActiveByVertical(parseVertical(vertical));
         return restaurants.stream()
                 .map(restaurant -> convertToDTO(restaurant, latitude, longitude))
                 .filter(dto -> dto.getDistance() != null && dto.getDistance() <= radiusKm)

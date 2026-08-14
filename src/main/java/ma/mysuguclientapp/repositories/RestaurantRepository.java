@@ -34,7 +34,6 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Long> {
     Page<Restaurant> findByIsActive(Boolean isActive, Pageable pageable);
     Page<Restaurant> findByCategorieIdAndIsActive(Long categorieId, Boolean isActive, Pageable pageable);
     Page<Restaurant> findByVerticalAndIsActive(Vertical vertical, Boolean isActive, Pageable pageable);
-    List<Restaurant> findByVerticalAndIsActive(Vertical vertical, Boolean isActive);
     List<Restaurant> findByIsActiveOrderByAppreciationDesc(Boolean isActive);
     List<Restaurant> findByIsActive(Boolean isActive);
     List<Restaurant> findByStatutApprobationInOrderByDateRevueAscIdAsc(java.util.Collection<StatutRestaurant> statuts);
@@ -57,4 +56,10 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Long> {
             "((:vertical = ma.mysuguclientapp.enumerations.Vertical.RESTAURANT AND r.vertical IS NULL) " +
             " OR r.vertical = :vertical) ORDER BY r.appreciation DESC")
     List<Restaurant> findByVerticalOrderByAppreciationDesc(@Param("vertical") Vertical vertical);
+
+    /** Restaurants actifs filtrés par verticale (proximité). Null en base est traité comme RESTAURANT. */
+    @Query("SELECT r FROM Restaurant r WHERE r.isActive = true AND " +
+            "((:vertical = ma.mysuguclientapp.enumerations.Vertical.RESTAURANT AND r.vertical IS NULL) " +
+            " OR r.vertical = :vertical)")
+    List<Restaurant> findActiveByVertical(@Param("vertical") Vertical vertical);
 }
