@@ -95,10 +95,19 @@ public class StockService {
      * garde purement en mémoire sur {@code commande.getStockRestitue()} ne suffit pas à empêcher
      * un entrelacement de deux <em>transactions</em> concurrentes (double clic sur « annuler »,
      * annulation client et vendeur simultanées) — les deux peuvent lire {@code false} avant que
-     * l'une des deux ne committe. Une première tentative avec un simple {@code UPDATE ... WHERE
-     * stock_restitue = false} conditionnel (sans verrou explicite) s'est révélée insuffisante à
-     * l'usage : sous charge réelle, les deux transactions concurrentes obtenaient chacune une
-     * ligne affectée. D'où le verrou pessimiste explicite.
+     * l'une des deux ne committe : une garde de type lecture-puis-action, sans verrou, est fausse
+     * par construction, quel que soit le mécanisme d'écriture utilisé ensuite. Une première
+     * tentative avait remplacé le verrou par un simple {@code UPDATE ... WHERE stock_restitue =
+     * false} conditionnel ; elle a semblé insuffisante à l'usage (les deux transactions
+     * obtenaient chacune une ligne affectée), mais ce n'était PAS un défaut de ce mécanisme en
+     * lui-même — sous PostgreSQL en READ COMMITTED, cet UPDATE conditionnel bloque correctement
+     * la seconde transaction puis réévalue son prédicat sur la version committée, donnant 0 ligne
+     * affectée pour la seconde. La vraie cause, découverte ensuite (voir le paragraphe sur
+     * l'ordre d'appel ci-dessous), est que l'appelant modifiait déjà {@code commande} avant cet
+     * appel : le flush Hibernate qui suivait réécrivait toute la ligne avec des valeurs obsolètes
+     * et défaisait aussi bien l'UPDATE conditionnel que n'importe quel autre mécanisme
+     * d'idempotence. Le verrou pessimiste reste la protection retenue ici, nécessaire
+     * indépendamment de ce bug d'ordre.
      *
      * <p><b>Appeler CETTE méthode avant toute autre mutation de {@code commande}</b> — avant
      * {@code setStatut}, {@code setRaisonAnnulation}, etc. C'est une contrainte réelle, pas une
@@ -128,7 +137,17 @@ public class StockService {
     @Transactional(propagation = Propagation.MANDATORY)
     public void restituer(Commande commande) {
         if (commande.getId() != null) {
-            commande = commandeRepository.findByIdForUpdate(commande.getId()).orElse(commande);
+            java.util.Optional<Commande> verrouillee = commandeRepository.findByIdForUpdate(commande.getId());
+            if (verrouillee.isEmpty()) {
+                // Ligne "commandes" introuvable : suppression concurrente (n'arrive pas en usage
+                // normal, une commande n'est jamais supprimée par l'application), ou entité
+                // détachée reconstruite avec un id qui ne correspond plus à rien en base. On ne
+                // peut ni verrouiller ni garantir l'idempotence pour cette ligne ; on n'essaie pas
+                // de créditer sans protection, mais on ne fait pas non plus échouer l'appelant
+                // pour autant (même philosophie que le produit supprimé, plus bas).
+                return;
+            }
+            commande = verrouillee.get();
 
             // Même piège Hibernate que pour Plat dans reserver() : le SELECT ... FOR UPDATE
             // acquiert bien le verrou en base mais Hibernate renvoie l'instance déjà managée
@@ -145,7 +164,10 @@ public class StockService {
             // un vrai crash reproduit pendant cette tâche dès qu'une commande venait d'être créée
             // puis annulée dans la même transaction. On n'a besoin de fraîcheur que sur
             // stockRestitue ; une simple projection scalaire l'obtient sans jamais toucher aux
-            // collections.
+            // collections. getSingleResult() est sûr ici : on tient le verrou pessimiste sur cette
+            // ligne depuis findByIdForUpdate ci-dessus, donc aucune transaction concurrente ne peut
+            // l'avoir supprimée entre-temps — contrairement au premier appel, où ce risque existe
+            // et où NoResultException doit être traité explicitement (voir plus haut).
             Boolean stockRestitueFrais = entityManager.createQuery(
                             "SELECT c.stockRestitue FROM Commande c WHERE c.id = :id", Boolean.class)
                     .setParameter("id", commande.getId())

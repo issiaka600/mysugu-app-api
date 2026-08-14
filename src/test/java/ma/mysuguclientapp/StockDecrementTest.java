@@ -38,6 +38,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SpringBootTest
@@ -284,6 +285,43 @@ class StockDecrementTest {
         stockService.restituer(commande);
         assertThat(commande.getStockRestitue()).isTrue();
         assertThat(platRepository.findById(platId)).isEmpty();
+    }
+
+    /**
+     * Régression trouvée en re-revue : {@code findByIdForUpdate(id).orElse(commande)} traitait
+     * sans erreur une ligne "commandes" absente, mais la projection scalaire qui suivait
+     * s'exécutait quand même sur ce même id et levait {@code NoResultException}, non rattrapée —
+     * la restitution (et donc l'annulation) échouait alors qu'avant ce correctif elle aboutissait
+     * toujours. Une commande dont la ligne a disparu (suppression concurrente — n'arrive pas en
+     * usage normal, une commande n'est jamais supprimée par l'application — ou entité détachée
+     * reconstruite avec un id obsolète) ne doit jamais faire échouer l'annulation.
+     */
+    @Test
+    @Transactional
+    void restituerNeLevePasSiLaLigneCommandeADisparu() {
+        Restaurant boutique = creerBoutique();
+        Plat produit = creerProduitEnStock(10, boutique);
+        User client = creerClient();
+
+        CommandeCreateDTO dto = new CommandeCreateDTO();
+        dto.setClientId(client.getId());
+        dto.setRestaurantId(boutique.getId());
+        dto.setMethodePaiement("ESPECES");
+        dto.setModeReception("RETRAIT_SUR_PLACE");
+        LigneCommandeCreateDTO ligneDTO = new LigneCommandeCreateDTO();
+        ligneDTO.setPlatId(produit.getId());
+        ligneDTO.setQuantite(2);
+        dto.setLignes(List.of(ligneDTO));
+
+        CommandeDTO commandeDTO = commandeService.createCommande(dto);
+        Long commandeId = commandeDTO.getId();
+        commandeRepository.deleteById(commandeId);
+
+        Commande commandeDetachee = new Commande();
+        commandeDetachee.setId(commandeId);
+        commandeDetachee.setLignesCommande(new java.util.ArrayList<>());
+
+        assertThatCode(() -> stockService.restituer(commandeDetachee)).doesNotThrowAnyException();
     }
 
     /**
