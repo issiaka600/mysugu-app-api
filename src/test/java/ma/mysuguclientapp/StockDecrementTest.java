@@ -512,6 +512,29 @@ class StockDecrementTest {
         assertThat(commandeRepository.findByRestaurantIdOrderByCreatedAtDesc(boutique.getId())).isEmpty();
     }
 
+    /**
+     * Revue finale : une quantité négative sur une ligne de commande passait le test
+     * {@code stockActuel < quantite} (10 < -5 est faux) et {@link StockService#reserver}
+     * créditait alors le stock au lieu de le décrémenter — n'importe quel client authentifié
+     * pouvait ainsi gonfler arbitrairement le stock d'une boutique via {@code POST /api/commandes}.
+     * La garde ajoutée dans {@code CommandeServiceImpl} doit rejeter la ligne avant même d'appeler
+     * {@code reserver()} : ce test prouve à la fois le refus et l'absence de toute écriture sur le
+     * stock.
+     */
+    @Test
+    @Transactional
+    void createCommandeRefuseQuantiteNegativeSansModifierLeStock() {
+        Restaurant boutique = creerBoutique();
+        Plat produit = creerProduitEnStock(10, boutique);
+        User client = creerClient();
+
+        assertThrows(BadRequestException.class, () -> commandeService.createCommande(
+                commandeUneLigneQuantite(client.getId(), boutique.getId(), produit.getId(), -5)));
+
+        assertThat(platRepository.findById(produit.getId()).orElseThrow().getQuantiteStock()).isEqualTo(10);
+        assertThat(commandeRepository.findByRestaurantIdOrderByCreatedAtDesc(boutique.getId())).isEmpty();
+    }
+
     @Test
     @Transactional
     void ajouterAuPanierRefuseUnProduitEnRupture() {

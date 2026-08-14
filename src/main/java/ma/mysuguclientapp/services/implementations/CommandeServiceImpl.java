@@ -202,6 +202,9 @@ public class CommandeServiceImpl implements CommandeService {
             if (l.getPlatId() == null) {
                 throw new BadRequestException("Identifiant de plat manquant sur une ligne de commande");
             }
+            if (l.getQuantite() == null || l.getQuantite() < 1) {
+                throw new BadRequestException("Quantité invalide sur une ligne de commande");
+            }
         }
         List<LigneCommandeCreateDTO> lignesTriees = commandeDTO.getLignes().stream()
                 .sorted(Comparator.comparing(LigneCommandeCreateDTO::getPlatId))

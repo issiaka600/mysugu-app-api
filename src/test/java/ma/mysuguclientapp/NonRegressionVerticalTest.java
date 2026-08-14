@@ -118,9 +118,15 @@ class NonRegressionVerticalTest {
         assertThat(resultats).extracting("id").contains(boutiqueId, restoId);
     }
 
+    // Limit volontairement non plafonnée (Integer.MAX_VALUE plutôt qu'une valeur fixe comme 200) :
+    // la base de test est persistante et accumule des établissements au fil des runs. En
+    // PostgreSQL, "ORDER BY appreciation DESC" place les NULL en premier, donc tout établissement
+    // actif sans note passerait devant nos fixtures notées 5.0 ; avec une limite fixe, ces
+    // fixtures finiraient par sortir de la fenêtre et les assertions de présence ci-dessous
+    // échoueraient sans rapport avec une régression du code. Ne pas tronquer élimine ce risque.
     @Test
     void topRatedSansVerticalNeVoitQueLesRestaurants() {
-        var resultats = restaurantService.getTopRatedRestaurants(200, null);
+        var resultats = restaurantService.getTopRatedRestaurants(Integer.MAX_VALUE, null);
         assertThat(resultats).extracting("id").doesNotContain(boutiqueId);
     }
 
@@ -195,9 +201,11 @@ class NonRegressionVerticalTest {
         assertThat(resultats).extracting("id").contains(restoHistoriqueId);
     }
 
+    // Cf. commentaire de topRatedSansVerticalNeVoitQueLesRestaurants ci-dessus : limite non
+    // plafonnée pour ne pas dépendre du nombre d'établissements sans note déjà en base de test.
     @Test
     void topRatedSansVerticalVoitAussiLeRestaurantHistoriqueSansVertical() {
-        var resultats = restaurantService.getTopRatedRestaurants(200, null);
+        var resultats = restaurantService.getTopRatedRestaurants(Integer.MAX_VALUE, null);
         assertThat(resultats).extracting("id").contains(restoHistoriqueId);
     }
 

@@ -37,7 +37,8 @@ public interface PlatRepository extends JpaRepository<Plat, Long> {
             "(:categorieProduit IS NULL OR p.categorieProduit = :categorieProduit) AND " +
             "(:vertical IS NULL OR " +
             " (:vertical = ma.mysuguclientapp.enumerations.Vertical.RESTAURANT AND p.restaurant.vertical IS NULL) " +
-            " OR p.restaurant.vertical = :vertical)")
+            " OR p.restaurant.vertical = :vertical) " +
+            "ORDER BY p.id")
     Page<Plat> rechercheFiltree(@Param("restaurantId") Long restaurantId,
                                 @Param("categoriePlat") CategoriePlat categoriePlat,
                                 @Param("categorieProduit") String categorieProduit,
