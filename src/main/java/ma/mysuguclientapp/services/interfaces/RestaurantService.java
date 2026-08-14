@@ -21,19 +21,20 @@ public interface RestaurantService {
     RestaurantDTO getRestaurantById(Long id);
 
     /**
-     * Rechercher des restaurants par mot-clé
+     * Rechercher des restaurants par mot-clé, filtré par verticale (convention de
+     * {@code RestaurantServiceImpl.parseVertical} : null/absent -> RESTAURANT, "ALL" -> toutes verticales).
      */
-    List<RestaurantDTO> searchRestaurants(String keyword);
+    List<RestaurantDTO> searchRestaurants(String keyword, String vertical);
 
     /**
-     * Obtenir les restaurants les mieux notés
+     * Obtenir les restaurants les mieux notés, filtré par verticale (même convention que ci-dessus).
      */
-    List<RestaurantDTO> getTopRatedRestaurants(int limit);
+    List<RestaurantDTO> getTopRatedRestaurants(int limit, String vertical);
 
     /**
-     * Obtenir les restaurants à proximité
+     * Obtenir les restaurants à proximité, filtré par verticale (même convention que ci-dessus).
      */
-    List<RestaurantDTO> getNearbyRestaurants(Double latitude, Double longitude, Double radiusKm);
+    List<RestaurantDTO> getNearbyRestaurants(Double latitude, Double longitude, Double radiusKm, String vertical);
 
     /**
      * Créer un nouveau restaurant

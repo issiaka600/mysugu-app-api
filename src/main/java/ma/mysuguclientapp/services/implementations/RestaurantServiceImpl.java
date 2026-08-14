@@ -94,16 +94,22 @@ public class RestaurantServiceImpl implements RestaurantService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<RestaurantDTO> searchRestaurants(String keyword) {
-        return restaurantRepository.searchByKeyword(keyword).stream()
+    public List<RestaurantDTO> searchRestaurants(String keyword, String vertical) {
+        List<Restaurant> restaurants = "ALL".equalsIgnoreCase(vertical)
+                ? restaurantRepository.searchByKeyword(keyword)
+                : restaurantRepository.searchByKeywordAndVertical(keyword, parseVertical(vertical));
+        return restaurants.stream()
                 .map(restaurant -> convertToDTO(restaurant, null, null))
                 .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<RestaurantDTO> getTopRatedRestaurants(int limit) {
-        return restaurantRepository.findByIsActiveOrderByAppreciationDesc(true).stream()
+    public List<RestaurantDTO> getTopRatedRestaurants(int limit, String vertical) {
+        List<Restaurant> restaurants = "ALL".equalsIgnoreCase(vertical)
+                ? restaurantRepository.findByIsActiveOrderByAppreciationDesc(true)
+                : restaurantRepository.findByVerticalOrderByAppreciationDesc(parseVertical(vertical));
+        return restaurants.stream()
                 .limit(limit)
                 .map(restaurant -> convertToDTO(restaurant, null, null))
                 .collect(Collectors.toList());
@@ -111,8 +117,11 @@ public class RestaurantServiceImpl implements RestaurantService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<RestaurantDTO> getNearbyRestaurants(Double latitude, Double longitude, Double radiusKm) {
-        return restaurantRepository.findByIsActive(true).stream()
+    public List<RestaurantDTO> getNearbyRestaurants(Double latitude, Double longitude, Double radiusKm, String vertical) {
+        List<Restaurant> restaurants = "ALL".equalsIgnoreCase(vertical)
+                ? restaurantRepository.findByIsActive(true)
+                : restaurantRepository.findByVerticalAndIsActive(parseVertical(vertical), true);
+        return restaurants.stream()
                 .map(restaurant -> convertToDTO(restaurant, latitude, longitude))
                 .filter(dto -> dto.getDistance() != null && dto.getDistance() <= radiusKm)
                 .sorted(Comparator.comparing(RestaurantDTO::getDistance))
