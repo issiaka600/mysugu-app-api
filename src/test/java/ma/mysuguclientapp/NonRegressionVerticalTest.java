@@ -201,4 +201,12 @@ class NonRegressionVerticalTest {
         var resultats = restaurantService.getNearbyRestaurants(33.5731, -7.5898, 5.0, null);
         assertThat(resultats).extracting("id").contains(restoHistoriqueId);
     }
+
+    @Test
+    void getAllRestaurantsSansVerticalVoitAussiLeRestaurantHistoriqueSansVertical() {
+        var page = restaurantService.getAllRestaurants(null, null, null, null, null,
+                org.springframework.data.domain.PageRequest.of(0, 500));
+        assertThat(page.getContent()).extracting("id")
+                .contains(restoHistoriqueId, restoId).doesNotContain(boutiqueId);
+    }
 }
