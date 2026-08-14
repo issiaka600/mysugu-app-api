@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import ma.mysuguclientapp.dtos.PlatDTO;
 import ma.mysuguclientapp.dtos.RestaurantCreateDTO;
 import ma.mysuguclientapp.dtos.RestaurantDTO;
-import ma.mysuguclientapp.services.interfaces.PlatService;
 import ma.mysuguclientapp.services.interfaces.RestaurantService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,7 +24,6 @@ import java.util.List;
 public class RestaurantController {
 
     private final RestaurantService restaurantService;
-    private final PlatService platService;
 
     /**
      * GET /api/restaurants - Obtenir tous les restaurants (avec pagination)
@@ -144,10 +142,13 @@ public class RestaurantController {
     }
 
     /**
-     * GET /api/restaurants/{id}/plats - Obtenir les plats d'un restaurant
+     * GET /api/restaurants/{id}/plats - Obtenir les plats d'un établissement, filtrables par rayon
+     * (categorieProduit) pour les boutiques (alimentaire, cosmétique).
      */
     @GetMapping("/{id}/plats")
-    public ResponseEntity<List<PlatDTO>> getRestaurantPlats(@PathVariable Long id) {
-        return ResponseEntity.ok(platService.getPlatsByRestaurant(id));
+    public ResponseEntity<List<PlatDTO>> getRestaurantPlats(
+            @PathVariable Long id,
+            @RequestParam(required = false) String categorieProduit) {
+        return ResponseEntity.ok(restaurantService.getRestaurantPlats(id, categorieProduit));
     }
 }

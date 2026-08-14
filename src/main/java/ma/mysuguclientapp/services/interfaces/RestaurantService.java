@@ -1,5 +1,6 @@
 package ma.mysuguclientapp.services.interfaces;
 
+import ma.mysuguclientapp.dtos.PlatDTO;
 import ma.mysuguclientapp.dtos.RestaurantCreateDTO;
 import ma.mysuguclientapp.dtos.RestaurantDTO;
 import org.springframework.data.domain.Page;
@@ -19,6 +20,12 @@ public interface RestaurantService {
      * Obtenir un restaurant par ID
      */
     RestaurantDTO getRestaurantById(Long id);
+
+    /**
+     * Produits d'un établissement, filtrés par rayon (categorieProduit) si fourni.
+     * La verticale est déjà déterminée par l'établissement demandé : pas de re-filtrage par verticale.
+     */
+    List<PlatDTO> getRestaurantPlats(Long id, String categorieProduit);
 
     /**
      * Rechercher des restaurants par mot-clé, filtré par verticale (convention de

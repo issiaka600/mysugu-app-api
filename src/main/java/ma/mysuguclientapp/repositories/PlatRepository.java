@@ -60,4 +60,9 @@ public interface PlatRepository extends JpaRepository<Plat, Long> {
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Plat p WHERE p.id = :id")
     java.util.Optional<Plat> findByIdForUpdate(@Param("id") Long id);
+
+    /** Codes de rayon (categorieProduit) distincts effectivement utilisés par les produits d'un établissement. */
+    @Query("SELECT DISTINCT p.categorieProduit FROM Plat p " +
+            "WHERE p.restaurant.id = :restaurantId AND p.categorieProduit IS NOT NULL")
+    List<String> findRayonsUtilises(@Param("restaurantId") Long restaurantId);
 }

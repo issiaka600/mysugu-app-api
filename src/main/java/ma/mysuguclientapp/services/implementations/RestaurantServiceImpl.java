@@ -3,7 +3,9 @@ package ma.mysuguclientapp.services.implementations;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import ma.mysuguclientapp.dtos.CategorieRestaurantDTO;
+import ma.mysuguclientapp.dtos.EnumOptionDTO;
 import ma.mysuguclientapp.dtos.LocalisationDTO;
+import ma.mysuguclientapp.dtos.PlatDTO;
 import ma.mysuguclientapp.dtos.PromotionDTO;
 import ma.mysuguclientapp.dtos.RestaurantCreateDTO;
 import ma.mysuguclientapp.dtos.RestaurantDTO;
@@ -18,11 +20,14 @@ import ma.mysuguclientapp.enumerations.UserRole;
 import ma.mysuguclientapp.enumerations.Vertical;
 import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
+import ma.mysuguclientapp.repositories.CategorieProduitRepository;
 import ma.mysuguclientapp.repositories.CategoriesRestaurantRepository;
+import ma.mysuguclientapp.repositories.PlatRepository;
 import ma.mysuguclientapp.repositories.RestaurantRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
 import ma.mysuguclientapp.repositories.ZoneDeploiementRepository;
 import ma.mysuguclientapp.services.interfaces.OwnerProvisioningService;
+import ma.mysuguclientapp.services.interfaces.PlatService;
 import ma.mysuguclientapp.services.interfaces.RestaurantService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -48,6 +53,9 @@ public class RestaurantServiceImpl implements RestaurantService {
     private final ZoneDeploiementRepository zoneDeploiementRepository;
     private final OwnerProvisioningService ownerProvisioningService;
     private final EmailService emailService;
+    private final PlatRepository platRepository;
+    private final CategorieProduitRepository categorieProduitRepository;
+    private final PlatService platService;
 
     @Override
     @Transactional(readOnly = true)
@@ -89,7 +97,26 @@ public class RestaurantServiceImpl implements RestaurantService {
     public RestaurantDTO getRestaurantById(Long id) {
         Restaurant restaurant = restaurantRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Restaurant non trouvé avec l'ID: " + id));
-        return convertToDTO(restaurant, null, null);
+        RestaurantDTO dto = convertToDTO(restaurant, null, null);
+        // Rayons calculés uniquement ici (écran détail), jamais dans le listing : sinon requête
+        // en plus par établissement sur chaque page de résultats.
+        Vertical v = restaurant.getVertical() != null ? restaurant.getVertical() : Vertical.RESTAURANT;
+        if (v != Vertical.RESTAURANT) {
+            java.util.Set<String> utilises =
+                    new java.util.HashSet<>(platRepository.findRayonsUtilises(restaurant.getId()));
+            dto.setRayons(categorieProduitRepository.findByVerticalAndActifTrueOrderByOrdreAsc(v).stream()
+                    .filter(c -> utilises.contains(c.getCode()))
+                    .map(c -> new EnumOptionDTO(c.getCode(), c.getLibelle()))
+                    .toList());
+        }
+        return dto;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PlatDTO> getRestaurantPlats(Long id, String categorieProduit) {
+        return platService.getAllPlats(id, null, categorieProduit, true, "ALL", Pageable.unpaged())
+                .getContent();
     }
 
     @Override
