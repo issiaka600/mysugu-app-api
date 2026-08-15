@@ -101,7 +101,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/files/upload").authenticated()
 
                         // Auth enhanced (email verification, forgot password — public)
-                        .requestMatchers("/api/auth/verify-email", "/api/auth/forgot-password",
+                        .requestMatchers("/api/auth/verify-email", "/api/auth/resend-verification", "/api/auth/forgot-password",
                                 "/api/auth/reset-password", "/api/auth/refresh").permitAll()
 
                         // Routes admin uniquement

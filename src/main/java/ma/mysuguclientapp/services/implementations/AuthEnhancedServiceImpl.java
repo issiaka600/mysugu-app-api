@@ -48,6 +48,27 @@ public class AuthEnhancedServiceImpl implements AuthEnhancedService {
         if (Boolean.TRUE.equals(user.getEmailVerified())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email déjà vérifié");
         }
+        creerEtEnvoyerVerification(user);
+    }
+
+    /**
+     * Renvoi public pour un compte qui ne peut pas encore se connecter. La route contrôleur
+     * garde une réponse générique afin de ne pas exposer l'existence d'une adresse e-mail.
+     */
+    @Override
+    @Transactional
+    public void renvoyerEmailVerification(String email) {
+        if (email == null || email.isBlank()) {
+            return;
+        }
+        userRepository.findByEmail(email.trim()).ifPresent(user -> {
+            if (!Boolean.TRUE.equals(user.getEmailVerified())) {
+                creerEtEnvoyerVerification(user);
+            }
+        });
+    }
+
+    private void creerEtEnvoyerVerification(User user) {
         String token = UUID.randomUUID().toString();
         TokenVerification tv = TokenVerification.builder()
                 .user(user)

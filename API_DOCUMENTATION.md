@@ -63,6 +63,7 @@
 | `POST` | `/auth/login` | *(public)* | Connexion email/mot de passe |
 | `POST` | `/auth/google` | *(public)* | Connexion via Google OAuth |
 | `POST` | `/api/auth/verify-email` | *(public)* | Vérifier l'adresse e-mail |
+| `POST` | `/api/auth/resend-verification` | *(public)* | Renvoyer un lien de vérification expiré |
 | `POST` | `/api/auth/forgot-password` | *(public)* | Demander une réinitialisation de mot de passe |
 | `POST` | `/api/auth/reset-password` | *(public)* | Réinitialiser le mot de passe avec le token reçu |
 | `POST` | `/api/auth/refresh` | *(public)* | Rafraîchir le JWT via un refresh token |
@@ -93,6 +94,15 @@ avec le mot de passe tant que l'e-mail n'a pas été vérifié.
 **Réponse 200 :** `{ "token": "...", "refreshToken": "...", "user": UserDTO }`
 
 Un compte avec `emailVerified: false` reçoit `403 Forbidden` et doit vérifier son e-mail.
+
+### POST /api/auth/resend-verification
+
+```json
+{ "email": "user@example.com" }
+```
+
+**Réponse 200 :** `{ "message": "Si cette adresse nécessite une vérification, un nouvel email a été envoyé" }`.
+La réponse est identique si l'adresse n'existe pas ou est déjà vérifiée afin d'éviter l'énumération des comptes.
 
 ### PUT /users/profile — changement d'e-mail
 
@@ -452,6 +462,14 @@ Mise à jour de la boutique Vendor en `multipart/form-data`. Les champs `logo` e
   "numeroCommande": "CMD-20260221062843-7941",
   "statut": "LIVREE",
   "trackingStatut": "COMMANDE_LIVREE",
+  "statusHistory": [
+    { "status": "pending", "changedAt": "2026-08-09T16:30:00" },
+    { "status": "confirmed", "changedAt": "2026-08-09T16:35:00" },
+    { "status": "processing", "changedAt": "2026-08-09T16:40:00" },
+    { "status": "ready", "changedAt": "2026-08-09T16:55:00" },
+    { "status": "out_for_delivery", "changedAt": "2026-08-09T17:00:00" },
+    { "status": "delivered", "changedAt": "2026-08-09T17:20:00" }
+  ],
   "client": { "id": 4, "nom": "TRAORE", "prenom": "Client", "email": "...", "telephone": "...", "role": "CLIENT", "avatar": null },
   "restaurant": { "id": 1, "nom": "Chez Fatou", "commissionPourcentage": 15.0, "..." : "..." },
   "livreur": { "id": 3, "nom": "TRAORE", "prenom": "Livreur", "telephone": "...", "..." : "..." },

@@ -16,6 +16,7 @@ import ma.mysuguclientapp.repositories.CommandeRepository;
 import ma.mysuguclientapp.repositories.PreuveLivraisonRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
 import ma.mysuguclientapp.services.implementations.CaisseServiceImpl;
+import ma.mysuguclientapp.services.implementations.CommandeStatusHistoryService;
 import ma.mysuguclientapp.services.implementations.GainsLivreurServiceImpl;
 import ma.mysuguclientapp.services.implementations.MinioService;
 import ma.mysuguclientapp.services.implementations.StockService;
@@ -54,6 +55,7 @@ public class DeliveryManLifecycleController {
     private final PreuveLivraisonRepository preuveLivraisonRepository;
     private final ma.mysuguclientapp.services.interfaces.FcmService fcmService;
     private final StockService stockService;
+    private final CommandeStatusHistoryService commandeStatusHistoryService;
 
     // ---------- T5 : lifecycle ----------
 
@@ -101,6 +103,7 @@ public class DeliveryManLifecycleController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorsResponse.of("status", "Statut non supporté."));
             }
         }
+        commandeStatusHistoryService.record(c);
         notifierPartiesStatut(c);
         return ResponseEntity.ok(new MessageResponse("Order status updated successfully!"));
     }

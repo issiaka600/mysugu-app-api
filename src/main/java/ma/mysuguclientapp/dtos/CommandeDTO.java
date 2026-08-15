@@ -16,6 +16,8 @@ public class CommandeDTO {
     private List<LigneCommandeDTO> lignesCommande;
     private String statut;
     private String trackingStatut;
+    /** Historique chronologique du suivi Customer, avec statuts normalisés pour mobile. */
+    private List<CommandeStatusHistoryDTO> statusHistory;
     private LocalisationDTO adresseLivraison;
     private BigDecimal montantTotal;
     private BigDecimal montantRemise;
