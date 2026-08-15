@@ -57,6 +57,15 @@ public interface RestaurantService {
     RestaurantDTO updateRestaurantBanner(Long id, MultipartFile banner);
 
     /**
+     * Transfère un établissement à un autre propriétaire.
+     *
+     * <p>Endpoint dédié plutôt qu'un passage par {@code updateRestaurant} : l'opération touche
+     * à l'invariant « un propriétaire, un établissement » dont dépend l'authentification de
+     * l'application vendeur. Refuse une cible qui possède déjà un établissement.
+     */
+    RestaurantDTO reaffecterProprietaire(Long restaurantId, Long nouveauProprietaireId);
+
+    /**
      * Supprimer un restaurant
      */
     void deleteRestaurant(Long id);

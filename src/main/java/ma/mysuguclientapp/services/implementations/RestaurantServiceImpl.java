@@ -33,8 +33,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalTime;
 import java.util.Comparator;
@@ -224,6 +226,9 @@ public class RestaurantServiceImpl implements RestaurantService {
             if (owner.getRole() != UserRole.RESTAURANT_OWNER && owner.getRole() != UserRole.ADMIN) {
                 throw new BadRequestException("L'utilisateur doit avoir le rôle RESTAURANT_OWNER");
             }
+            // Ce chemin change aussi de proprietaire : il doit defendre le meme invariant que
+            // reaffecterProprietaire, sinon la garde serait contournable par une simple mise a jour.
+            verifierProprietaireLibre(owner, id);
             restaurant.setOwner(owner);
         }
 
@@ -255,6 +260,47 @@ public class RestaurantServiceImpl implements RestaurantService {
         Restaurant updatedRestaurant = restaurantRepository.save(restaurant);
         log.info("Restaurant mis à jour: {}", updatedRestaurant.getNom());
         return convertToDTO(updatedRestaurant, null, null);
+    }
+
+    /**
+     * Défend l'invariant du shim vendeur : un propriétaire, un établissement.
+     *
+     * <p>{@code SellerContext.currentRestaurant} résout le vendeur connecté par
+     * {@code findByOwnerId}, qui renvoie un {@code Optional} : deux établissements pour un même
+     * propriétaire lui serviraient une boutique arbitraire. Appelée par les DEUX chemins qui
+     * peuvent changer de propriétaire.
+     *
+     * @param cible        le futur propriétaire
+     * @param restaurantId l'établissement concerné, exclu du contrôle (réaffectation à l'identique)
+     */
+    private void verifierProprietaireLibre(User cible, Long restaurantId) {
+        restaurantRepository.findByOwnerId(cible.getId()).ifPresent(existant -> {
+            if (!existant.getId().equals(restaurantId)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Cet utilisateur possède déjà un établissement");
+            }
+        });
+    }
+
+    @Override
+    @Transactional
+    public RestaurantDTO reaffecterProprietaire(Long restaurantId, Long nouveauProprietaireId) {
+        Restaurant restaurant = restaurantRepository.findById(restaurantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Etablissement non trouvé"));
+        User cible = userRepository.findById(nouveauProprietaireId)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
+
+        if (cible.getRole() != UserRole.RESTAURANT_OWNER) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "La cible doit avoir le rôle RESTAURANT_OWNER");
+        }
+
+        verifierProprietaireLibre(cible, restaurantId);
+
+        restaurant.setOwner(cible);
+        Restaurant saved = restaurantRepository.save(restaurant);
+        log.info("Etablissement {} réaffecté à {}", saved.getNom(), cible.getEmail());
+        return convertToDTO(saved, null, null);
     }
 
     @Override

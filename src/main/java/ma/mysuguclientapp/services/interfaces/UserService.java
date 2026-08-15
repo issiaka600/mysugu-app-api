@@ -42,4 +42,22 @@ public interface UserService {
     UserDTO setDisponibilite(String token, Boolean disponible);
 
     Page<UserDTO> getUsersByRole(String role, String search, Pageable pageable);
+
+    /**
+     * Propriétaires d'établissement d'une verticale. {@code NULL} en base vaut {@code RESTAURANT}.
+     */
+    Page<UserDTO> getProprietairesParVerticale(ma.mysuguclientapp.enumerations.Vertical vertical,
+                                               String search, Pageable pageable);
+
+    /**
+     * Mise à jour administrative des coordonnées. Ne touche ni au rôle, ni au mot de passe,
+     * ni à l'email. Un champ absent du DTO reste inchangé.
+     */
+    UserDTO mettreAJourUtilisateur(Long id, ma.mysuguclientapp.dtos.auth.AdminUserUpdateDTO dto);
+
+    /**
+     * Renvoie au propriétaire le lien de définition de mot de passe.
+     * Réutilise le parcours d'invitation restaurateur : aucun mot de passe ne transite.
+     */
+    void relancerInvitation(Long id);
 }

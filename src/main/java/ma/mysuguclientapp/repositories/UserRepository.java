@@ -25,6 +25,37 @@ public interface UserRepository extends JpaRepository<User, Long> {
            "LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<User> findByRoleAndSearch(@Param("role") UserRole role, @Param("search") String search, Pageable pageable);
 
+    /**
+     * Propriétaires d'un établissement d'une verticale donnée.
+     *
+     * <p>Comme partout où {@code vertical} intervient, la requête est en JPQL et rattrape
+     * explicitement {@code IS NULL} pour {@code RESTAURANT} : les établissements créés avant
+     * l'ajout de la colonne ne doivent pas disparaître de la liste.
+     */
+    @Query("SELECT u FROM User u WHERE u.role = ma.mysuguclientapp.enumerations.UserRole.RESTAURANT_OWNER AND " +
+           "EXISTS (SELECT 1 FROM Restaurant r WHERE r.owner = u AND " +
+           "  ((:vertical = ma.mysuguclientapp.enumerations.Vertical.RESTAURANT AND r.vertical IS NULL) " +
+           "   OR r.vertical = :vertical))")
+    Page<User> findProprietairesByVertical(@Param("vertical") ma.mysuguclientapp.enumerations.Vertical vertical,
+                                           Pageable pageable);
+
+    /**
+     * Variante avec recherche. Deux méthodes plutôt qu'un {@code :search IS NULL} dans une seule :
+     * passer {@code null} à un paramètre uniquement utilisé dans des fonctions texte empêche
+     * PostgreSQL d'en inférer le type et fait échouer la requête sur
+     * {@code function lower(bytea) does not exist}. Même précédent que {@code getUsersByRole}.
+     */
+    @Query("SELECT u FROM User u WHERE u.role = ma.mysuguclientapp.enumerations.UserRole.RESTAURANT_OWNER AND " +
+           "EXISTS (SELECT 1 FROM Restaurant r WHERE r.owner = u AND " +
+           "  ((:vertical = ma.mysuguclientapp.enumerations.Vertical.RESTAURANT AND r.vertical IS NULL) " +
+           "   OR r.vertical = :vertical)) AND " +
+           "(LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           " OR LOWER(u.nom) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           " OR LOWER(u.prenom) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<User> findProprietairesByVerticalAndSearch(@Param("vertical") ma.mysuguclientapp.enumerations.Vertical vertical,
+                                                    @Param("search") String search,
+                                                    Pageable pageable);
+
     long countByRole(UserRole role);
     long countByRoleAndIsActive(UserRole role, Boolean isActive);
 

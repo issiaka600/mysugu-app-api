@@ -52,6 +52,8 @@ public class UserServiceImpl implements UserService {
     private final GoogleAuthService googleAuthService;
     private final AppleAuthService appleAuthService;
     private final AuthEnhancedService authEnhancedService;
+    private final ma.mysuguclientapp.repositories.TokenVerificationRepository tokenVerificationRepository;
+    private final EmailService emailService;
 
     @Override
     public UserDTO register(RegisterDTO registerDTO) {
@@ -440,6 +442,59 @@ public class UserServiceImpl implements UserService {
             page = userRepository.findByRole(userRole, pageable);
         }
         return page.map(this::convertToDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<UserDTO> getProprietairesParVerticale(ma.mysuguclientapp.enumerations.Vertical vertical,
+                                                      String search, Pageable pageable) {
+        if (search != null && !search.isBlank()) {
+            return userRepository.findProprietairesByVerticalAndSearch(vertical, search.trim(), pageable)
+                    .map(this::convertToDTO);
+        }
+        return userRepository.findProprietairesByVertical(vertical, pageable)
+                .map(this::convertToDTO);
+    }
+
+    @Override
+    @Transactional
+    public UserDTO mettreAJourUtilisateur(Long id, ma.mysuguclientapp.dtos.auth.AdminUserUpdateDTO dto) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé avec l'ID: " + id));
+
+        // Champ absent = champ inchangé. Ni role, ni mot de passe, ni email : l'email est
+        // l'identifiant de connexion, le changer couperait l'acces du proprietaire.
+        if (dto.getNom() != null) user.setNom(dto.getNom());
+        if (dto.getPrenom() != null) user.setPrenom(dto.getPrenom());
+        if (dto.getTelephone() != null) user.setTelephone(dto.getTelephone());
+
+        return convertToDTO(userRepository.save(user));
+    }
+
+    @Override
+    @Transactional
+    public void relancerInvitation(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé avec l'ID: " + id));
+
+        if (user.getRole() != UserRole.RESTAURANT_OWNER) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "L'invitation ne concerne que les propriétaires d'établissement");
+        }
+
+        // Meme mecanique que OwnerProvisioningServiceImpl : un jeton PASSWORD_RESET de 24h
+        // et le mail d'invitation, qui pointe sur /definir-mot-de-passe?token=.
+        String token = java.util.UUID.randomUUID().toString();
+        tokenVerificationRepository.save(
+                ma.mysuguclientapp.entities.TokenVerification.builder()
+                        .user(user)
+                        .token(token)
+                        .type("PASSWORD_RESET")
+                        .expiresAt(java.time.LocalDateTime.now().plusHours(24))
+                        .build());
+        emailService.envoyerInvitationRestaurateur(user.getEmail(),
+                user.getPrenom() + " " + user.getNom(), token);
+        log.info("Invitation relancée pour {}", user.getEmail());
     }
 
     private UserDTO convertToDTO(User user) {

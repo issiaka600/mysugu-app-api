@@ -130,6 +130,19 @@ public class RestaurantController {
     }
 
     /**
+     * PATCH /api/restaurants/{id}/proprietaire - Transférer l'établissement à un autre propriétaire (admin).
+     *
+     * Endpoint dédié et gardé : refuse une cible qui possède déjà un établissement, sans quoi
+     * la résolution du vendeur connecté deviendrait ambiguë côté application vendeur.
+     */
+    @PatchMapping("/{id}/proprietaire")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<RestaurantDTO> reaffecterProprietaire(@PathVariable Long id,
+                                                                @RequestParam Long proprietaireId) {
+        return ResponseEntity.ok(restaurantService.reaffecterProprietaire(id, proprietaireId));
+    }
+
+    /**
      * PATCH /api/restaurants/{id}/commission - Définir le taux de commission d'un restaurant (admin)
      */
     @PatchMapping("/{id}/commission")

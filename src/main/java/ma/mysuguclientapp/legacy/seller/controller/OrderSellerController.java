@@ -74,7 +74,9 @@ public class OrderSellerController {
                 : statusMapper.fromSixValleyStatus(status);
         int safeLimit = Math.max(limit, 1);
         int page = offset / safeLimit;
-        Page<CommandeDTO> commandes = commandeService.getAllCommandes(null, restaurant.getId(), statut,
+        // vertical = null : la liste est deja restreinte a l'etablissement du vendeur connecte,
+        // un filtre par verticale n'aurait aucun sens ici.
+        Page<CommandeDTO> commandes = commandeService.getAllCommandes(null, restaurant.getId(), statut, null,
                 PageRequest.of(page, safeLimit, Sort.by(resolveSortDirection(status, order), resolveSort(sort))));
         return orderMapper.toListEnvelope(commandes, limit, offset);
     }
