@@ -29,10 +29,12 @@ public class PlatController {
     public ResponseEntity<Page<PlatDTO>> getAllPlats(
             @RequestParam(required = false) Long restaurantId,
             @RequestParam(required = false) String categorie,
+            @RequestParam(required = false) String categorieProduit,
             @RequestParam(required = false) Boolean available,
+            @RequestParam(required = false) String vertical,
             Pageable pageable) {
-
-        return ResponseEntity.ok(platService.getAllPlats(restaurantId, categorie, available, pageable));
+        return ResponseEntity.ok(
+                platService.getAllPlats(restaurantId, categorie, categorieProduit, available, vertical, pageable));
     }
 
     @GetMapping("/{id}")
@@ -46,8 +48,10 @@ public class PlatController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<PlatDTO>> searchPlats(@RequestParam String keyword) {
-        return ResponseEntity.ok(platService.searchPlats(keyword));
+    public ResponseEntity<List<PlatDTO>> searchPlats(
+            @RequestParam String keyword,
+            @RequestParam(required = false) String vertical) {
+        return ResponseEntity.ok(platService.searchPlats(keyword, vertical));
     }
 
     // Le corps est un multipart/form-data À PLAT (un champ par propriété de PlatCreateDTO + `image`),

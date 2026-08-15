@@ -15,7 +15,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "restaurants")
+@Table(name = "restaurants", indexes = {
+        @Index(name = "idx_restaurants_vertical_actif", columnList = "vertical, is_active")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

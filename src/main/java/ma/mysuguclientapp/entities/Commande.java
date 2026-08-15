@@ -87,6 +87,10 @@ public class Commande {
     @Column(name = "raison_annulation", length = 1000)
     private String raisonAnnulation;
 
+    /** Marque que le stock des lignes a déjà été re-crédité. Empêche une double restitution. */
+    @Column(name = "stock_restitue")
+    private Boolean stockRestitue = false;
+
     @Enumerated(EnumType.STRING)
     private MethodePaiement methodePaiement; // CARTE, ESPECES, MOBILE_MONEY
 

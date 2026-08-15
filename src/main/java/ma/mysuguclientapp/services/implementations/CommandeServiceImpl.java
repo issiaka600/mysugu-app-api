@@ -86,6 +86,7 @@ public class CommandeServiceImpl implements CommandeService {
     private final ma.mysuguclientapp.services.interfaces.OptionSelectionService optionSelectionService;
     private final AlerteCommandeVendeurService alerteCommandeVendeurService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final StockService stockService;
     private final CommandeStatusHistoryService commandeStatusHistoryService;
 
     @Override
@@ -196,7 +197,31 @@ public class CommandeServiceImpl implements CommandeService {
         BigDecimal montantTotal = BigDecimal.ZERO;
         List<LigneCommande> lignes = new ArrayList<>();
 
-        for (LigneCommandeCreateDTO ligneDTO : commandeDTO.getLignes()) {
+        // Ordre de verrouillage stable : évite les interblocages entre commandes concurrentes
+        // portant les mêmes produits dans un ordre différent.
+        for (LigneCommandeCreateDTO l : commandeDTO.getLignes()) {
+            if (l.getPlatId() == null) {
+                throw new BadRequestException("Identifiant de plat manquant sur une ligne de commande");
+            }
+            if (l.getQuantite() == null || l.getQuantite() < 1) {
+                throw new BadRequestException("Quantité invalide sur une ligne de commande");
+            }
+        }
+        List<LigneCommandeCreateDTO> lignesTriees = commandeDTO.getLignes().stream()
+                .sorted(Comparator.comparing(LigneCommandeCreateDTO::getPlatId))
+                .toList();
+
+        // Quantité totale par produit : reserver() n'est appelé qu'une fois par plat distinct
+        // (avec la quantité cumulée), plutôt qu'une fois par ligne — supprime la dépendance à
+        // l'auto-flush Hibernate entre deux verrous successifs sur le même plat, et réduit le
+        // nombre de verrous pris.
+        Map<Long, Integer> quantitesParPlat = new LinkedHashMap<>();
+        for (LigneCommandeCreateDTO l : lignesTriees) {
+            quantitesParPlat.merge(l.getPlatId(), l.getQuantite(), Integer::sum);
+        }
+        Set<Long> platsReserves = new HashSet<>();
+
+        for (LigneCommandeCreateDTO ligneDTO : lignesTriees) {
             Plat plat = platRepository.findById(ligneDTO.getPlatId())
                     .orElseThrow(() -> new ResourceNotFoundException("Plat non trouve: " + ligneDTO.getPlatId()));
 
@@ -204,8 +229,11 @@ public class CommandeServiceImpl implements CommandeService {
             if (!plat.getRestaurant().getId().equals(restaurant.getId())) {
                 throw new BadRequestException("Tous les plats doivent provenir du meme restaurant");
             }
-            if (!Boolean.TRUE.equals(plat.getIsAvailable())) {
+            if (!plat.isEffectivementDisponible()) {
                 throw new BadRequestException("Le plat " + plat.getNom() + " n'est pas disponible");
+            }
+            if (platsReserves.add(plat.getId())) {
+                stockService.reserver(plat.getId(), quantitesParPlat.get(plat.getId()));
             }
 
             ma.mysuguclientapp.services.interfaces.OptionSelectionService.Selection sel =
@@ -364,6 +392,17 @@ public class CommandeServiceImpl implements CommandeService {
         StatutCommande nouveauStatut = parseStatut(statusDTO.getStatut());
 
         validateStatusTransition(commande, nouveauStatut);
+
+        if (nouveauStatut == StatutCommande.ANNULEE) {
+            // Restituer AVANT toute mutation de `commande` (y compris setStatut juste en dessous) :
+            // StockService.restituer() verrouille la ligne commandes puis la rafraîchit depuis la
+            // base. Si `commande` portait déjà une modification en attente à cet instant, Hibernate
+            // (pas de @DynamicUpdate ici) ré-écrirait TOUTES les colonnes avec les valeurs en
+            // mémoire lors de l'auto-flush qui précède la requête verrouillante — y compris
+            // stock_restitue, avec sa valeur obsolète (false) — écrasant silencieusement le crédit
+            // d'une transaction concurrente déjà committée entre-temps.
+            stockService.restituer(commande);
+        }
         commande.setStatut(nouveauStatut);
 
         if (nouveauStatut == StatutCommande.ANNULEE) {
@@ -600,6 +639,13 @@ public class CommandeServiceImpl implements CommandeService {
             userRepository.save(commande.getLivreur());
         }
 
+        // Restituer AVANT toute mutation de `commande` (setStatut compris) : StockService.restituer()
+        // verrouille la ligne commandes puis la rafraîchit depuis la base. Si `commande` portait déjà
+        // une modification en attente à cet instant, Hibernate (pas de @DynamicUpdate ici) ré-écrirait
+        // TOUTES les colonnes avec les valeurs en mémoire lors de l'auto-flush qui précède la requête
+        // verrouillante — y compris stock_restitue, avec sa valeur obsolète (false) — écrasant
+        // silencieusement le crédit d'une transaction concurrente déjà committée entre-temps.
+        stockService.restituer(commande);
         commande.setStatut(StatutCommande.ANNULEE);
         if (commande.getRaisonAnnulation() == null || commande.getRaisonAnnulation().isBlank()) {
             commande.setRaisonAnnulation("Commande annulee");

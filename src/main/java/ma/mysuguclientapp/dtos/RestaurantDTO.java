@@ -23,6 +23,8 @@ public class RestaurantDTO {
     private PromotionDTO promotion;
     /** Verticale de service : RESTAURANT, ALIMENTAIRE, COSMETIQUE */
     private String vertical;
+    /** Rayons non vides de cet établissement, ordonnés. Vide pour un restaurant. */
+    private java.util.List<EnumOptionDTO> rayons = java.util.List.of();
     private Boolean isActive;
     private Boolean autoCloseEnabled;
     private Boolean openNow;

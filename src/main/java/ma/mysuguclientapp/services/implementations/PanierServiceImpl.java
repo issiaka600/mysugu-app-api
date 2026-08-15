@@ -54,7 +54,7 @@ public class PanierServiceImpl {
         Plat plat = platRepository.findById(dto.getPlatId())
                 .orElseThrow(() -> new IllegalArgumentException("Plat introuvable"));
 
-        if (!Boolean.TRUE.equals(plat.getIsAvailable())) {
+        if (!plat.isEffectivementDisponible()) {
             throw new IllegalArgumentException("Ce plat n'est pas disponible");
         }
 

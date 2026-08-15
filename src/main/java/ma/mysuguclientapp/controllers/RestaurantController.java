@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import ma.mysuguclientapp.dtos.PlatDTO;
 import ma.mysuguclientapp.dtos.RestaurantCreateDTO;
 import ma.mysuguclientapp.dtos.RestaurantDTO;
-import ma.mysuguclientapp.services.interfaces.PlatService;
 import ma.mysuguclientapp.services.interfaces.RestaurantService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,7 +24,6 @@ import java.util.List;
 public class RestaurantController {
 
     private final RestaurantService restaurantService;
-    private final PlatService platService;
 
     /**
      * GET /api/restaurants - Obtenir tous les restaurants (avec pagination)
@@ -58,8 +56,9 @@ public class RestaurantController {
      */
     @GetMapping("/search")
     public ResponseEntity<List<RestaurantDTO>> searchRestaurants(
-            @RequestParam String keyword) {
-        List<RestaurantDTO> restaurants = restaurantService.searchRestaurants(keyword);
+            @RequestParam String keyword,
+            @RequestParam(required = false) String vertical) {
+        List<RestaurantDTO> restaurants = restaurantService.searchRestaurants(keyword, vertical);
         return ResponseEntity.ok(restaurants);
     }
 
@@ -68,8 +67,9 @@ public class RestaurantController {
      */
     @GetMapping("/top-rated")
     public ResponseEntity<List<RestaurantDTO>> getTopRatedRestaurants(
-            @RequestParam(defaultValue = "10") int limit) {
-        List<RestaurantDTO> restaurants = restaurantService.getTopRatedRestaurants(limit);
+            @RequestParam(defaultValue = "10") int limit,
+            @RequestParam(required = false) String vertical) {
+        List<RestaurantDTO> restaurants = restaurantService.getTopRatedRestaurants(limit, vertical);
         return ResponseEntity.ok(restaurants);
     }
 
@@ -80,8 +80,9 @@ public class RestaurantController {
     public ResponseEntity<List<RestaurantDTO>> getNearbyRestaurants(
             @RequestParam Double latitude,
             @RequestParam Double longitude,
-            @RequestParam(defaultValue = "5.0") Double radiusKm) {
-        List<RestaurantDTO> restaurants = restaurantService.getNearbyRestaurants(latitude, longitude, radiusKm);
+            @RequestParam(defaultValue = "5.0") Double radiusKm,
+            @RequestParam(required = false) String vertical) {
+        List<RestaurantDTO> restaurants = restaurantService.getNearbyRestaurants(latitude, longitude, radiusKm, vertical);
         return ResponseEntity.ok(restaurants);
     }
 
@@ -141,10 +142,13 @@ public class RestaurantController {
     }
 
     /**
-     * GET /api/restaurants/{id}/plats - Obtenir les plats d'un restaurant
+     * GET /api/restaurants/{id}/plats - Obtenir les plats d'un établissement, filtrables par rayon
+     * (categorieProduit) pour les boutiques (alimentaire, cosmétique).
      */
     @GetMapping("/{id}/plats")
-    public ResponseEntity<List<PlatDTO>> getRestaurantPlats(@PathVariable Long id) {
-        return ResponseEntity.ok(platService.getPlatsByRestaurant(id));
+    public ResponseEntity<List<PlatDTO>> getRestaurantPlats(
+            @PathVariable Long id,
+            @RequestParam(required = false) String categorieProduit) {
+        return ResponseEntity.ok(restaurantService.getRestaurantPlats(id, categorieProduit));
     }
 }

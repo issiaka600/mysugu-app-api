@@ -13,7 +13,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "plats")
+@Table(name = "plats", indexes = {
+        @Index(name = "idx_plats_restaurant_rayon", columnList = "restaurant_id, categorie_produit")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -55,7 +57,26 @@ public class Plat {
 
     @Column(name = "temps_preparation")
     private Integer tempsPreparation; // en minutes
-    
+
+    /** Quantité en stock. Null = stock non géré (cas de tous les plats de restaurant). */
+    @Column(name = "quantite_stock")
+    private Integer quantiteStock;
+
+    /** Seuil d'alerte stock bas, affiché au commerçant. Null = pas d'alerte. */
+    @Column(name = "seuil_alerte_stock")
+    private Integer seuilAlerteStock;
+
+    /**
+     * Disponibilité réellement présentée au client : le flag vendeur pondéré par le stock.
+     * Le flag {@code isAvailable} n'est jamais écrasé en base — un réapprovisionnement
+     * rend le produit visible sans réintervention du commerçant.
+     */
+    @Transient
+    public boolean isEffectivementDisponible() {
+        return Boolean.TRUE.equals(isAvailable)
+                && (quantiteStock == null || quantiteStock > 0);
+    }
+
     @Enumerated(EnumType.STRING)
     private CategoriePlat categoriePlat; // ENTREE, PLAT_PRINCIPAL, DESSERT, BOISSON
 

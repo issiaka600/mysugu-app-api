@@ -33,7 +33,20 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Long> {
     long countByZoneDeploiementId(Long zoneDeploiementId);
     Page<Restaurant> findByIsActive(Boolean isActive, Pageable pageable);
     Page<Restaurant> findByCategorieIdAndIsActive(Long categorieId, Boolean isActive, Pageable pageable);
-    Page<Restaurant> findByVerticalAndIsActive(Vertical vertical, Boolean isActive, Pageable pageable);
+    /**
+     * Restaurants filtrés par verticale, paginés.
+     * <p><b>{@code vertical} ne peut pas être null</b> : pour "toutes verticales", utiliser une
+     * méthode non filtrée (ex. {@link #findByIsActive(Boolean, Pageable)}). Convention inverse de
+     * {@link ma.mysuguclientapp.repositories.PlatRepository#rechercheFiltree}, où {@code null}
+     * signifie "toutes verticales" ici, {@code null} en base (restaurant historique) est lui
+     * traité comme {@code RESTAURANT}.
+     */
+    @Query("SELECT r FROM Restaurant r WHERE r.isActive = :isActive AND " +
+            "((:vertical = ma.mysuguclientapp.enumerations.Vertical.RESTAURANT AND r.vertical IS NULL) " +
+            " OR r.vertical = :vertical)")
+    Page<Restaurant> findByVerticalAndIsActive(@Param("vertical") Vertical vertical,
+                                               @Param("isActive") Boolean isActive,
+                                               Pageable pageable);
     List<Restaurant> findByIsActiveOrderByAppreciationDesc(Boolean isActive);
     List<Restaurant> findByIsActive(Boolean isActive);
     List<Restaurant> findByStatutApprobationInOrderByDateRevueAscIdAsc(java.util.Collection<StatutRestaurant> statuts);
@@ -42,4 +55,46 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Long> {
             "(LOWER(r.nom) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "LOWER(r.description) LIKE LOWER(CONCAT('%', :keyword, '%')))")
     List<Restaurant> searchByKeyword(@Param("keyword") String keyword);
+
+    /**
+     * Recherche filtrée par verticale.
+     * <p><b>{@code vertical} ne peut pas être null</b> : pour "toutes verticales", utiliser
+     * {@link #searchByKeyword(String)}. Convention inverse de
+     * {@link ma.mysuguclientapp.repositories.PlatRepository#rechercheFiltree}, où {@code null}
+     * signifie "toutes verticales" ici, {@code null} en base (restaurant historique) est lui
+     * traité comme {@code RESTAURANT}.
+     */
+    @Query("SELECT r FROM Restaurant r WHERE r.isActive = true AND " +
+            "(LOWER(r.nom) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "LOWER(r.description) LIKE LOWER(CONCAT('%', :keyword, '%'))) AND " +
+            "((:vertical = ma.mysuguclientapp.enumerations.Vertical.RESTAURANT AND r.vertical IS NULL) " +
+            " OR r.vertical = :vertical)")
+    List<Restaurant> searchByKeywordAndVertical(@Param("keyword") String keyword,
+                                                @Param("vertical") Vertical vertical);
+
+    /**
+     * Restaurants filtrés par verticale, triés par appréciation décroissante.
+     * <p><b>{@code vertical} ne peut pas être null</b> : pour "toutes verticales", utiliser
+     * {@link #findByIsActiveOrderByAppreciationDesc(Boolean)}. Convention inverse de
+     * {@link ma.mysuguclientapp.repositories.PlatRepository#rechercheFiltree}, où {@code null}
+     * signifie "toutes verticales" ici, {@code null} en base (restaurant historique) est lui
+     * traité comme {@code RESTAURANT}.
+     */
+    @Query("SELECT r FROM Restaurant r WHERE r.isActive = true AND " +
+            "((:vertical = ma.mysuguclientapp.enumerations.Vertical.RESTAURANT AND r.vertical IS NULL) " +
+            " OR r.vertical = :vertical) ORDER BY r.appreciation DESC")
+    List<Restaurant> findByVerticalOrderByAppreciationDesc(@Param("vertical") Vertical vertical);
+
+    /**
+     * Restaurants actifs filtrés par verticale (proximité).
+     * <p><b>{@code vertical} ne peut pas être null</b> : pour "toutes verticales", utiliser
+     * {@link #findByIsActive(Boolean)}. Convention inverse de
+     * {@link ma.mysuguclientapp.repositories.PlatRepository#rechercheFiltree}, où {@code null}
+     * signifie "toutes verticales" ici, {@code null} en base (restaurant historique) est lui
+     * traité comme {@code RESTAURANT}.
+     */
+    @Query("SELECT r FROM Restaurant r WHERE r.isActive = true AND " +
+            "((:vertical = ma.mysuguclientapp.enumerations.Vertical.RESTAURANT AND r.vertical IS NULL) " +
+            " OR r.vertical = :vertical)")
+    List<Restaurant> findActiveByVertical(@Param("vertical") Vertical vertical);
 }

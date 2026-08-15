@@ -48,7 +48,11 @@ public class SellerProductController {
                                      @RequestParam(defaultValue = "10") int limit,
                                      @RequestParam(defaultValue = "0") int offset) {
         Restaurant restaurant = sellerContext.currentRestaurant(email);
-        Page<PlatDTO> page = platService.getAllPlats(restaurant.getId(), null, null,
+        // "ALL" : le listing est déjà scopé au restaurant du vendeur authentifié (restaurantId),
+        // donc filtrer en plus par verticale n'aurait aucun effet utile — et casserait le shim pour
+        // les vendeurs de boutique (vertical != RESTAURANT) si on passait null ici, puisque null
+        // signifie RESTAURANT-uniquement côté service.
+        Page<PlatDTO> page = platService.getAllPlats(restaurant.getId(), null, null, null, "ALL",
                 PageRequest.of(offset / Math.max(limit, 1), Math.max(limit, 1)));
         return mapper.listEnvelope("products", page);
     }

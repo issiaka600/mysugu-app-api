@@ -10,13 +10,14 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 public interface PlatService {
-    Page<PlatDTO> getAllPlats(Long restaurantId, String categorie, Boolean available, Pageable pageable);
+    Page<PlatDTO> getAllPlats(Long restaurantId, String categorie, String categorieProduit,
+                              Boolean available, String vertical, Pageable pageable);
 
     PlatDTO getPlatById(Long id);
 
     List<PlatDTO> getPlatsByRestaurant(Long restaurantId);
 
-    List<PlatDTO> searchPlats(String keyword);
+    List<PlatDTO> searchPlats(String keyword, String vertical);
 
     PlatDTO createPlat(PlatCreateDTO platDTO, MultipartFile image);
 

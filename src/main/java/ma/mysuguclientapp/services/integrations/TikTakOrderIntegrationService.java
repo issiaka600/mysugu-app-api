@@ -15,6 +15,7 @@ import ma.mysuguclientapp.enumerations.StatutCommande;
 import ma.mysuguclientapp.enumerations.TypeNotification;
 import ma.mysuguclientapp.repositories.CommandeRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
+import ma.mysuguclientapp.services.implementations.StockService;
 import ma.mysuguclientapp.services.interfaces.NotificationService;
 import ma.mysuguclientapp.services.implementations.CommandeStatusHistoryService;
 import ma.mysuguclientapp.services.tracking.TrackingLocationStore;
@@ -43,6 +44,7 @@ public class TikTakOrderIntegrationService {
 
     private final CommandeRepository commandeRepository;
     private final UserRepository userRepository;
+    private final StockService stockService;
     private final NotificationService notificationService;
     private final CommandeStatusHistoryService commandeStatusHistoryService;
     private final TrackingLocationStore trackingLocationStore;
@@ -135,6 +137,24 @@ public class TikTakOrderIntegrationService {
         StatutCommande ancienStatut = commande.getStatut();
         StatutCommande statut = mapTikTakStatus(dto.getStatus());
         if (statut != null) {
+            if (statut == StatutCommande.ANNULEE) {
+                // Chemin d'annulation supplémentaire (constat de revue, hors brief initial) : un
+                // retour TikTak (canceled|returned|failed, cf. mapTikTakStatus) annule la commande
+                // directement sur l'entité, sans passer par CommandeServiceImpl — sans cet appel,
+                // le stock resterait débité indéfiniment sur une commande de boutique annulée
+                // depuis TikTak. Le remboursement Stripe et l'arrêt d'alerte restent, eux,
+                // court-circuités par ce chemin : divergence architecturale préexistante, hors
+                // périmètre de cette tâche (stock uniquement).
+                //
+                // Appelé AVANT setStatut ci-dessous, délibérément : StockService.restituer()
+                // verrouille la ligne commandes puis la rafraîchit depuis la base. Si `commande`
+                // portait déjà une mutation en attente à cet instant, Hibernate (pas de
+                // @DynamicUpdate ici) ré-écrirait TOUTES les colonnes avec les valeurs en mémoire
+                // lors de l'auto-flush qui précède la requête verrouillante — y compris
+                // stock_restitue avec sa valeur obsolète — écrasant silencieusement le crédit
+                // d'une transaction concurrente déjà committée entre-temps.
+                stockService.restituer(commande);
+            }
             commande.setStatut(statut);
         }
 

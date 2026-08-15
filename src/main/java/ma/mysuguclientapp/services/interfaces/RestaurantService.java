@@ -1,5 +1,6 @@
 package ma.mysuguclientapp.services.interfaces;
 
+import ma.mysuguclientapp.dtos.PlatDTO;
 import ma.mysuguclientapp.dtos.RestaurantCreateDTO;
 import ma.mysuguclientapp.dtos.RestaurantDTO;
 import org.springframework.data.domain.Page;
@@ -21,19 +22,26 @@ public interface RestaurantService {
     RestaurantDTO getRestaurantById(Long id);
 
     /**
-     * Rechercher des restaurants par mot-clé
+     * Produits d'un établissement, filtrés par rayon (categorieProduit) si fourni.
+     * La verticale est déjà déterminée par l'établissement demandé : pas de re-filtrage par verticale.
      */
-    List<RestaurantDTO> searchRestaurants(String keyword);
+    List<PlatDTO> getRestaurantPlats(Long id, String categorieProduit);
 
     /**
-     * Obtenir les restaurants les mieux notés
+     * Rechercher des restaurants par mot-clé, filtré par verticale (convention de
+     * {@code RestaurantServiceImpl.parseVertical} : null/absent -> RESTAURANT, "ALL" -> toutes verticales).
      */
-    List<RestaurantDTO> getTopRatedRestaurants(int limit);
+    List<RestaurantDTO> searchRestaurants(String keyword, String vertical);
 
     /**
-     * Obtenir les restaurants à proximité
+     * Obtenir les restaurants les mieux notés, filtré par verticale (même convention que ci-dessus).
      */
-    List<RestaurantDTO> getNearbyRestaurants(Double latitude, Double longitude, Double radiusKm);
+    List<RestaurantDTO> getTopRatedRestaurants(int limit, String vertical);
+
+    /**
+     * Obtenir les restaurants à proximité, filtré par verticale (même convention que ci-dessus).
+     */
+    List<RestaurantDTO> getNearbyRestaurants(Double latitude, Double longitude, Double radiusKm, String vertical);
 
     /**
      * Créer un nouveau restaurant

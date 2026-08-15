@@ -11,4 +11,5 @@ public class CategorieRestaurantDTO {
     private String imageTopUrl;
     private String imageBannerUrl;
     private Integer nombreRestaurants;
+    private String vertical;
 }

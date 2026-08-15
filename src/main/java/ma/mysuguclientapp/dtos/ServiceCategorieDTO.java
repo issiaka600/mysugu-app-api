@@ -12,6 +12,7 @@ public class ServiceCategorieDTO {
     private String imageBannerUrl;
     private String icon;
     private String type;
+    private String vertical;
     private Integer ordre;
     private Boolean isActive;
 }

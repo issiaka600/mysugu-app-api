@@ -7,6 +7,7 @@ import ma.mysuguclientapp.dtos.LocalisationDTO;
 import ma.mysuguclientapp.dtos.RestaurantDTO;
 import ma.mysuguclientapp.entities.CategorieRestaurant;
 import ma.mysuguclientapp.entities.Restaurant;
+import ma.mysuguclientapp.enumerations.Vertical;
 import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
 import ma.mysuguclientapp.repositories.CategoriesRestaurantRepository;
@@ -28,8 +29,14 @@ public class CategorieRestaurantServiceImpl implements CategorieRestaurantServic
 
     @Override
     @Transactional(readOnly = true)
-    public List<CategorieRestaurantDTO> getAllCategories() {
-        List<CategorieRestaurant> categories = categorieRepository.findAll();
+    public List<CategorieRestaurantDTO> getAllCategories(String vertical) {
+        List<CategorieRestaurant> categories;
+        if ("ALL".equalsIgnoreCase(vertical)) {
+            categories = categorieRepository.findAll();
+        } else {
+            Vertical v = RestaurantServiceImpl.parseVertical(vertical);
+            categories = categorieRepository.findByVerticalEffectif(v);
+        }
         return categories.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -47,6 +54,7 @@ public class CategorieRestaurantServiceImpl implements CategorieRestaurantServic
     public CategorieRestaurantDTO createCategorie(
             String nom,
             String description,
+            String vertical,
             MultipartFile image,
             MultipartFile imageTop,
             MultipartFile imageBanner) {
@@ -58,6 +66,7 @@ public class CategorieRestaurantServiceImpl implements CategorieRestaurantServic
         CategorieRestaurant categorie = new CategorieRestaurant();
         categorie.setNom(nom);
         categorie.setDescription(description);
+        categorie.setVertical(parseVerticalNullable(vertical));
 
         categorie.setImageUrl(uploadCategorieImage(image));
         categorie.setImageTopUrl(uploadCategorieImage(imageTop));
@@ -74,6 +83,7 @@ public class CategorieRestaurantServiceImpl implements CategorieRestaurantServic
             Long id,
             String nom,
             String description,
+            String vertical,
             MultipartFile image,
             MultipartFile imageTop,
             MultipartFile imageBanner) {
@@ -89,6 +99,9 @@ public class CategorieRestaurantServiceImpl implements CategorieRestaurantServic
 
         categorie.setNom(nom);
         categorie.setDescription(description);
+        if (vertical != null && !vertical.isBlank()) {
+            categorie.setVertical(parseVerticalNullable(vertical));
+        }
 
         categorie.setImageUrl(replaceCategorieImage(categorie.getImageUrl(), image));
         categorie.setImageTopUrl(replaceCategorieImage(categorie.getImageTopUrl(), imageTop));
@@ -151,6 +164,18 @@ public class CategorieRestaurantServiceImpl implements CategorieRestaurantServic
 
     // ========== MÉTHODES UTILITAIRES ==========
 
+    /** Absent/vide ⇒ null (catégorie de restaurant, comportement historique). Valeur inconnue ⇒ 400. Tolère la casse. */
+    private Vertical parseVerticalNullable(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Vertical.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("Vertical invalide: " + value);
+        }
+    }
+
     private CategorieRestaurantDTO convertToDTO(CategorieRestaurant categorie) {
         CategorieRestaurantDTO dto = new CategorieRestaurantDTO();
         dto.setId(categorie.getId());
@@ -159,6 +184,7 @@ public class CategorieRestaurantServiceImpl implements CategorieRestaurantServic
         dto.setImageUrl(minioService.buildPublicFileUrl(categorie.getImageUrl()));
         dto.setImageTopUrl(minioService.buildPublicFileUrl(categorie.getImageTopUrl()));
         dto.setImageBannerUrl(minioService.buildPublicFileUrl(categorie.getImageBannerUrl()));
+        dto.setVertical(categorie.getVertical() != null ? categorie.getVertical().name() : "RESTAURANT");
 
         if (categorie.getRestaurants() != null) {
             dto.setNombreRestaurants(categorie.getRestaurants().size());
