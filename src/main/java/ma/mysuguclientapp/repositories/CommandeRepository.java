@@ -17,6 +17,29 @@ import java.util.Optional;
 @Repository
 
 public interface CommandeRepository extends JpaRepository<Commande, Long> {
+
+    /**
+     * Liste filtrée des commandes ; chaque critère à {@code null} est neutre.
+     *
+     * <p><b>Écrite en JPQL, jamais en requête dérivée.</b> Une dérivée sur {@code vertical}
+     * exclurait silencieusement les lignes {@code NULL} — c'est exactement ce qui a rendu
+     * invisibles tous les établissements historiques pendant deux mois (correctif 055a848).
+     * Ici, {@code vertical = RESTAURANT} rattrape explicitement
+     * {@code c.restaurant.vertical IS NULL}.
+     */
+    @Query("SELECT c FROM Commande c WHERE " +
+           "(:clientId IS NULL OR c.client.id = :clientId) AND " +
+           "(:restaurantId IS NULL OR c.restaurant.id = :restaurantId) AND " +
+           "(:statut IS NULL OR c.statut = :statut) AND " +
+           "(:vertical IS NULL OR " +
+           " (:vertical = ma.mysuguclientapp.enumerations.Vertical.RESTAURANT AND c.restaurant.vertical IS NULL) " +
+           " OR c.restaurant.vertical = :vertical)")
+    Page<Commande> rechercheFiltree(@org.springframework.data.repository.query.Param("clientId") Long clientId,
+                                    @org.springframework.data.repository.query.Param("restaurantId") Long restaurantId,
+                                    @org.springframework.data.repository.query.Param("statut") StatutCommande statut,
+                                    @org.springframework.data.repository.query.Param("vertical") ma.mysuguclientapp.enumerations.Vertical vertical,
+                                    Pageable pageable);
+
     Optional<Commande> findByNumeroCommande(String numeroCommande);
     Optional<Commande> findByTiktakOrderId(Long tiktakOrderId);
     Page<Commande> findByClientId(Long clientId, Pageable pageable);

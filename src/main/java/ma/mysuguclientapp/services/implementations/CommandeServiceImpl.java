@@ -91,22 +91,13 @@ public class CommandeServiceImpl implements CommandeService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<CommandeDTO> getAllCommandes(Long clientId, Long restaurantId, StatutCommande statut, Pageable pageable) {
-        Page<Commande> commandes;
-
-        if (clientId != null && statut != null) {
-            commandes = commandeRepository.findByClientIdAndStatut(clientId, statut, pageable);
-        } else if (clientId != null) {
-            commandes = commandeRepository.findByClientId(clientId, pageable);
-        } else if (restaurantId != null && statut != null) {
-            commandes = commandeRepository.findByRestaurantIdAndStatut(restaurantId, statut, pageable);
-        } else if (restaurantId != null) {
-            commandes = commandeRepository.findByRestaurantId(restaurantId, pageable);
-        } else if (statut != null) {
-            commandes = commandeRepository.findByStatut(statut, pageable);
-        } else {
-            commandes = commandeRepository.findAll(pageable);
-        }
+    public Page<CommandeDTO> getAllCommandes(Long clientId, Long restaurantId, StatutCommande statut,
+                                             ma.mysuguclientapp.enumerations.Vertical vertical, Pageable pageable) {
+        // Une seule requête filtrée remplace la cascade de if/else : chaque critère absent
+        // (null) est neutre. Voir CommandeRepository.rechercheFiltree pour le traitement
+        // de `vertical`, où NULL en base vaut RESTAURANT.
+        Page<Commande> commandes =
+                commandeRepository.rechercheFiltree(clientId, restaurantId, statut, vertical, pageable);
 
         return commandes.map(this::convertToDTO);
     }

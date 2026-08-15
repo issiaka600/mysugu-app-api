@@ -15,7 +15,13 @@ import java.util.List;
 import java.util.Map;
 
 public interface CommandeService {
-    Page<CommandeDTO> getAllCommandes(Long clientId, Long restaurantId, StatutCommande statutCommande, Pageable pageable);
+    /**
+     * Liste filtrée des commandes. Chaque critère à {@code null} est neutre.
+     * {@code vertical} filtre sur la verticale de l'établissement, en traitant
+     * {@code NULL} en base comme {@code RESTAURANT}.
+     */
+    Page<CommandeDTO> getAllCommandes(Long clientId, Long restaurantId, StatutCommande statutCommande,
+                                      ma.mysuguclientapp.enumerations.Vertical vertical, Pageable pageable);
     CommandeDTO getCommandeById(Long id);
     CommandeDTO getCommandeByNumero(String numeroCommande);
     List<CommandeDTO> getCommandesByClient(Long clientId);

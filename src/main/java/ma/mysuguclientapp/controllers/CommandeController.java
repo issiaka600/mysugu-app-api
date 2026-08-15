@@ -40,9 +40,10 @@ public class CommandeController {
             @RequestParam(required = false) Long clientId,
             @RequestParam(required = false) Long restaurantId,
             @RequestParam(required = false) StatutCommande statut,
+            @RequestParam(required = false) ma.mysuguclientapp.enumerations.Vertical vertical,
             Pageable pageable) {
 
-        Page<CommandeDTO> commandes = commandeService.getAllCommandes(clientId, restaurantId, statut, pageable);
+        Page<CommandeDTO> commandes = commandeService.getAllCommandes(clientId, restaurantId, statut, vertical, pageable);
         return ResponseEntity.ok(commandes);
     }
 
