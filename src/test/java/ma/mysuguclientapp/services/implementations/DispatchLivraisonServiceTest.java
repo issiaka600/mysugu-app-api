@@ -33,10 +33,9 @@ class DispatchLivraisonServiceTest {
             mock(FcmService.class),
             mock(ApplicationEventPublisher.class));
 
-    @ParameterizedTest
-    @EnumSource(value = StatutCommande.class, names = {"CONFIRMEE", "EN_PREPARATION"})
-    void neProposeAucunLivreurAvantQueLaCommandeSoitPrete(StatutCommande statut) {
-        Commande commande = commande(statut);
+    @Test
+    void neProposeAucunLivreurAvantLaPreparation() {
+        Commande commande = commande(StatutCommande.CONFIRMEE);
         when(commandeRepository.findByIdForUpdate(42L)).thenReturn(Optional.of(commande));
 
         service.proposerProchainLivreur(42L);
@@ -44,9 +43,10 @@ class DispatchLivraisonServiceTest {
         verifyNoInteractions(offreRepository);
     }
 
-    @Test
-    void verifieUneOffreExistanteQuandLaCommandeEstPrete() {
-        Commande commande = commande(StatutCommande.PRETE);
+    @ParameterizedTest
+    @EnumSource(value = StatutCommande.class, names = {"EN_PREPARATION", "PRETE"})
+    void verifieUneOffreExistantePendantEtApresLaPreparation(StatutCommande statut) {
+        Commande commande = commande(statut);
         when(commandeRepository.findByIdForUpdate(42L)).thenReturn(Optional.of(commande));
         when(offreRepository.findByCommandeIdAndStatut(42L, StatutOffreLivraison.PROPOSEE))
                 .thenReturn(Optional.of(mock(ma.mysuguclientapp.entities.OffreLivraison.class)));
