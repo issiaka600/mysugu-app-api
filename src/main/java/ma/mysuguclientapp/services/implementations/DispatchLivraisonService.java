@@ -235,7 +235,7 @@ public class DispatchLivraisonService {
         return commande != null
                 && commande.getLivreur() == null
                 && commande.getModeReception() == ModeReceptionCommande.LIVRAISON
-                && COMMANDES_ACTIVES.contains(commande.getStatut());
+                && commande.getStatut() == StatutCommande.PRETE;
     }
 
     /**
