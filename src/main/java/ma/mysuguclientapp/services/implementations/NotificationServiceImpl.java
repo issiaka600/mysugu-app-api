@@ -101,6 +101,8 @@ public class NotificationServiceImpl implements NotificationService {
                     .type(type)
                     .entityId(entityId)
                     .entityType(entityType)
+                    .conversationId("CONVERSATION".equalsIgnoreCase(entityType) ? entityId : null)
+                    .orderId("COMMANDE".equalsIgnoreCase(entityType) ? entityId : null)
                     .lue(false)
                     .build();
             notificationRepository.save(notif);
@@ -137,7 +139,7 @@ public class NotificationServiceImpl implements NotificationService {
             Notification notification = notificationRepository.save(Notification.builder()
                     .destinataire(user).titre(titre).message(message)
                     .type(notificationType(statut)).entityId(commandeId)
-                    .entityType("COMMANDE").lue(false).build());
+                    .entityType("COMMANDE").orderId(commandeId).lue(false).build());
 
             long badge = notificationRepository.countByDestinataireIdAndLueFalse(userId);
             Map<String, String> data = new java.util.HashMap<>();
@@ -184,7 +186,10 @@ public class NotificationServiceImpl implements NotificationService {
             String message = "Vous avez reçu un nouveau message";
             Notification notification = notificationRepository.save(Notification.builder()
                     .destinataire(user).titre(titre).message(message).type(TypeNotification.MESSAGE)
-                    .entityId(conversationId).entityType("CONVERSATION").lue(false).build());
+                    .entityId(conversationId).entityType("CONVERSATION")
+                    .conversationId(conversationId).orderId(commandeId)
+                    .senderId(parseLongOrNull(senderId)).senderType(senderType)
+                    .lue(false).build());
 
             Map<String, String> data = new java.util.HashMap<>();
             data.put("type", "message");
@@ -430,11 +435,15 @@ public class NotificationServiceImpl implements NotificationService {
                 .destinataireId(n.getDestinataire().getId())
                 .titre(n.getTitre())
                 .message(n.getMessage())
-                .type(n.getType().name())
+                .type(apiType(n))
                 .lue(n.getLue())
                 .lueAt(n.getLueAt())
                 .entityId(n.getEntityId())
                 .entityType(n.getEntityType())
+                .conversationId(resolveConversationId(n))
+                .orderId(resolveOrderId(n))
+                .senderId(n.getSenderId())
+                .senderType(n.getSenderType())
                 .createdAt(n.getCreatedAt())
                 .build();
     }
@@ -449,12 +458,43 @@ public class NotificationServiceImpl implements NotificationService {
                 .destinataireEmail(u.getEmail())
                 .titre(n.getTitre())
                 .message(n.getMessage())
-                .type(n.getType().name())
+                .type(apiType(n))
                 .lue(n.getLue())
                 .lueAt(n.getLueAt())
                 .entityId(n.getEntityId())
                 .entityType(n.getEntityType())
+                .conversationId(resolveConversationId(n))
+                .orderId(resolveOrderId(n))
+                .senderId(n.getSenderId())
+                .senderType(n.getSenderType())
                 .createdAt(n.getCreatedAt())
                 .build();
+    }
+
+    private String apiType(Notification notification) {
+        if (notification.getType() == TypeNotification.MESSAGE) return "message";
+        if (resolveOrderId(notification) != null) return "order_status";
+        return notification.getType().name();
+    }
+
+    private Long resolveConversationId(Notification notification) {
+        if (notification.getConversationId() != null) return notification.getConversationId();
+        return "CONVERSATION".equalsIgnoreCase(notification.getEntityType())
+                ? notification.getEntityId() : null;
+    }
+
+    private Long resolveOrderId(Notification notification) {
+        if (notification.getOrderId() != null) return notification.getOrderId();
+        return "COMMANDE".equalsIgnoreCase(notification.getEntityType())
+                ? notification.getEntityId() : null;
+    }
+
+    private Long parseLongOrNull(String value) {
+        if (value == null || value.isBlank()) return null;
+        try {
+            return Long.valueOf(value);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 }

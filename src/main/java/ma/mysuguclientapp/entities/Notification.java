@@ -45,6 +45,18 @@ public class Notification {
     @Column(name = "entity_type")
     private String entityType;
 
+    @Column(name = "conversation_id")
+    private Long conversationId;
+
+    @Column(name = "order_id")
+    private Long orderId;
+
+    @Column(name = "sender_id")
+    private Long senderId;
+
+    @Column(name = "sender_type")
+    private String senderType;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
