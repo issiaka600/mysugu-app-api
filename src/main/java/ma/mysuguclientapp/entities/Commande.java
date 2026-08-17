@@ -87,6 +87,12 @@ public class Commande {
     @Column(name = "raison_annulation", length = 1000)
     private String raisonAnnulation;
 
+    @Column(name = "canceled_by", length = 30)
+    private String canceledBy;
+
+    @Column(name = "canceled_at")
+    private LocalDateTime canceledAt;
+
     /** Marque que le stock des lignes a déjà été re-crédité. Empêche une double restitution. */
     @Column(name = "stock_restitue")
     private Boolean stockRestitue = false;

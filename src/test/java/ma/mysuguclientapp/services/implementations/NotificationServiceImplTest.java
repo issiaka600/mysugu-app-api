@@ -17,6 +17,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -92,5 +93,32 @@ class NotificationServiceImplTest {
                 .getContent().getFirst();
         assertThat(dto.getType()).isEqualTo("order_status");
         assertThat(dto.getOrderId()).isEqualTo(789L);
+    }
+
+    @Test
+    void annulationClientEnvoieLeContratAttendu() {
+        User vendor = new User();
+        vendor.setId(7L);
+        when(users.findById(7L)).thenReturn(Optional.of(vendor));
+        when(notifications.save(any(Notification.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(fcm.sendToUserWithResult(any(), any(), any(), any()))
+                .thenReturn(new FcmDeliveryResult(1, 1, List.of("fcm-id"), List.of()));
+
+        service.envoyerNotificationAnnulationCommande(
+                7L, "CMD-2030", 2030L, "customer", "Le délai est trop long");
+
+        ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> data = ArgumentCaptor.forClass(Map.class);
+        org.mockito.Mockito.verify(fcm).sendToUserWithResult(
+                org.mockito.ArgumentMatchers.eq(7L), any(), message.capture(), data.capture());
+
+        assertThat(message.getValue()).isEqualTo("La commande CMD-2030 a été annulée par le client.");
+        assertThat(data.getValue()).containsEntry("type", "order_status")
+                .containsEntry("event", "order_canceled")
+                .containsEntry("order_id", "2030")
+                .containsEntry("status", "canceled")
+                .containsEntry("canceled_by", "customer")
+                .containsEntry("cancellation_reason", "Le délai est trop long");
     }
 }

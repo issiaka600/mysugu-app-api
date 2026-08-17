@@ -25,6 +25,9 @@ public interface NotificationService {
     /** Push de statut pour n'importe quel acteur (client, vendeur ou livreur). */
     void envoyerNotificationStatutCommande(Long userId, String numeroCommande,
                                            Long commandeId, StatutCommande statut);
+    void envoyerNotificationAnnulationCommande(Long userId, String numeroCommande,
+                                                Long commandeId, String canceledBy,
+                                                String cancellationReason);
     void envoyerNotificationSysteme(Long userId, String titre, String message);
 
     /** Push visible de messagerie, avec contexte de navigation et badge non-lu réel. */

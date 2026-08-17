@@ -5,6 +5,7 @@ import ma.mysuguclientapp.dtos.CommandeCreateDTO;
 import ma.mysuguclientapp.dtos.CommandeDTO;
 import ma.mysuguclientapp.dtos.CommandeContactsDTO;
 import ma.mysuguclientapp.dtos.CommandeUpdateStatusDTO;
+import ma.mysuguclientapp.dtos.CancelCommandeRequestDTO;
 import ma.mysuguclientapp.dtos.AssignThirdPartyDeliveryDTO;
 import ma.mysuguclientapp.dtos.UpdatePaymentStatusDTO;
 import ma.mysuguclientapp.dtos.DeliveryChargeDateUpdateDTO;
@@ -208,8 +209,11 @@ public class CommandeController {
      * DELETE /api/commandes/{id} - Annuler une commande
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<CommandeDTO> cancelCommande(@PathVariable Long id) {
-        CommandeDTO cancelled = commandeService.cancelCommande(id);
+    public ResponseEntity<CommandeDTO> cancelCommande(
+            @PathVariable Long id,
+            @AuthenticationPrincipal String email,
+            @Valid @RequestBody CancelCommandeRequestDTO request) {
+        CommandeDTO cancelled = commandeService.cancelCommandeByCustomer(id, email, request.getReason());
         return ResponseEntity.ok(cancelled);
     }
 

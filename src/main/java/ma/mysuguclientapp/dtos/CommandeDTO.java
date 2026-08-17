@@ -1,5 +1,6 @@
 package ma.mysuguclientapp.dtos;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -32,6 +33,12 @@ public class CommandeDTO {
     private BigDecimal montantVendeur;
     private String commentaire;
     private String raisonAnnulation;
+    @JsonProperty("canceled_by")
+    private String canceledBy;
+    @JsonProperty("cancellation_reason")
+    private String cancellationReason;
+    @JsonProperty("canceled_at")
+    private LocalDateTime canceledAt;
     private String modeReception;
     private String methodePaiement;
     private String statutPaiement;

@@ -53,6 +53,9 @@ public class OrderSellerMapper {
         // GAP: no native home for a third-party tracking id (spec §6) — always null.
         m.put("third_party_delivery_tracking_id", null);
         m.put("order_note", dto.getCommentaire());
+        m.put("canceled_by", dto.getCanceledBy());
+        m.put("cancellation_reason", dto.getCancellationReason());
+        m.put("canceled_at", dto.getCanceledAt() != null ? dto.getCanceledAt().toString() : null);
         m.put("order_type", dto.getModeReception());
         m.put("delivery_type", dto.getModeReception());
         // GAP: CommandeDTO does not expose codeVerificationLivraison (entity-only field) — benign null.

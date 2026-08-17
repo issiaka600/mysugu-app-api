@@ -174,6 +174,39 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    public void envoyerNotificationAnnulationCommande(Long userId, String numeroCommande,
+                                                       Long commandeId, String canceledBy,
+                                                       String cancellationReason) {
+        userRepository.findById(userId).ifPresent(user -> {
+            String numeroVisible = numeroCommande != null && numeroCommande.startsWith("CMD-")
+                    ? numeroCommande : "CMD-" + commandeId;
+            String titre = "Commande annulée";
+            String message = "La commande " + numeroVisible + " a été annulée par le client.";
+            Notification notification = notificationRepository.save(Notification.builder()
+                    .destinataire(user).titre(titre).message(message)
+                    .type(TypeNotification.COMMANDE_ANNULEE).entityId(commandeId)
+                    .entityType("COMMANDE").orderId(commandeId).lue(false).build());
+
+            Map<String, String> data = new java.util.HashMap<>();
+            data.put("type", "order_status");
+            data.put("event", "order_canceled");
+            data.put("order_id", String.valueOf(commandeId));
+            data.put("status", "canceled");
+            data.put("canceled_by", canceledBy);
+            data.put("cancellation_reason", cancellationReason);
+
+            FcmDeliveryResult result = fcmService.sendToUserWithResult(userId, titre, message, data);
+            tentativeNotificationFcmRepository.save(TentativeNotificationFcm.builder()
+                    .notification(notification)
+                    .tokensAttempted(result.tokensAttempted())
+                    .tokensSent(result.tokensSent())
+                    .firebaseMessageIds(String.join(",", result.firebaseMessageIds()))
+                    .errors(String.join(" | ", result.errors()))
+                    .build());
+        });
+    }
+
+    @Override
     public void envoyerNotificationSysteme(Long userId, String titre, String message) {
         envoyerNotification(userId, titre, message, TypeNotification.SYSTEME, null, null);
     }

@@ -22,6 +22,7 @@ import ma.mysuguclientapp.enumerations.ModeReceptionCommande;
 import ma.mysuguclientapp.enumerations.MethodePaiement;
 import ma.mysuguclientapp.enumerations.StatutCommande;
 import ma.mysuguclientapp.enumerations.StatutPaiement;
+import ma.mysuguclientapp.enumerations.StatutOffreLivraison;
 import ma.mysuguclientapp.enumerations.TypeNotification;
 import ma.mysuguclientapp.enumerations.UserRole;
 import ma.mysuguclientapp.exceptions.BadRequestException;
@@ -31,6 +32,7 @@ import ma.mysuguclientapp.repositories.AvisRepository;
 import ma.mysuguclientapp.repositories.CodePromoRepository;
 import ma.mysuguclientapp.repositories.CommandeRepository;
 import ma.mysuguclientapp.repositories.LigneCommandeRepository;
+import ma.mysuguclientapp.repositories.OffreLivraisonRepository;
 import ma.mysuguclientapp.repositories.ParametresCaisseRepository;
 import ma.mysuguclientapp.repositories.PlatRepository;
 import ma.mysuguclientapp.repositories.RestaurantRepository;
@@ -49,6 +51,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -88,6 +92,7 @@ public class CommandeServiceImpl implements CommandeService {
     private final ApplicationEventPublisher applicationEventPublisher;
     private final StockService stockService;
     private final CommandeStatusHistoryService commandeStatusHistoryService;
+    private final OffreLivraisonRepository offreLivraisonRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -661,6 +666,73 @@ public class CommandeServiceImpl implements CommandeService {
     }
 
     @Override
+    public CommandeDTO cancelCommandeByCustomer(Long id, String customerEmail, String reason) {
+        Commande commande = commandeRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Commande non trouvee"));
+
+        if (customerEmail == null || commande.getClient() == null
+                || !customerEmail.equalsIgnoreCase(commande.getClient().getEmail())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Cette commande n'appartient pas au client connecte");
+        }
+        if (reason == null || reason.isBlank()) {
+            throw new BadRequestException("La raison d'annulation est obligatoire");
+        }
+        if (!EnumSet.of(StatutCommande.EN_ATTENTE, StatutCommande.CONFIRMEE,
+                StatutCommande.EN_PREPARATION).contains(commande.getStatut())) {
+            throw new BadRequestException("Le statut actuel ne permet plus l'annulation de la commande");
+        }
+
+        Set<Long> livreursANotifier = new HashSet<>();
+        offreLivraisonRepository.findByCommandeIdAndStatut(id, StatutOffreLivraison.PROPOSEE)
+                .ifPresent(offre -> {
+                    offre.setStatut(StatutOffreLivraison.ANNULEE);
+                    offre.setRespondedAt(LocalDateTime.now());
+                    offreLivraisonRepository.save(offre);
+                    livreursANotifier.add(offre.getLivreur().getId());
+                });
+
+        if (commande.getLivreur() != null) {
+            livreursANotifier.add(commande.getLivreur().getId());
+            commande.getLivreur().setLivreurDisponible(true);
+            userRepository.save(commande.getLivreur());
+        }
+
+        stockService.restituer(commande);
+        commande.setStatut(StatutCommande.ANNULEE);
+        commande.setRaisonAnnulation(reason.trim());
+        commande.setCanceledBy("customer");
+        commande.setCanceledAt(LocalDateTime.now());
+
+        if (commande.getMethodePaiement() == MethodePaiement.CARTE_BANCAIRE
+                && commande.getStatutPaiement() == StatutPaiement.PAYE
+                && commande.getStripePaymentIntentId() != null) {
+            try {
+                stripeService.refundPaymentIntent(commande.getStripePaymentIntentId());
+            } catch (Exception e) {
+                log.warn("Erreur lors du remboursement Stripe pour la commande {}: {}",
+                        commande.getNumeroCommande(), e.getMessage());
+            }
+        }
+        commande.setStatutPaiement(StatutPaiement.REMBOURSE);
+
+        Commande cancelled = commandeRepository.save(commande);
+        alerteCommandeVendeurService.stopForCommande(cancelled.getId(), "COMMANDE_ANNULEE_CLIENT");
+
+        if (cancelled.getRestaurant() != null && cancelled.getRestaurant().getOwner() != null) {
+            notificationService.envoyerNotificationAnnulationCommande(
+                    cancelled.getRestaurant().getOwner().getId(), cancelled.getNumeroCommande(),
+                    cancelled.getId(), "customer", cancelled.getRaisonAnnulation());
+        }
+        livreursANotifier.forEach(livreurId -> notificationService.envoyerNotificationAnnulationCommande(
+                livreurId, cancelled.getNumeroCommande(), cancelled.getId(),
+                "customer", cancelled.getRaisonAnnulation()));
+
+        log.info("Commande {} annulee par le client {}", cancelled.getNumeroCommande(), customerEmail);
+        return convertToDTO(cancelled);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Map<String, Object> getCommandeTracking(Long id) {
         Commande commande = findCommande(id);
@@ -1181,6 +1253,9 @@ public class CommandeServiceImpl implements CommandeService {
         dto.setTempsLivraisonEstime(commande.getTempsLivraisonEstime());
         dto.setCommentaire(commande.getCommentaire());
         dto.setRaisonAnnulation(commande.getRaisonAnnulation());
+        dto.setCanceledBy(commande.getCanceledBy());
+        dto.setCancellationReason(commande.getRaisonAnnulation());
+        dto.setCanceledAt(commande.getCanceledAt());
         dto.setModeReception(resolveModeReception(commande).name());
         dto.setCreatedAt(commande.getCreatedAt());
         dto.setUpdatedAt(commande.getUpdatedAt());

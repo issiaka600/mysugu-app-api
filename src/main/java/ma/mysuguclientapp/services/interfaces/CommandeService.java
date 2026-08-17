@@ -32,6 +32,7 @@ public interface CommandeService {
     CommandeDTO updateCommandeStatus(Long id, CommandeUpdateStatusDTO commandeUpdateStatusDTO);
     CommandeDTO assignLivreur(Long id, Long livreurId);
     CommandeDTO cancelCommande(Long id);
+    CommandeDTO cancelCommandeByCustomer(Long id, String customerEmail, String reason);
     //    CommandeDTO getCommandeTracking(Long id);
     Map<String, Object> getCommandeTracking(Long id);
 

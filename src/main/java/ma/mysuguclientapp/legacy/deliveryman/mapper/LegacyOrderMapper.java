@@ -75,6 +75,9 @@ public class LegacyOrderMapper {
         m.put("coupon_code", c.getCodePromoUtilise());
         m.put("order_note", c.getCommentaire());
         m.put("cause", c.getRaisonAnnulation());
+        m.put("canceled_by", c.getCanceledBy());
+        m.put("cancellation_reason", c.getRaisonAnnulation());
+        m.put("canceled_at", c.getCanceledAt() != null ? c.getCanceledAt().toString() : null);
         m.put("is_pause", Boolean.TRUE.equals(c.getEnPause()));
         m.put("is_guest", false);
         m.put("verification_code", c.getCodeVerificationLivraison());
