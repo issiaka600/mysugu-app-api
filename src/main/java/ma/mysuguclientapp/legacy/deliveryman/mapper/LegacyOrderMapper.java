@@ -67,10 +67,15 @@ public class LegacyOrderMapper {
         m.put("payment_status", c.getStatutPaiement() == StatutPaiement.PAYE ? "paid" : "unpaid");
         m.put("payment_method", c.getMethodePaiement() == MethodePaiement.ESPECES ? "cash_on_delivery" : "digital_payment");
         m.put("transaction_ref", c.getStripePaymentIntentId());
-        m.put("order_amount", nz(c.getMontantFinal() != null ? c.getMontantFinal() : c.getMontantTotal()));
+        BigDecimal montantFinal = nz(c.getMontantFinal() != null ? c.getMontantFinal() : c.getMontantTotal());
+        BigDecimal montantVendeur = montantVendeur(c, montantFinal);
+        m.put("order_amount", montantFinal);
+        m.put("montantFinal", montantFinal);
         m.put("deliveryman_charge", nz(c.getFraisLivraison()));
         m.put("shipping_cost", nz(c.getFraisLivraison()));
         m.put("discount_amount", nz(c.getMontantRemise()));
+        m.put("montant_vendeur", montantVendeur);
+        m.put("montant_commission_total", nz(c.getMontantCommissionTotal()));
         m.put("discount_type", "amount");
         m.put("coupon_code", c.getCodePromoUtilise());
         m.put("order_note", c.getCommentaire());
@@ -91,7 +96,7 @@ public class LegacyOrderMapper {
         m.put("updated_at", fmt(c.getUpdatedAt()));
         m.put("is_shipping_free", false);
         m.put("total_commission", nz(c.getMontantCommissionTotal()));
-        m.put("seller_total", nz(c.getMontantFinal() != null ? c.getMontantFinal() : c.getMontantTotal()));
+        m.put("seller_total", montantVendeur);
 
         Map<String, Object> address = addressMap(c);
         m.put("shipping_address", address);
@@ -111,6 +116,13 @@ public class LegacyOrderMapper {
         if (r == null) return 0L;
         if (r.getOwner() != null) return r.getOwner().getId();
         return r.getId();
+    }
+
+    private BigDecimal montantVendeur(Commande commande, BigDecimal montantFinal) {
+        return montantFinal
+                .subtract(nz(commande.getFraisLivraison()))
+                .subtract(nz(commande.getMontantCommissionTotal()))
+                .max(BigDecimal.ZERO);
     }
 
     private Map<String, Object> customerMap(User u) {

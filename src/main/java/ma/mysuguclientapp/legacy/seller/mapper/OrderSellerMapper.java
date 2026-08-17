@@ -40,6 +40,7 @@ public class OrderSellerMapper {
         m.put("payment_method", dto.getMethodePaiement());
         // Never-null: the app calls .toDouble() on these (spec §4).
         m.put("order_amount", nonNull(dto.getMontantFinal()));
+        m.put("montantFinal", nonNull(dto.getMontantFinal()));
         m.put("shipping_cost", nonNull(dto.getFraisLivraison()));
         m.put("discount_amount", nonNull(dto.getMontantRemise()));
         m.put("montant_vendeur", nonNull(dto.getMontantVendeur()));

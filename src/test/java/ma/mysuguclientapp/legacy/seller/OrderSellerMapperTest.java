@@ -103,7 +103,9 @@ class OrderSellerMapperTest {
         assertThat(order.get("order_status")).isEqualTo("out_for_delivery");
         assertThat(order.get("payment_status")).isEqualTo("paid");
         assertThat(order.get("order_amount")).isEqualTo(new BigDecimal("120.00"));
+        assertThat(order.get("montantFinal")).isEqualTo(new BigDecimal("120.00"));
         assertThat(order.get("shipping_cost")).isEqualTo(new BigDecimal("15.00"));
+        assertThat(order.get("discount_amount")).isEqualTo(new BigDecimal("5.00"));
         assertThat(order.get("montant_vendeur")).isEqualTo(new BigDecimal("95.00"));
         assertThat(order.get("montant_commission_total")).isEqualTo(new BigDecimal("10.00"));
         assertThat(order.get("delivery_man_id")).isEqualTo(15L);
