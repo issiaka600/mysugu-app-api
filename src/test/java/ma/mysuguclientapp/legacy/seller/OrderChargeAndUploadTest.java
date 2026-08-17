@@ -100,7 +100,7 @@ class OrderChargeAndUploadTest {
     }
 
     @Test
-    void charge_date_update_on_own_order_updates_native_fields() throws Exception {
+    void charge_date_update_keeps_frozen_amount_and_only_updates_date() throws Exception {
         String t1 = token(owner1Email);
         Resp r = post("/api/v3/seller/orders/delivery-charge-date-update",
                 Map.of("_method", "put", "order_id", commande1Id,
@@ -109,7 +109,8 @@ class OrderChargeAndUploadTest {
         assertThat(M.readTree(r.body).has("message")).isTrue();
 
         Commande updated = commandeRepo.findById(commande1Id).orElseThrow();
-        assertThat(updated.getFraisLivraison()).isEqualByComparingTo(new BigDecimal("25.50"));
+        assertThat(updated.getFraisLivraison()).isEqualByComparingTo(new BigDecimal("15.00"));
+        assertThat(updated.getMontantFinal()).isEqualByComparingTo(new BigDecimal("110.00"));
         assertThat(updated.getDateLivraisonPrevue()).isNotNull();
     }
 
@@ -170,8 +171,10 @@ class OrderChargeAndUploadTest {
         c.setRestaurant(r);
         c.setStatut(StatutCommande.EN_ATTENTE);
         c.setStatutPaiement(StatutPaiement.EN_ATTENTE);
-        c.setMontantTotal(new BigDecimal("100.00"));
-        c.setMontantFinal(new BigDecimal("100.00"));
+        c.setFraisLivraison(new BigDecimal("15.00"));
+        c.setMontantTotal(new BigDecimal("115.00"));
+        c.setMontantRemise(new BigDecimal("5.00"));
+        c.setMontantFinal(new BigDecimal("110.00"));
 
         LigneCommande ligne = new LigneCommande();
         ligne.setCommande(c);

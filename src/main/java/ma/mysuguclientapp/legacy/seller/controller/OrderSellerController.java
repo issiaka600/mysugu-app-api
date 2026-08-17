@@ -29,7 +29,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -212,7 +211,8 @@ public class OrderSellerController {
      * deliveryman_charge, expected_delivery_date}) : réutilise
      * {@link CommandeService#updateDeliveryChargeAndDate}. Appartenance TOUJOURS vérifiée avant
      * écriture — une commande d'un AUTRE restaurant -> 404 (jamais de mutation cross-tenant).
-     * Champs absents/invalides ignorés silencieusement (jamais 500).
+     * Le montant et les frais sont figés à la création : deliveryman_charge est conservé dans le
+     * contrat mobile mais ignoré. Seule la date prévisionnelle reste modifiable.
      */
     @PostMapping("/delivery-charge-date-update")
     public Map<String, Object> deliveryChargeDateUpdate(@AuthenticationPrincipal String email,
@@ -221,20 +221,12 @@ public class OrderSellerController {
         ownedOrder(email, orderId); // 404 si la commande n'appartient pas au vendeur
 
         DeliveryChargeDateUpdateDTO dto = new DeliveryChargeDateUpdateDTO();
-        Object charge = body.get("deliveryman_charge");
-        if (charge != null) {
-            try {
-                dto.setFraisLivraison(new BigDecimal(charge.toString().trim()));
-            } catch (NumberFormatException ignored) {
-                // GAP build-minimal: valeur non numérique -> champ ignoré, jamais 500 (spec §6).
-            }
-        }
         Object expectedDate = body.get("expected_delivery_date");
         if (expectedDate != null) {
             dto.setDateLivraisonPrevue(parseFlexibleDateTime(expectedDate.toString()));
         }
         commandeService.updateDeliveryChargeAndDate(orderId, dto);
-        return Map.of("message", "Frais/date de livraison mis à jour.");
+        return Map.of("message", "Date de livraison mise à jour.");
     }
 
     /**

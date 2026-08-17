@@ -356,7 +356,7 @@ public class CommandeServiceImpl implements CommandeService {
         // Si paiement par carte bancaire, créer un PaymentIntent Stripe
         if (savedCommande.getMethodePaiement() == MethodePaiement.CARTE_BANCAIRE) {
             String clientSecret = stripeService.createPaymentIntent(
-                    savedCommande.getMontantFinal() != null ? savedCommande.getMontantFinal() : savedCommande.getMontantTotal(),
+                    montantFinalReference(savedCommande),
                     savedCommande.getId(),
                     savedCommande.getNumeroCommande()
             );
@@ -563,16 +563,13 @@ public class CommandeServiceImpl implements CommandeService {
     public CommandeDTO updateDeliveryChargeAndDate(Long id, DeliveryChargeDateUpdateDTO dto) {
         Commande commande = findCommande(id);
 
-        if (dto.getFraisLivraison() != null) {
-            commande.setFraisLivraison(dto.getFraisLivraison());
-        }
         if (dto.getDateLivraisonPrevue() != null) {
             commande.setDateLivraisonPrevue(dto.getDateLivraisonPrevue());
             commande.setCauseReport(dto.getCauseReport());
         }
 
         Commande updatedCommande = commandeRepository.save(commande);
-        log.info("Frais/date de livraison mis a jour pour la commande {}", commande.getNumeroCommande());
+        log.info("Date de livraison mise a jour pour la commande {}", commande.getNumeroCommande());
 
         return convertToDTO(updatedCommande);
     }
@@ -676,6 +673,11 @@ public class CommandeServiceImpl implements CommandeService {
         tracking.put("tempsEstime", commande.getTempsLivraisonEstime());
         tracking.put("createdAt", commande.getCreatedAt());
         tracking.put("raisonAnnulation", commande.getRaisonAnnulation());
+        tracking.put("montantFinal", montantFinalReference(commande));
+        tracking.put("order_amount", montantFinalReference(commande));
+        tracking.put("montantTotal", commande.getMontantTotal());
+        tracking.put("fraisLivraison", commande.getFraisLivraison());
+        tracking.put("montantRemise", commande.getMontantRemise());
 
         Map<String, Object> liveGps = new HashMap<>();
         var latestLocation = trackingLocationStore.getLatest(commande.getId());
@@ -1155,6 +1157,13 @@ public class CommandeServiceImpl implements CommandeService {
                 : ModeReceptionCommande.LIVRAISON;
     }
 
+    /** Montant client figé lors de la création et réutilisé par tous les contrats de lecture. */
+    private BigDecimal montantFinalReference(Commande commande) {
+        return commande.getMontantFinal() != null
+                ? commande.getMontantFinal()
+                : commande.getMontantTotal();
+    }
+
     private CommandeDTO convertToDTO(Commande commande) {
         CommandeDTO dto = new CommandeDTO();
         dto.setId(commande.getId());
@@ -1164,7 +1173,7 @@ public class CommandeServiceImpl implements CommandeService {
         dto.setStatusHistory(commandeStatusHistoryService.getHistory(commande.getId()));
         dto.setMontantTotal(commande.getMontantTotal());
         dto.setMontantRemise(commande.getMontantRemise());
-        dto.setMontantFinal(commande.getMontantFinal() != null ? commande.getMontantFinal() : commande.getMontantTotal());
+        dto.setMontantFinal(montantFinalReference(commande));
         dto.setCodePromoUtilise(commande.getCodePromoUtilise());
         dto.setFraisLivraison(commande.getFraisLivraison());
         dto.setMontantCommissionTotal(commande.getMontantCommissionTotal());
