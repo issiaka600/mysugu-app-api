@@ -139,10 +139,8 @@ public class DispatchLivraisonService {
         offre.setStatut(StatutOffreLivraison.ACCEPTEE);
         offre.setRespondedAt(LocalDateTime.now());
         commande.setLivreur(livreur);
-        if (commande.getStatut() != StatutCommande.ASSIGNEE_LIVREUR
-                && commande.getStatut() != StatutCommande.EN_COURS) {
-            commande.setStatut(StatutCommande.ASSIGNEE_LIVREUR);
-        }
+        // Le livreur est réservé dès son acceptation, mais la préparation reste pilotée par le
+        // vendeur. La commande ne pourra passer à EN_COURS qu'après son passage à PRETE.
         livreur.setLivreurDisponible(false);
         userRepository.save(livreur);
         offreRepository.save(offre);

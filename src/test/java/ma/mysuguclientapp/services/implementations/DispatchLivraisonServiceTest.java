@@ -1,6 +1,8 @@
 package ma.mysuguclientapp.services.implementations;
 
 import ma.mysuguclientapp.entities.Commande;
+import ma.mysuguclientapp.entities.OffreLivraison;
+import ma.mysuguclientapp.entities.User;
 import ma.mysuguclientapp.enumerations.ModeReceptionCommande;
 import ma.mysuguclientapp.enumerations.StatutCommande;
 import ma.mysuguclientapp.enumerations.StatutOffreLivraison;
@@ -15,7 +17,11 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Optional;
+import java.time.LocalDateTime;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -25,11 +31,12 @@ class DispatchLivraisonServiceTest {
 
     private final CommandeRepository commandeRepository = mock(CommandeRepository.class);
     private final OffreLivraisonRepository offreRepository = mock(OffreLivraisonRepository.class);
+    private final UserRepository userRepository = mock(UserRepository.class);
     private final DispatchLivraisonService service = new DispatchLivraisonService(
             commandeRepository,
             offreRepository,
             mock(TentativeOffreLivraisonRepository.class),
-            mock(UserRepository.class),
+            userRepository,
             mock(FcmService.class),
             mock(ApplicationEventPublisher.class));
 
@@ -54,6 +61,32 @@ class DispatchLivraisonServiceTest {
         service.proposerProchainLivreur(42L);
 
         verify(offreRepository).findByCommandeIdAndStatut(42L, StatutOffreLivraison.PROPOSEE);
+    }
+
+    @Test
+    void accepterPendantLaPreparationReserveLeLivreurSansMarquerLaCommandePrete() {
+        Commande commande = commande(StatutCommande.EN_PREPARATION);
+        User livreur = new User();
+        livreur.setId(7L);
+        livreur.setLivreurDisponible(true);
+        OffreLivraison offre = OffreLivraison.builder()
+                .commande(commande)
+                .livreur(livreur)
+                .statut(StatutOffreLivraison.PROPOSEE)
+                .expiresAt(LocalDateTime.now().plusSeconds(30))
+                .build();
+        when(commandeRepository.findByIdForUpdate(42L)).thenReturn(Optional.of(commande));
+        when(offreRepository.findForUpdate(42L, 7L, StatutOffreLivraison.PROPOSEE))
+                .thenReturn(Optional.of(offre));
+        when(commandeRepository.countByLivreurIdAndStatutIn(eq(7L), anyList()))
+                .thenReturn(0L);
+        when(commandeRepository.save(commande)).thenReturn(commande);
+
+        Commande resultat = service.accepterOffre(42L, livreur);
+
+        assertThat(resultat.getLivreur()).isSameAs(livreur);
+        assertThat(resultat.getStatut()).isEqualTo(StatutCommande.EN_PREPARATION);
+        assertThat(livreur.getLivreurDisponible()).isFalse();
     }
 
     private Commande commande(StatutCommande statut) {

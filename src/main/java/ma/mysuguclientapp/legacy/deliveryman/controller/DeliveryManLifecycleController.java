@@ -96,6 +96,12 @@ public class DeliveryManLifecycleController {
                 commandeRepository.save(c);
             }
             case "out_for_delivery" -> {
+                if (c.getStatut() != StatutCommande.PRETE
+                        && c.getStatut() != StatutCommande.ASSIGNEE_LIVREUR) {
+                    return ResponseEntity.status(HttpStatus.CONFLICT)
+                            .body(ErrorsResponse.of("status",
+                                    "La commande doit être prête avant de commencer la livraison."));
+                }
                 c.setStatut(StatutCommande.EN_COURS);
                 commandeRepository.save(c);
             }
