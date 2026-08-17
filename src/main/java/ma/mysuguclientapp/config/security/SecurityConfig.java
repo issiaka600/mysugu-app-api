@@ -102,6 +102,7 @@ public class SecurityConfig {
 
                         // Auth enhanced (email verification, forgot password — public)
                         .requestMatchers("/api/auth/verify-email", "/api/auth/resend-verification", "/api/auth/forgot-password",
+                                "/api/auth/send-otp", "/api/auth/verify-otp",
                                 "/api/auth/reset-password", "/api/auth/refresh").permitAll()
 
                         // Routes admin uniquement

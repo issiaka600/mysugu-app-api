@@ -6,7 +6,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -35,7 +37,6 @@ public class EmailService {
         envoyerEmail(toEmail, sujet, message);
     }
 
-    @Async
     public void envoyerCodeOtp(String toEmail, String otp) {
         String sujet = "MySugu - Votre code de vérification";
         String message = "Bonjour,\n\n" +
@@ -43,7 +44,13 @@ public class EmailService {
                 "Ce code est valable pendant 10 minutes.\n\n" +
                 "Si vous n'avez pas fait cette demande, vous pouvez ignorer cet email.\n\n" +
                 "L'équipe MySugu";
-        envoyerEmail(toEmail, sujet, message);
+        try {
+            envoyerEmailStrict(toEmail, sujet, message);
+        } catch (Exception e) {
+            log.error("Échec SMTP lors de l'envoi du code OTP à {}", masquerEmail(toEmail), e);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Le service d'envoi d'e-mail est temporairement indisponible. Veuillez réessayer.");
+        }
     }
 
     @Async
@@ -137,15 +144,29 @@ public class EmailService {
 
     private void envoyerEmail(String to, String sujet, String message) {
         try {
-            SimpleMailMessage email = new SimpleMailMessage();
-            email.setFrom(fromEmail);
-            email.setTo(to);
-            email.setSubject(sujet);
-            email.setText(message);
-            mailSender.send(email);
-            log.info("Email envoyé à {} - Sujet: {}", to, sujet);
+            envoyerEmailStrict(to, sujet, message);
         } catch (Exception e) {
             log.error("Erreur lors de l'envoi de l'email à {}: {}", to, e.getMessage());
         }
+    }
+
+    private void envoyerEmailStrict(String to, String sujet, String message) {
+        SimpleMailMessage email = new SimpleMailMessage();
+        email.setFrom(fromEmail);
+        email.setTo(to);
+        email.setSubject(sujet);
+        email.setText(message);
+        mailSender.send(email);
+        log.info("Email envoyé à {} - Sujet: {}", masquerEmail(to), sujet);
+    }
+
+    private String masquerEmail(String email) {
+        if (email == null || !email.contains("@")) {
+            return "***";
+        }
+        int separator = email.indexOf('@');
+        String local = email.substring(0, separator);
+        String domain = email.substring(separator);
+        return (local.isEmpty() ? "***" : local.substring(0, 1) + "***") + domain;
     }
 }

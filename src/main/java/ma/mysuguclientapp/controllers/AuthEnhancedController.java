@@ -1,6 +1,7 @@
 package ma.mysuguclientapp.controllers;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import ma.mysuguclientapp.dtos.auth.*;
 import ma.mysuguclientapp.repositories.UserRepository;
@@ -65,9 +66,11 @@ public class AuthEnhancedController {
     // ===== OTP (alternative mobile au lien email) =====
 
     @PostMapping("/api/auth/send-otp")
-    public ResponseEntity<Map<String, String>> envoyerOtp(@RequestBody ForgotPasswordDTO dto) {
+    public ResponseEntity<Map<String, String>> envoyerOtp(@Valid @RequestBody ForgotPasswordDTO dto) {
         authEnhancedService.demanderCodeOtp(dto);
-        return ResponseEntity.ok(Map.of("message", "Si votre email est enregistré, vous recevrez un code de vérification"));
+        return ResponseEntity.ok(Map.of(
+                "message", "Si votre email est enregistré, un code OTP a été envoyé"
+        ));
     }
 
     @PostMapping("/api/auth/verify-otp")
