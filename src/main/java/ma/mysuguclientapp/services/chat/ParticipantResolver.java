@@ -6,6 +6,7 @@ import ma.mysuguclientapp.entities.User;
 import ma.mysuguclientapp.entities.chat.ParticipantRef;
 import ma.mysuguclientapp.repositories.RestaurantRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
+import ma.mysuguclientapp.services.implementations.MinioService;
 import org.springframework.stereotype.Component;
 import java.util.*;
 
@@ -14,6 +15,7 @@ import java.util.*;
 public class ParticipantResolver {
     private final UserRepository userRepository;
     private final RestaurantRepository restaurantRepository;
+    private final MinioService minioService;
 
     /** User to push FCM to. RESTAURANT→owner; CUSTOMER/LIVREUR→self; ADMIN→null (no target). */
     public Long notifiableUserId(ParticipantRef ref) {
@@ -47,10 +49,18 @@ public class ParticipantResolver {
         m.put("id", r != null ? r.getId() : (restaurantId != null ? restaurantId : 0));
         m.put("f_name", r != null && r.getNom() != null ? r.getNom() : "");
         m.put("l_name", ""); m.put("name", r != null && r.getNom() != null ? r.getNom() : "");
-        m.put("image", r != null && r.getLogoUrl() != null ? r.getLogoUrl() : "");
+        String logoUrl = publicImageUrl(r != null ? r.getLogoUrl() : null); m.put("image", logoUrl);
         Map<String,Object> shop = new LinkedHashMap<>();
         shop.put("name", r != null && r.getNom() != null ? r.getNom() : "");
+        shop.put("id", r != null ? r.getId() : (restaurantId != null ? restaurantId : 0));
+        shop.put("image", logoUrl);
         m.put("shops", List.of(shop));
         return m;
     }
+    private String publicImageUrl(String value) {
+        if (value == null || value.isBlank()) return "";
+        if (value.startsWith("http://") || value.startsWith("https://")) return value;
+        return minioService.buildPublicFileUrl(value);
+    }
+
 }
