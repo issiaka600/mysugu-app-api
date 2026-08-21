@@ -103,7 +103,7 @@ public class ShopMapper {
      * {@code ownerId} laissé null : {@code updateRestaurant} conserve alors le propriétaire actuel.
      */
     public RestaurantCreateDTO toRestaurantUpdate(RestaurantDTO current, String name, String address,
-                                                  Integer deliveryTime) {
+                                                  Double latitude, Double longitude, Integer deliveryTime) {
         RestaurantCreateDTO dto = new RestaurantCreateDTO();
         dto.setNom(name != null && !name.isBlank() ? name : current.getNom());
         // Champs conservés pour éviter de les remettre à null via updateRestaurant.
@@ -120,6 +120,8 @@ public class ShopMapper {
         if (address != null && !address.isBlank()) {
             loc.setAdresse(address);
         }
+        if (latitude != null) loc.setLatitude(latitude);
+        if (longitude != null) loc.setLongitude(longitude);
         dto.setLocalisation(loc);
         return dto;
     }

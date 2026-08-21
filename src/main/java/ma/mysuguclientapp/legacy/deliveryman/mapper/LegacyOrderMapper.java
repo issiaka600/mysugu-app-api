@@ -170,12 +170,12 @@ public class LegacyOrderMapper {
         shop.put("name", r != null ? nvl(r.getNom()) : "");
         shop.put("image", r != null ? nvl(r.getLogoUrl()) : "");
         if (r != null && r.getLocalisation() != null) {
-            shop.put("latitude", str(r.getLocalisation().getLatitude()));
-            shop.put("longitude", str(r.getLocalisation().getLongitude()));
+            shop.put("latitude", r.getLocalisation().getLatitude());
+            shop.put("longitude", r.getLocalisation().getLongitude());
             shop.put("address", nvl(r.getLocalisation().getAdresse()));
         } else {
-            shop.put("latitude", "0");
-            shop.put("longitude", "0");
+            shop.put("latitude", null);
+            shop.put("longitude", null);
             shop.put("address", "");
         }
         return shop;

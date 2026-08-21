@@ -105,13 +105,15 @@ public class SellerShopProfileController {
             @AuthenticationPrincipal String email,
             @RequestParam(value = "name", required = false) String name,
             @RequestParam(value = "address", required = false) String address,
+            @RequestParam(value = "latitude", required = false) Double latitude,
+            @RequestParam(value = "longitude", required = false) Double longitude,
             @RequestParam(value = "delivery_time", required = false) Integer deliveryTime,
             @RequestParam(value = "logo", required = false) MultipartFile logo,
             @RequestParam(value = "banner", required = false) MultipartFile banner) {
         Long restaurantId = sellerContext.currentRestaurant(email).getId(); // id serveur, jamais du corps
         RestaurantDTO current = restaurantService.getMonRestaurant(email);
         RestaurantDTO updated = restaurantService.updateRestaurant(restaurantId,
-                shopMapper.toRestaurantUpdate(current, name, address, deliveryTime), logo);
+                shopMapper.toRestaurantUpdate(current, name, address, latitude, longitude, deliveryTime), logo);
         if (banner != null && !banner.isEmpty()) {
             updated = restaurantService.updateRestaurantBanner(restaurantId, banner);
         }
@@ -160,7 +162,7 @@ public class SellerShopProfileController {
 
         // Persiste l'annotation vacances (GAP) via updateRestaurant en préservant les autres champs.
         RestaurantDTO current = restaurantService.getMonRestaurant(email);
-        var dto = shopMapper.toRestaurantUpdate(current, null, null, null);
+        var dto = shopMapper.toRestaurantUpdate(current, null, null, null, null, null);
         dto.setHorairesOuverture(vacationOn
                 ? shopMapper.toVacationAnnotation(true, start, end, note)
                 : null);
