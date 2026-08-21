@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -25,6 +26,7 @@ import java.util.Map;
 public class LegacyOrderMapper {
 
     private static final DateTimeFormatter TS = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter ISO_TS = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     // ---- Mapping des statuts MySugu <-> 6valley ----
 
@@ -91,7 +93,7 @@ public class LegacyOrderMapper {
         m.put("seller_is", "seller");
         m.put("shipping_method_id", 0);
         m.put("order_group_id", 0);
-        m.put("expected_delivery_date", fmt(c.getDateLivraisonPrevue() != null ? c.getDateLivraisonPrevue() : c.getScheduledAt()));
+        m.put("expected_delivery_date", isoFmt(c.getDateLivraisonPrevue() != null ? c.getDateLivraisonPrevue() : c.getScheduledAt()));
         m.put("created_at", fmt(c.getCreatedAt()));
         m.put("updated_at", fmt(c.getUpdatedAt()));
         m.put("is_shipping_free", false);
@@ -233,6 +235,10 @@ public class LegacyOrderMapper {
 
     private static String fmt(LocalDateTime dt) {
         return dt != null ? dt.format(TS) : null;
+    }
+
+    private static String isoFmt(LocalDateTime dt) {
+        return dt != null ? dt.format(ISO_TS) : null;
     }
 
     private static BigDecimal nz(BigDecimal v) {

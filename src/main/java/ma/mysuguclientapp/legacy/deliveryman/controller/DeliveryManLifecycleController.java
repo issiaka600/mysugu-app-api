@@ -65,12 +65,12 @@ public class DeliveryManLifecycleController {
         User l = livreur(email);
         Commande c = owned(orderId(body), l);
         if (c.getStatut() == StatutCommande.LIVREE) {
-            return ResponseEntity.ok(Map.of("success", 0, "message", "order is already delivered."));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("success", 0, "message", "La commande est déjà livrée et cette action n’est plus autorisée."));
         }
         String status = str(body.get("status"));
         String cause = str(body.get("cause"));
         if (status == null) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorsResponse.of("status", "Statut requis."));
+            return ResponseEntity.badRequest().body(ErrorsResponse.of("status", "Statut requis."));
         }
         switch (status.toLowerCase()) {
             case "delivered" -> marquerLivree(c);
@@ -106,7 +106,7 @@ public class DeliveryManLifecycleController {
                 commandeRepository.save(c);
             }
             default -> {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorsResponse.of("status", "Statut non supporté."));
+                return ResponseEntity.badRequest().body(ErrorsResponse.of("status", "Statut non supporté."));
             }
         }
         commandeStatusHistoryService.record(c);
@@ -143,16 +143,17 @@ public class DeliveryManLifecycleController {
         User l = livreur(email);
         Commande c = owned(orderId(body), l);
         if (c.getStatut() == StatutCommande.LIVREE) {
-            return ResponseEntity.ok(Map.of("success", 0, "message", "order is already delivered."));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("success", 0, "message", "La commande est déjà livrée et cette action n’est plus autorisée."));
         }
         c.setCauseReport(str(body.get("cause")));
         String date = str(body.get("expected_delivery_date"));
-        if (date != null) {
-            try {
-                c.setDateLivraisonPrevue(LocalDateTime.parse(date.replace(" ", "T")));
-            } catch (Exception ignore) {
-                // Format libre côté app : on conserve la cause, la date reste inchangée si non parsable.
-            }
+        if (date == null || date.isBlank()) {
+            return ResponseEntity.badRequest().body(ErrorsResponse.of("expected_delivery_date", "Date de livraison requise."));
+        }
+        try {
+            c.setDateLivraisonPrevue(LocalDateTime.parse(date.replace(" ", "T")));
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body(ErrorsResponse.of("expected_delivery_date", "Format attendu : 2026-08-22T18:30:00."));
         }
         commandeRepository.save(c);
         return ResponseEntity.ok(new MessageResponse("Date de livraison mise à jour."));
@@ -164,7 +165,7 @@ public class DeliveryManLifecycleController {
         User l = livreur(email);
         Commande c = owned(orderId(body), l);
         if (c.getStatut() == StatutCommande.LIVREE) {
-            return ResponseEntity.ok(Map.of("success", 0, "message", "order is already delivered."));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("success", 0, "message", "La commande est déjà livrée et cette action n’est plus autorisée."));
         }
         c.setEnPause("1".equals(str(body.get("is_pause"))) || Boolean.TRUE.equals(body.get("is_pause")));
         c.setCausePause(str(body.get("cause")));
