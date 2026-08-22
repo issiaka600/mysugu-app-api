@@ -40,6 +40,7 @@ import ma.mysuguclientapp.repositories.UserRepository;
 import ma.mysuguclientapp.services.interfaces.CommandeService;
 import ma.mysuguclientapp.services.interfaces.NotificationService;
 import ma.mysuguclientapp.services.interfaces.StripeService;
+import ma.mysuguclientapp.util.BaremeCommission;
 import ma.mysuguclientapp.util.CommandeNumberGenerator;
 import ma.mysuguclientapp.util.Constants;
 import ma.mysuguclientapp.services.integrations.TikTakOrderIntegrationService;
@@ -261,20 +262,27 @@ public class CommandeServiceImpl implements CommandeService {
                 .orElse(new ma.mysuguclientapp.entities.ParametresCaisse());
         BigDecimal seuilPrix = params.getSeuilPrixCommission() != null
                 ? params.getSeuilPrixCommission() : new BigDecimal("10.00");
-        BigDecimal commissionMinGlobal = params.getCommissionMinPourcentage() != null
-                ? params.getCommissionMinPourcentage() : new BigDecimal("20.00");
-        BigDecimal commissionRestaurant = restaurant.getCommissionPourcentage() != null
-                ? restaurant.getCommissionPourcentage() : BigDecimal.ZERO;
+        // Sous le seuil c'est le barème global qui s'applique, au-dessus celui négocié avec
+        // l'établissement. Chacun des deux peut être un pourcentage ou un montant fixe par article.
+        BaremeCommission baremeSousSeuil = BaremeCommission.resoudre(
+                params.getCommissionMinType(),
+                params.getCommissionMinPourcentage() != null
+                        ? params.getCommissionMinPourcentage() : new BigDecimal("20.00"),
+                params.getCommissionMinMontantFixe());
+        BaremeCommission baremeEtablissement = BaremeCommission.resoudre(
+                restaurant.getCommissionType(),
+                restaurant.getCommissionPourcentage(),
+                restaurant.getCommissionMontantFixe());
 
         BigDecimal totalCommission = BigDecimal.ZERO;
         for (LigneCommande ligne : lignes) {
-            BigDecimal tauxApplique = ligne.getPrixUnitaire().compareTo(seuilPrix) <= 0
-                    ? commissionMinGlobal
-                    : commissionRestaurant;
-            BigDecimal commission = ligne.getMontantTotal()
-                    .multiply(tauxApplique)
-                    .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
-            ligne.setCommissionPourcentage(tauxApplique);
+            BaremeCommission bareme = ligne.getPrixUnitaire().compareTo(seuilPrix) <= 0
+                    ? baremeSousSeuil
+                    : baremeEtablissement;
+            BigDecimal commission = bareme.calculer(ligne.getMontantTotal(), ligne.getQuantite());
+            ligne.setCommissionType(bareme.getType());
+            ligne.setCommissionPourcentage(bareme.getPourcentage());
+            ligne.setCommissionMontantFixe(bareme.getMontantFixe());
             ligne.setMontantCommission(commission);
             totalCommission = totalCommission.add(commission);
         }
@@ -1398,7 +1406,11 @@ public class CommandeServiceImpl implements CommandeService {
             dto.setPlat(platDTO);
         }
 
+        dto.setCommissionType((ligne.getCommissionType() != null
+                ? ligne.getCommissionType()
+                : ma.mysuguclientapp.enumerations.TypeCommission.POURCENTAGE).name());
         dto.setCommissionPourcentage(ligne.getCommissionPourcentage());
+        dto.setCommissionMontantFixe(ligne.getCommissionMontantFixe());
         dto.setMontantCommission(ligne.getMontantCommission());
         if (ligne.getOptions() != null) {
             dto.setOptions(ligne.getOptions().stream().map(o -> {

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import ma.mysuguclientapp.enumerations.TypeCommission;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -44,11 +45,32 @@ public class LigneCommande {
     @Column(name = "quantite_livree")
     private Integer quantiteLivree;
 
-    /** Taux de commission appliqué à cette ligne (en %), capturé au moment de la commande */
+    /**
+     * Mode de calcul de la commission appliquée à cette ligne, capturé au moment de la commande.
+     * Null = POURCENTAGE, pour les lignes antérieures aux commissions fixes.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "commission_type")
+    private TypeCommission commissionType;
+
+    /**
+     * Taux de commission appliqué à cette ligne (en %), capturé au moment de la commande.
+     * Null quand la commission est un montant fixe.
+     */
     @Column(name = "commission_pourcentage", precision = 5, scale = 2)
     private BigDecimal commissionPourcentage;
 
-    /** Montant de commission calculé pour cette ligne (prixUnitaire × quantite × commissionPourcentage / 100) */
+    /**
+     * Montant fixe unitaire appliqué à cette ligne, capturé au moment de la commande.
+     * Null quand la commission est un pourcentage.
+     */
+    @Column(name = "commission_montant_fixe", precision = 10, scale = 2)
+    private BigDecimal commissionMontantFixe;
+
+    /**
+     * Montant de commission calculé pour cette ligne : {@code montantTotal × pourcentage / 100}
+     * en mode POURCENTAGE, {@code montantFixe × quantite} en mode FIXE.
+     */
     @Column(name = "montant_commission", precision = 10, scale = 2)
     private BigDecimal montantCommission = BigDecimal.ZERO;
 

@@ -92,9 +92,15 @@ public class RestaurantController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<RestaurantDTO> createRestaurant(
             @Valid @ModelAttribute RestaurantCreateDTO restaurantDTO,
-            @RequestParam(value = "logo", required = false) MultipartFile logo) {
+            @RequestParam(value = "logo", required = false) MultipartFile logo,
+            @RequestParam(value = "banner", required = false) MultipartFile banner) {
 
         RestaurantDTO created = restaurantService.createRestaurant(restaurantDTO, logo);
+        // La bannière passe par le service dédié : c'est lui qui gère le remplacement dans
+        // MinIO, et le dupliquer ici ferait diverger les deux chemins d'upload.
+        if (banner != null && !banner.isEmpty()) {
+            created = restaurantService.updateRestaurantBanner(created.getId(), banner);
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
@@ -105,9 +111,13 @@ public class RestaurantController {
     public ResponseEntity<RestaurantDTO> updateRestaurant(
             @PathVariable Long id,
             @Valid @ModelAttribute RestaurantCreateDTO restaurantDTO,
-            @RequestParam(value = "logo", required = false) MultipartFile logo) {
-        
+            @RequestParam(value = "logo", required = false) MultipartFile logo,
+            @RequestParam(value = "banner", required = false) MultipartFile banner) {
+
         RestaurantDTO updated = restaurantService.updateRestaurant(id, restaurantDTO, logo);
+        if (banner != null && !banner.isEmpty()) {
+            updated = restaurantService.updateRestaurantBanner(id, banner);
+        }
         return ResponseEntity.ok(updated);
     }
 
@@ -143,14 +153,20 @@ public class RestaurantController {
     }
 
     /**
-     * PATCH /api/restaurants/{id}/commission - Définir le taux de commission d'un restaurant (admin)
+     * PATCH /api/restaurants/{id}/commission - Définir la commission d'un établissement (admin).
+     *
+     * <p>Deux modes : {@code type=POURCENTAGE&pourcentage=15} ou {@code type=FIXE&montantFixe=200}.
+     * {@code type} omis vaut POURCENTAGE, ce qui garde compatibles les appels historiques
+     * qui ne passaient que {@code pourcentage}.</p>
      */
     @PatchMapping("/{id}/commission")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<RestaurantDTO> setCommission(
             @PathVariable Long id,
-            @RequestParam java.math.BigDecimal pourcentage) {
-        RestaurantDTO updated = restaurantService.setCommissionPourcentage(id, pourcentage);
+            @RequestParam(required = false) ma.mysuguclientapp.enumerations.TypeCommission type,
+            @RequestParam(required = false) java.math.BigDecimal pourcentage,
+            @RequestParam(required = false) java.math.BigDecimal montantFixe) {
+        RestaurantDTO updated = restaurantService.setCommission(id, type, pourcentage, montantFixe);
         return ResponseEntity.ok(updated);
     }
 

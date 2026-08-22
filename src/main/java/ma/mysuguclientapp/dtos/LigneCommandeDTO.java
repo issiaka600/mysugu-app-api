@@ -15,7 +15,12 @@ public class LigneCommandeDTO {
     private String currencySymbol = "DH";
     private String remarque;
     private Integer quantiteLivree;
+    /** Mode de commission appliqué à cette ligne : POURCENTAGE ou FIXE */
+    private String commissionType;
+    /** Taux appliqué (en %), renseigné seulement en mode POURCENTAGE */
     private java.math.BigDecimal commissionPourcentage;
+    /** Montant unitaire appliqué, renseigné seulement en mode FIXE */
+    private java.math.BigDecimal commissionMontantFixe;
     private java.math.BigDecimal montantCommission;
     private java.util.List<OptionChoisieDTO> options;
 }

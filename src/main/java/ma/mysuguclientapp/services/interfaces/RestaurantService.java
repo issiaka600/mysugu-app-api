@@ -76,9 +76,14 @@ public interface RestaurantService {
     RestaurantDTO toggleRestaurantStatus(Long id);
 
     /**
-     * Définir le taux de commission négocié avec un restaurant (admin)
+     * Définir la commission négociée avec un établissement (admin).
+     *
+     * @param type        POURCENTAGE ou FIXE ; {@code null} vaut POURCENTAGE
+     * @param pourcentage taux en % (mode POURCENTAGE)
+     * @param montantFixe montant prélevé par article (mode FIXE)
      */
-    RestaurantDTO setCommissionPourcentage(Long id, java.math.BigDecimal pourcentage);
+    RestaurantDTO setCommission(Long id, ma.mysuguclientapp.enumerations.TypeCommission type,
+                                java.math.BigDecimal pourcentage, java.math.BigDecimal montantFixe);
 
     // ===================== Onboarding restaurateur =====================
 

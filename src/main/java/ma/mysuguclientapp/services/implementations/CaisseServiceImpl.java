@@ -6,6 +6,7 @@ import ma.mysuguclientapp.dtos.caisse.*;
 import ma.mysuguclientapp.entities.*;
 import ma.mysuguclientapp.enumerations.*;
 import ma.mysuguclientapp.repositories.*;
+import ma.mysuguclientapp.util.BaremeCommission;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -94,7 +95,7 @@ public class CaisseServiceImpl {
         BigDecimal montantCommande = commande.getMontantTotal();
         BigDecimal fraisLivraison = commande.getFraisLivraison() != null ? commande.getFraisLivraison() : BigDecimal.ZERO;
         BigDecimal totalClient = montantCommande.add(fraisLivraison);
-        BigDecimal gainNet = fraisLivraison.multiply(BigDecimal.ONE.subtract(params.getTauxCommissionPlateforme()))
+        BigDecimal gainNet = fraisLivraison.subtract(baremeLivraison(params).calculerSurMontant(fraisLivraison))
                 .setScale(2, RoundingMode.HALF_UP);
 
         ParametresPaiementRestaurant paramResto = parametresPaiementRestaurantRepository
@@ -308,6 +309,17 @@ public class CaisseServiceImpl {
         if (dto.getPeriodicitePaiementRestaurantJours() != null) params.setPeriodicitePaiementRestaurantJours(dto.getPeriodicitePaiementRestaurantJours());
         if (dto.getSeuilPrixCommission() != null) params.setSeuilPrixCommission(dto.getSeuilPrixCommission());
         if (dto.getCommissionMinPourcentage() != null) params.setCommissionMinPourcentage(dto.getCommissionMinPourcentage());
+        if (dto.getCommissionMinMontantFixe() != null) params.setCommissionMinMontantFixe(dto.getCommissionMinMontantFixe());
+        if (dto.getCommissionPlateformeMontantFixe() != null) params.setCommissionPlateformeMontantFixe(dto.getCommissionPlateformeMontantFixe());
+        if (dto.getCommissionMinType() != null) params.setCommissionMinType(parseTypeCommission(dto.getCommissionMinType()));
+        if (dto.getCommissionPlateformeType() != null) params.setCommissionPlateformeType(parseTypeCommission(dto.getCommissionPlateformeType()));
+
+        // Un barème FIXE sans montant prélèverait zéro sans que l'admin s'en aperçoive.
+        exigerMontantFixe(params.getCommissionMinType(), params.getCommissionMinMontantFixe(),
+                "la commission minimum globale");
+        exigerMontantFixe(params.getCommissionPlateformeType(), params.getCommissionPlateformeMontantFixe(),
+                "la commission sur les frais de livraison");
+
         return toParamsDTO(parametresCaisseRepository.save(params));
     }
 
@@ -439,6 +451,43 @@ public class CaisseServiceImpl {
         });
     }
 
+    /** Null en base vaut POURCENTAGE : c'est le seul mode qui existait avant les commissions fixes. */
+    private static String nomType(TypeCommission type) {
+        return (type != null ? type : TypeCommission.POURCENTAGE).name();
+    }
+
+    private static TypeCommission parseTypeCommission(String valeur) {
+        try {
+            return TypeCommission.valueOf(valeur.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Type de commission invalide : " + valeur + " (attendu POURCENTAGE ou FIXE)");
+        }
+    }
+
+    private static void exigerMontantFixe(TypeCommission type, BigDecimal montant, String libelle) {
+        if (type == TypeCommission.FIXE && (montant == null || montant.signum() < 0)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Un montant fixe positif est requis pour " + libelle);
+        }
+    }
+
+    /**
+     * Barème de la commission plateforme prélevée sur les frais de livraison.
+     *
+     * <p>Le taux historique est stocké en fraction (0.1500 = 15 %) alors que le barème
+     * raisonne en pourcentage : d'où la conversion. En mode FIXE, le montant paramétré est
+     * prélevé une fois par course.</p>
+     */
+    private BaremeCommission baremeLivraison(ParametresCaisse params) {
+        BigDecimal taux = params.getTauxCommissionPlateforme() != null
+                ? params.getTauxCommissionPlateforme() : BigDecimal.ZERO;
+        return BaremeCommission.resoudre(
+                params.getCommissionPlateformeType(),
+                taux.multiply(new BigDecimal("100")),
+                params.getCommissionPlateformeMontantFixe());
+    }
+
     private Commande getCommande(Long commandeId) {
         return commandeRepository.findById(commandeId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Commande introuvable: " + commandeId));
@@ -506,6 +555,10 @@ public class CaisseServiceImpl {
         dto.setPeriodicitePaiementRestaurantJours(p.getPeriodicitePaiementRestaurantJours());
         dto.setSeuilPrixCommission(p.getSeuilPrixCommission());
         dto.setCommissionMinPourcentage(p.getCommissionMinPourcentage());
+        dto.setCommissionMinMontantFixe(p.getCommissionMinMontantFixe());
+        dto.setCommissionMinType(nomType(p.getCommissionMinType()));
+        dto.setCommissionPlateformeMontantFixe(p.getCommissionPlateformeMontantFixe());
+        dto.setCommissionPlateformeType(nomType(p.getCommissionPlateformeType()));
         return dto;
     }
 }

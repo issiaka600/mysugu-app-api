@@ -37,8 +37,12 @@ public class RestaurantDTO {
     private String ownerNom;
     private String ownerPrenom;
     private String ownerEmail;
-    /** Pourcentage de commission négocié avec ce restaurant (en %) */
+    /** Mode de calcul de la commission négociée : POURCENTAGE ou FIXE */
+    private String commissionType;
+    /** Pourcentage de commission négocié avec ce restaurant (en %), en mode POURCENTAGE */
     private java.math.BigDecimal commissionPourcentage;
+    /** Montant de commission prélevé par article, en mode FIXE */
+    private java.math.BigDecimal commissionMontantFixe;
 
     /** Statut d'approbation : EN_ATTENTE, COMPLEMENT_REQUIS, APPROUVE, REJETE */
     private String statutApprobation;

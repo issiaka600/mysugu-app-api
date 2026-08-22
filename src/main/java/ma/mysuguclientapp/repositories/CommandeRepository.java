@@ -61,6 +61,14 @@ public interface CommandeRepository extends JpaRepository<Commande, Long> {
     @Query("SELECT COALESCE(SUM(c.montantTotal), 0) FROM Commande c WHERE c.restaurant.id = :restaurantId AND c.statut = 'LIVREE' AND c.createdAt BETWEEN :debut AND :fin")
     BigDecimal sumChiffreAffairesRestaurant(Long restaurantId, LocalDateTime debut, LocalDateTime fin);
 
+    /**
+     * Commission réellement prélevée sur la période, telle que figée à la création de chaque
+     * commande. C'est la seule mesure juste dès qu'un barème est un montant fixe ou que le
+     * seuil de prix global entre en jeu : la recalculer depuis le CA et un taux donnerait faux.
+     */
+    @Query("SELECT COALESCE(SUM(c.montantCommissionTotal), 0) FROM Commande c WHERE c.restaurant.id = :restaurantId AND c.statut = 'LIVREE' AND c.createdAt BETWEEN :debut AND :fin")
+    BigDecimal sumCommissionRestaurant(Long restaurantId, LocalDateTime debut, LocalDateTime fin);
+
     @Query("SELECT COUNT(c) FROM Commande c WHERE c.restaurant.id = :restaurantId AND c.statut IN ('EN_PREPARATION', 'CONFIRMEE', 'ASSIGNEE_LIVREUR')")
     Long countEnCoursRestaurant(Long restaurantId);
 

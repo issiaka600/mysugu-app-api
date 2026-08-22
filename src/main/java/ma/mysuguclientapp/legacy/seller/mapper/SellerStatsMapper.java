@@ -81,8 +81,12 @@ public class SellerStatsMapper {
      * conventions observées : {@code this_year/this_month/this_week} (spec) ET
      * {@code yearEarn/MonthEarn/WeekEarn} (valeurs réellement envoyées par
      * {@code BankInfoController.setRevenueFilterName}). Inconnu/absent -> "today".
-     * {@code commissionRatePercent} = {@code Restaurant.commissionPourcentage} (peut être null
-     * -> 0, mysugu n'a pas de commission par défaut) ; montants MAD, aucune conversion.
+     * <p>Les commissions viennent des cumuls portés par le dashboard quand ils sont
+     * renseignés : c'est le montant réellement prélevé, seul juste depuis qu'une commission
+     * peut être un montant fixe ou provenir du barème global sous le seuil de prix. Le calcul
+     * {@code CA × taux} ne subsiste que comme repli, pour les appelants qui ne fournissent pas
+     * ces cumuls. {@code commissionRatePercent} = {@code Restaurant.commissionPourcentage}
+     * (peut être null -> 0) ; montants MAD, aucune conversion.
      */
     public Map<String, Object> earningStatistics(RestaurantDashboardDTO dto, String type, BigDecimal commissionRatePercent) {
         BigDecimal today = nzBd(dto.getChiffreAffairesAujourdhui());
@@ -90,6 +94,11 @@ public class SellerStatsMapper {
         BigDecimal month = nzBd(dto.getChiffreAffairesMois());
         BigDecimal total = nzBd(dto.getTotalChiffreAffaires());
         BigDecimal rate = commissionRatePercent != null ? commissionRatePercent : BigDecimal.ZERO;
+
+        BigDecimal commissionToday = commissionReelleOuEstimee(dto.getCommissionAujourdhui(), today, rate);
+        BigDecimal commissionWeek = commissionReelleOuEstimee(dto.getCommissionSemaine(), week, rate);
+        BigDecimal commissionMonth = commissionReelleOuEstimee(dto.getCommissionMois(), month, rate);
+        BigDecimal commissionTotal = commissionReelleOuEstimee(dto.getTotalCommission(), total, rate);
 
         BigDecimal scalar = switch (normalizeEarningType(type)) {
             case "this_year" -> total; // pas de bucket annuel natif -> CA global (approximation)
@@ -101,14 +110,18 @@ public class SellerStatsMapper {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("total_earning", total);
         m.put("this_year", total);
-        m.put("commission_earning", commission(total, rate));
+        m.put("commission_earning", commissionTotal);
         m.put("earning", scalar);
         // APPROX: 6valley earning series synthesized from dashboard buckets (spec §3.2).
         m.put("seller_earn", List.of(today, week, month, total));
         m.put("commission_earn", List.of(
-                commission(today, rate), commission(week, rate),
-                commission(month, rate), commission(total, rate)));
+                commissionToday, commissionWeek, commissionMonth, commissionTotal));
         return m;
+    }
+
+    /** Le cumul réel s'il est fourni, sinon l'ancienne estimation {@code CA × taux}. */
+    private static BigDecimal commissionReelleOuEstimee(BigDecimal reelle, BigDecimal ca, BigDecimal ratePercent) {
+        return reelle != null ? reelle : commission(ca, ratePercent);
     }
 
     private String normalizeEarningType(String type) {

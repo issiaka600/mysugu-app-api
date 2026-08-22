@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import ma.mysuguclientapp.enumerations.StatutRestaurant;
+import ma.mysuguclientapp.enumerations.TypeCommission;
 import ma.mysuguclientapp.enumerations.Vertical;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -125,11 +126,27 @@ public class Restaurant {
 
     /**
      * Pourcentage de commission négocié avec ce restaurant (en %).
-     * S'applique aux plats dont le prix dépasse le seuilPrixCommission global.
+     * S'applique aux plats dont le prix dépasse le seuilPrixCommission global,
+     * et uniquement quand {@link #commissionType} vaut POURCENTAGE.
      * Ex: 15 → 15%.
      */
     @Column(name = "commission_pourcentage", precision = 5, scale = 2)
     private BigDecimal commissionPourcentage;
+
+    /**
+     * Mode de calcul de la commission négociée. Null = POURCENTAGE : les établissements
+     * créés avant l'introduction des commissions fixes gardent leur comportement.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "commission_type")
+    private TypeCommission commissionType;
+
+    /**
+     * Montant fixe prélevé par article quand {@link #commissionType} vaut FIXE.
+     * Ignoré en mode POURCENTAGE.
+     */
+    @Column(name = "commission_montant_fixe", precision = 10, scale = 2)
+    private BigDecimal commissionMontantFixe;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

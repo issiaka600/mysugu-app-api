@@ -17,6 +17,7 @@ import ma.mysuguclientapp.entities.User;
 import ma.mysuguclientapp.entities.ZoneDeploiement;
 import ma.mysuguclientapp.enumerations.StatutRestaurant;
 import ma.mysuguclientapp.enumerations.UserRole;
+import ma.mysuguclientapp.enumerations.TypeCommission;
 import ma.mysuguclientapp.enumerations.Vertical;
 import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
@@ -178,8 +179,9 @@ public class RestaurantServiceImpl implements RestaurantService {
         restaurant.setIsActive(true);
 
         applyAutoCloseSettings(restaurant, restaurantDTO);
-        applyLocalisation(restaurant, restaurantDTO.getLocalisation());
+        applyLocalisation(restaurant, restaurantDTO);
         applyZoneDeploiement(restaurant, restaurantDTO.getZoneDeploiementId());
+        appliquerCommissionSiFournie(restaurant, restaurantDTO);
 
         if (Boolean.TRUE.equals(restaurantDTO.getRemoveLogo())) {
             restaurant.setLogoUrl(null);
@@ -232,8 +234,9 @@ public class RestaurantServiceImpl implements RestaurantService {
             restaurant.setOwner(owner);
         }
 
-        applyLocalisation(restaurant, restaurantDTO.getLocalisation());
+        applyLocalisation(restaurant, restaurantDTO);
         applyZoneDeploiement(restaurant, restaurantDTO.getZoneDeploiementId());
+        appliquerCommissionSiFournie(restaurant, restaurantDTO);
 
         if (Boolean.TRUE.equals(restaurantDTO.getRemoveLogo()) && restaurant.getLogoUrl() != null) {
             try {
@@ -369,17 +372,77 @@ public class RestaurantServiceImpl implements RestaurantService {
     }
 
     @Override
-    public RestaurantDTO setCommissionPourcentage(Long id, java.math.BigDecimal pourcentage) {
+    public RestaurantDTO setCommission(Long id, TypeCommission type,
+                                       java.math.BigDecimal pourcentage, java.math.BigDecimal montantFixe) {
+        Restaurant restaurant = restaurantRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Restaurant non trouvé"));
+        appliquerCommission(restaurant, type, pourcentage, montantFixe);
+        Restaurant updated = restaurantRepository.save(restaurant);
+        if (updated.getCommissionType() == TypeCommission.FIXE) {
+            log.info("Commission de l'établissement {} définie à {} par article",
+                    updated.getNom(), updated.getCommissionMontantFixe());
+        } else {
+            log.info("Commission de l'établissement {} définie à {}%",
+                    updated.getNom(), updated.getCommissionPourcentage());
+        }
+        return convertToDTO(updated, null, null);
+    }
+
+    /**
+     * Applique un barème de commission à un établissement, en validant la valeur qui
+     * correspond au mode retenu. Les deux colonnes sont écrites à chaque fois pour qu'une
+     * bascule POURCENTAGE ↔ FIXE ne laisse pas traîner l'ancienne valeur, qui réapparaîtrait
+     * telle quelle si l'admin rebasculait.
+     */
+    private void appliquerCommission(Restaurant restaurant, TypeCommission type,
+                                     java.math.BigDecimal pourcentage, java.math.BigDecimal montantFixe) {
+        TypeCommission typeEffectif = type != null ? type : TypeCommission.POURCENTAGE;
+
+        if (typeEffectif == TypeCommission.FIXE) {
+            if (montantFixe == null || montantFixe.compareTo(java.math.BigDecimal.ZERO) < 0) {
+                throw new BadRequestException("Le montant fixe de commission doit être positif");
+            }
+            restaurant.setCommissionType(TypeCommission.FIXE);
+            restaurant.setCommissionMontantFixe(montantFixe);
+            restaurant.setCommissionPourcentage(null);
+            return;
+        }
+
         if (pourcentage == null || pourcentage.compareTo(java.math.BigDecimal.ZERO) < 0
                 || pourcentage.compareTo(new java.math.BigDecimal("100")) > 0) {
             throw new BadRequestException("Le pourcentage de commission doit être compris entre 0 et 100");
         }
-        Restaurant restaurant = restaurantRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Restaurant non trouvé"));
+        restaurant.setCommissionType(TypeCommission.POURCENTAGE);
         restaurant.setCommissionPourcentage(pourcentage);
-        Restaurant updated = restaurantRepository.save(restaurant);
-        log.info("Commission du restaurant {} définie à {}%", restaurant.getNom(), pourcentage);
-        return convertToDTO(updated, null, null);
+        restaurant.setCommissionMontantFixe(null);
+    }
+
+    /**
+     * Commission fournie à la création ou à la mise à jour d'un établissement.
+     * Absente ⇒ on ne touche à rien : le formulaire de fiche n'envoie pas la commission,
+     * et l'écraser à zéro couperait le revenu de la plateforme sur cet établissement.
+     */
+    private void appliquerCommissionSiFournie(Restaurant restaurant, RestaurantCreateDTO dto) {
+        boolean rienAFaire = dto.getCommissionType() == null
+                && dto.getCommissionPourcentage() == null
+                && dto.getCommissionMontantFixe() == null;
+        if (rienAFaire) {
+            return;
+        }
+        appliquerCommission(restaurant, parseTypeCommission(dto.getCommissionType()),
+                dto.getCommissionPourcentage(), dto.getCommissionMontantFixe());
+    }
+
+    private static TypeCommission parseTypeCommission(String valeur) {
+        if (valeur == null || valeur.isBlank()) {
+            return null;
+        }
+        try {
+            return TypeCommission.valueOf(valeur.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("Type de commission invalide : " + valeur
+                    + " (attendu POURCENTAGE ou FIXE)");
+        }
     }
 
     // ===================== Onboarding restaurateur =====================
@@ -418,7 +481,7 @@ public class RestaurantServiceImpl implements RestaurantService {
         restaurant.setStatutApprobation(StatutRestaurant.EN_ATTENTE);
 
         applyAutoCloseSettings(restaurant, dto);
-        applyLocalisation(restaurant, dto.getLocalisation());
+        applyLocalisation(restaurant, dto);
         applyZoneDeploiement(restaurant, dto.getZoneDeploiementId());
 
         if (logo != null && !logo.isEmpty()) {
@@ -582,8 +645,30 @@ public class RestaurantServiceImpl implements RestaurantService {
         restaurant.setZoneDeploiement(zone);
     }
 
-    private void applyLocalisation(Restaurant restaurant, LocalisationDTO localisationDTO) {
-        if (localisationDTO == null) {
+    /**
+     * Renseigne l'adresse de l'établissement à partir du formulaire.
+     *
+     * <p>Deux formes de payload circulent : la fiche d'édition poste des champs imbriqués
+     * ({@code localisation.adresse}), l'assistant de création des champs à plat
+     * ({@code adresse}). Les deux sont acceptées, l'imbriquée l'emportant en cas de doublon —
+     * sinon l'une des deux voies perd silencieusement l'adresse et l'établissement se
+     * retrouve sans coordonnées, donc hors de toute recherche par zone.</p>
+     *
+     * <p>Un champ absent laisse la valeur existante : une mise à jour partielle ne doit pas
+     * effacer des coordonnées déjà connues. Une chaîne vide, elle, efface bien.</p>
+     */
+    private void applyLocalisation(Restaurant restaurant, RestaurantCreateDTO dto) {
+        LocalisationDTO imbriquee = dto.getLocalisation();
+
+        Double latitude = premier(imbriquee != null ? imbriquee.getLatitude() : null, dto.getLatitude());
+        Double longitude = premier(imbriquee != null ? imbriquee.getLongitude() : null, dto.getLongitude());
+        String adresse = premier(imbriquee != null ? imbriquee.getAdresse() : null, dto.getAdresse());
+        String ville = premier(imbriquee != null ? imbriquee.getVille() : null, dto.getVille());
+        String codePostal = premier(imbriquee != null ? imbriquee.getCodePostal() : null, dto.getCodePostal());
+        String pays = premier(imbriquee != null ? imbriquee.getPays() : null, dto.getPays());
+
+        if (latitude == null && longitude == null && adresse == null
+                && ville == null && codePostal == null && pays == null) {
             return;
         }
 
@@ -592,13 +677,17 @@ public class RestaurantServiceImpl implements RestaurantService {
             localisation = new Localisation();
         }
 
-        localisation.setLatitude(localisationDTO.getLatitude());
-        localisation.setLongitude(localisationDTO.getLongitude());
-        localisation.setAdresse(localisationDTO.getAdresse());
-        localisation.setVille(localisationDTO.getVille());
-        localisation.setCodePostal(localisationDTO.getCodePostal());
-        localisation.setPays(localisationDTO.getPays());
+        if (latitude != null) localisation.setLatitude(latitude);
+        if (longitude != null) localisation.setLongitude(longitude);
+        if (adresse != null) localisation.setAdresse(adresse);
+        if (ville != null) localisation.setVille(ville);
+        if (codePostal != null) localisation.setCodePostal(codePostal);
+        if (pays != null) localisation.setPays(pays);
         restaurant.setLocalisation(localisation);
+    }
+
+    private static <T> T premier(T imbrique, T plat) {
+        return imbrique != null ? imbrique : plat;
     }
 
     private RestaurantDTO convertToDTO(Restaurant restaurant, Double userLat, Double userLon) {
@@ -622,6 +711,9 @@ public class RestaurantServiceImpl implements RestaurantService {
         dto.setIsActive(openNow);
         dto.setCreatedAt(restaurant.getCreatedAt());
         dto.setCommissionPourcentage(restaurant.getCommissionPourcentage());
+        dto.setCommissionMontantFixe(restaurant.getCommissionMontantFixe());
+        dto.setCommissionType((restaurant.getCommissionType() != null
+                ? restaurant.getCommissionType() : TypeCommission.POURCENTAGE).name());
         dto.setVertical(restaurant.getVertical() != null ? restaurant.getVertical().name() : Vertical.RESTAURANT.name());
 
         StatutRestaurant statut = restaurant.getStatutApprobation() != null
