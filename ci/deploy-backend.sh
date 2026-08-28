@@ -17,13 +17,21 @@ mv -f "$NEW" "$JAR"
 echo "Swapped in new jar."
 
 cd "$COMPOSE_DIR"
-# Bound the remote Docker operation so a stuck daemon produces a useful failure
-# instead of leaving the GitHub runner SSH session idle until it breaks.
-if ! timeout --foreground 600 docker compose up -d --build backend; then
-  echo "ERROR: Docker compose backend build/start failed or timed out"
-  docker compose ps || true
-  docker compose logs --tail=80 backend || true
-  exit 1
+# The backend image contains only the jar. Avoid a resource-heavy Docker build on
+# the production host: update the running container's jar and restart it in place.
+# A full build remains a first-install fallback when the container is absent.
+if docker container inspect mysugu-backend >/dev/null 2>&1; then
+  docker cp "$JAR" mysugu-backend:/app/mysugu-app-api.jar
+  docker restart mysugu-backend >/dev/null
+  echo "Updated jar in existing mysugu-backend container and restarted it."
+else
+  echo "Backend container absent; performing first-install compose build."
+  if ! timeout --foreground 600 docker compose up -d --build backend; then
+    echo "ERROR: Docker compose backend build/start failed or timed out"
+    docker compose ps || true
+    docker compose logs --tail=80 backend || true
+    exit 1
+  fi
 fi
 
 echo "Health-gating $HEALTH_URL ..."
