@@ -62,7 +62,14 @@ public class DispatchLivraisonService {
     @Value("${delivery.driver-location.max-age-seconds:120}")
     private long maxLocationAgeSeconds;
 
-    /** Propose la commande au prochain livreur éligible, ordonné par distance au restaurant. */
+    @Value("${delivery.seller-location.max-age-seconds:86400}")
+    private long maxSellerLocationAgeSeconds;
+
+    /**
+     * Propose la commande au prochain livreur éligible, ordonné par distance à la position GPS
+     * récente du vendeur. La position fixe du restaurant reste le repli si le vendeur n'a pas
+     * encore partagé sa position ou si celle-ci est trop ancienne.
+     */
     public void proposerProchainLivreur(Long commandeId) {
         Commande commande = commandeRepository.findByIdForUpdate(commandeId).orElse(null);
         if (!eligiblePourDispatch(commande) || offreRepository
@@ -70,8 +77,10 @@ public class DispatchLivraisonService {
             return;
         }
 
-        if (commande.getRestaurant().getLocalisation() == null) {
-            log.warn("Commande {} : restaurant sans position GPS, aucun livreur ne peut être proposé", commandeId);
+        LocationPoint dispatchOrigin = resolveDispatchOrigin(commande, LocalDateTime.now());
+        if (dispatchOrigin == null) {
+            log.warn("Commande {} : vendeur et restaurant sans position GPS exploitable, aucun livreur ne peut être proposé",
+                    commandeId);
             return;
         }
 
@@ -92,10 +101,9 @@ public class DispatchLivraisonService {
                 .filter(l -> !offreRepository.existsByLivreurIdAndStatut(l.getId(), StatutOffreLivraison.PROPOSEE))
                 .filter(l -> commandeRepository.countByLivreurIdAndStatutIn(l.getId(), COMMANDES_ACTIVES) == 0)
                 .map(l -> new Candidat(l, DistanceCalculator.calculate(
-                        commande.getRestaurant().getLocalisation().getLatitude(),
-                        commande.getRestaurant().getLocalisation().getLongitude(),
+                        dispatchOrigin.latitude(), dispatchOrigin.longitude(),
                         l.getLocalisation().getLatitude(), l.getLocalisation().getLongitude())))
-                .filter(c -> isLivreurDansZoneDuRestaurant(commande, c.livreur()))
+                .filter(c -> isLivreurDansZoneDuRestaurant(commande, c.livreur(), dispatchOrigin))
                 .min(Comparator.comparingDouble(Candidat::distanceKm))
                 .orElse(null);
 
@@ -116,9 +124,9 @@ public class DispatchLivraisonService {
                 .alertAttemptCount(0)
                 .build());
         envoyerAlerteOffre(offre, now);
-        log.info("Commande {} proposée au livreur {} ({} km, zone: {})", commandeId,
+        log.info("Commande {} proposée au livreur {} ({} km, origine: {}, zone: {})", commandeId,
                 candidat.livreur().getId(), Math.round(candidat.distanceKm() * 100.0) / 100.0,
-                descriptionZoneDispatch(commande));
+                dispatchOrigin.source(), descriptionZoneDispatch(commande));
     }
 
     /** Accepte uniquement l'offre en cours du livreur : il ne peut plus prendre une commande libre. */
@@ -242,7 +250,8 @@ public class DispatchLivraisonService {
      * trouver à l'intérieur du cercle configuré par l'admin. Les restaurants sans zone exploitable
      * gardent le repli historique de 15 km, pour ne pas interrompre les zones non encore paramétrées.
      */
-    private boolean isLivreurDansZoneDuRestaurant(Commande commande, User livreur) {
+    private boolean isLivreurDansZoneDuRestaurant(Commande commande, User livreur,
+                                                   LocationPoint dispatchOrigin) {
         ZoneDeploiement zone = commande.getRestaurant().getZoneDeploiement();
         if (zone != null && Boolean.TRUE.equals(zone.getIsActive())
                 && zone.getCentreLatitude() != null && zone.getCentreLongitude() != null
@@ -254,11 +263,36 @@ public class DispatchLivraisonService {
         }
 
         return DistanceCalculator.isWithinRadius(
-                commande.getRestaurant().getLocalisation().getLatitude(),
-                commande.getRestaurant().getLocalisation().getLongitude(),
+                dispatchOrigin.latitude(), dispatchOrigin.longitude(),
                 livreur.getLocalisation().getLatitude(), livreur.getLocalisation().getLongitude(),
                 Constants.AUTO_ASSIGN_RADIUS_KM);
     }
+
+    private LocationPoint resolveDispatchOrigin(Commande commande, LocalDateTime now) {
+        User seller = commande.getRestaurant().getOwner();
+        if (hasCoordinates(seller)
+                && seller.getLastLocationAt() != null
+                && !seller.getLastLocationAt().isBefore(now.minusSeconds(maxSellerLocationAgeSeconds))) {
+            return new LocationPoint(seller.getLocalisation().getLatitude(),
+                    seller.getLocalisation().getLongitude(), "vendeur");
+        }
+
+        if (commande.getRestaurant().getLocalisation() != null
+                && commande.getRestaurant().getLocalisation().getLatitude() != null
+                && commande.getRestaurant().getLocalisation().getLongitude() != null) {
+            return new LocationPoint(commande.getRestaurant().getLocalisation().getLatitude(),
+                    commande.getRestaurant().getLocalisation().getLongitude(), "restaurant");
+        }
+        return null;
+    }
+
+    private boolean hasCoordinates(User user) {
+        return user != null && user.getLocalisation() != null
+                && user.getLocalisation().getLatitude() != null
+                && user.getLocalisation().getLongitude() != null;
+    }
+
+    private record LocationPoint(double latitude, double longitude, String source) { }
 
     private String descriptionZoneDispatch(Commande commande) {
         ZoneDeploiement zone = commande.getRestaurant().getZoneDeploiement();
