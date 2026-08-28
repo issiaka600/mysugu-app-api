@@ -449,7 +449,8 @@ public class CommandeServiceImpl implements CommandeService {
 
         if (nouveauStatut == StatutCommande.CONFIRMEE) {
             alerteCommandeVendeurService.stopForCommande(updatedCommande.getId(), "COMMANDE_ACCEPTEE");
-        } else if (nouveauStatut == StatutCommande.EN_PREPARATION
+        } else if ((nouveauStatut == StatutCommande.EN_PREPARATION
+                || nouveauStatut == StatutCommande.PRETE)
                 && resolveModeReception(updatedCommande) == ModeReceptionCommande.LIVRAISON) {
             applicationEventPublisher.publishEvent(new DispatchLivraisonEvent(updatedCommande.getId()));
         } else if (nouveauStatut == StatutCommande.ANNULEE) {
