@@ -68,12 +68,14 @@ jobs:
           fi
           echo "Deploy key loaded."
 
-          # Best effort only: ssh-keyscan can fail because the host firewalls the runner
-          # or is briefly down. That must not kill the job with a bare 'exit 1' and no
-          # output — the scp/ssh steps below use StrictHostKeyChecking=accept-new and
-          # will report the real connection error instead.
+          # Best effort only: the host's sshd resets a large share of incoming
+          # connections, so this must not kill the job. `-t ed25519` keeps it to a
+          # single TCP connection (the default scans 5 key types = 5 connections,
+          # which is enough on its own to trip the server's connection throttle).
+          # The scp/ssh steps below use StrictHostKeyChecking=accept-new, so a failed
+          # scan costs us host-key pinning, not the deployment.
           for attempt in 1 2 3; do
-            if ssh-keyscan -T 15 -H "$SSH_HOST" >> ~/.ssh/known_hosts && [ -s ~/.ssh/known_hosts ]; then
+            if ssh-keyscan -T 15 -t ed25519 -H "$SSH_HOST" >> ~/.ssh/known_hosts && [ -s ~/.ssh/known_hosts ]; then
               echo "known_hosts populated for $SSH_HOST (attempt $attempt)."
               break
             fi
@@ -81,14 +83,48 @@ jobs:
             sleep 5
           done
 
+          # Let any connection throttle triggered by the scan expire before the
+          # deployment steps open their own connection.
+          sleep 5
+
       - name: Ship jar + deploy script
         run: |
-          SSH_OPTS="-o ServerAliveInterval=30 -o ServerAliveCountMax=20 -o ConnectTimeout=30 -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
-          scp $SSH_OPTS -i ~/.ssh/deploy_key "${{ steps.jar.outputs.path }}" "$SSH_USER@$SSH_HOST:$REMOTE_DIR/backend/mysugu-app-api.jar.new"
-          scp $SSH_OPTS -i ~/.ssh/deploy_key ci/deploy-backend.sh "$SSH_USER@$SSH_HOST:$REMOTE_DIR/deploy-backend.sh"
+          set -euo pipefail
+          # The host's sshd resets a large share of incoming connections
+          # ("kex_exchange_identification: Connection reset by peer"), so a single
+          # attempt fails often. Retry the handshake, then keep ONE connection open
+          # (ControlMaster) and let the second scp and the deploy step below ride it
+          # instead of opening new ones.
+          SSH_OPTS="-o ServerAliveInterval=30 -o ServerAliveCountMax=20 -o ConnectTimeout=30 \
+                    -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
+                    -o ControlMaster=auto -o ControlPath=$HOME/.ssh/cm-%r@%h:%p -o ControlPersist=15m"
+
+          retry() {
+            local label="$1"; shift
+            local delay=5 rc=0
+            for attempt in 1 2 3 4 5 6; do
+              rc=0; "$@" || rc=$?
+              [ "$rc" -eq 0 ] && { echo "$label: OK (attempt $attempt)"; return 0; }
+              if [ "$attempt" -eq 6 ]; then
+                echo "::error::$label failed after 6 attempts (last exit $rc) — the deploy host is refusing SSH connections"
+                return "$rc"
+              fi
+              echo "::warning::$label failed (exit $rc), retrying in ${delay}s (attempt $attempt/6)"
+              sleep "$delay"
+              delay=$(( delay * 2 < 60 ? delay * 2 : 60 ))
+            done
+          }
+
+          retry "ship jar" scp $SSH_OPTS -i ~/.ssh/deploy_key "${{ steps.jar.outputs.path }}" "$SSH_USER@$SSH_HOST:$REMOTE_DIR/backend/mysugu-app-api.jar.new"
+          retry "ship deploy script" scp $SSH_OPTS -i ~/.ssh/deploy_key ci/deploy-backend.sh "$SSH_USER@$SSH_HOST:$REMOTE_DIR/deploy-backend.sh"
 
       - name: Deploy (backup → swap → rebuild → health-gate → rollback)
         run: |
+          set -euo pipefail
+          # Reuses the connection opened by the step above (ControlPath), so this
+          # does not pay for another handshake against a throttling sshd. Deliberately
+          # NOT retried: the deploy swaps a jar on the server and is not idempotent.
           ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 -o ConnectTimeout=30 \
             -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
+            -o ControlMaster=auto -o ControlPath=$HOME/.ssh/cm-%r@%h:%p -o ControlPersist=15m \
             -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" "bash $REMOTE_DIR/deploy-backend.sh"
