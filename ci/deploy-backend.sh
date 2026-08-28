@@ -19,7 +19,7 @@ echo "Swapped in new jar."
 cd "$COMPOSE_DIR"
 # Bound the remote Docker operation so a stuck daemon produces a useful failure
 # instead of leaving the GitHub runner SSH session idle until it breaks.
-if ! timeout --foreground 240 docker compose up -d --build backend; then
+if ! timeout --foreground 600 docker compose up -d --build backend; then
   echo "ERROR: Docker compose backend build/start failed or timed out"
   docker compose ps || true
   docker compose logs --tail=80 backend || true
