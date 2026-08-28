@@ -57,9 +57,11 @@ jobs:
 
       - name: Ship jar + deploy script
         run: |
-          scp -i ~/.ssh/deploy_key "${{ steps.jar.outputs.path }}" "$SSH_USER@$SSH_HOST:$REMOTE_DIR/backend/mysugu-app-api.jar.new"
-          scp -i ~/.ssh/deploy_key ci/deploy-backend.sh "$SSH_USER@$SSH_HOST:$REMOTE_DIR/deploy-backend.sh"
+          SSH_OPTS="-o ServerAliveInterval=30 -o ServerAliveCountMax=20 -o ConnectTimeout=30"
+          scp $SSH_OPTS -i ~/.ssh/deploy_key "${{ steps.jar.outputs.path }}" "$SSH_USER@$SSH_HOST:$REMOTE_DIR/backend/mysugu-app-api.jar.new"
+          scp $SSH_OPTS -i ~/.ssh/deploy_key ci/deploy-backend.sh "$SSH_USER@$SSH_HOST:$REMOTE_DIR/deploy-backend.sh"
 
       - name: Deploy (backup → swap → rebuild → health-gate → rollback)
         run: |
-          ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" "bash $REMOTE_DIR/deploy-backend.sh"
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 -o ConnectTimeout=30 \
+            -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" "bash $REMOTE_DIR/deploy-backend.sh"
