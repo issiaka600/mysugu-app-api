@@ -7,7 +7,8 @@ on:
 
 concurrency:
   group: mysugu-backend-deploy
-  cancel-in-progress: false
+  # A stuck deployment must not block the latest commit indefinitely.
+  cancel-in-progress: true
 
 env:
   SSH_HOST: 66.29.139.117
