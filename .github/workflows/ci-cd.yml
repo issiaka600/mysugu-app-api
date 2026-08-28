@@ -7,8 +7,9 @@ on:
 
 concurrency:
   group: mysugu-backend-deploy
-  # A stuck deployment must not block the latest commit indefinitely.
-  cancel-in-progress: true
+  # Never cancel a run mid-deploy: it can leave the server between the jar swap and
+  # the health gate. `timeout-minutes` below already bounds a stuck deployment.
+  cancel-in-progress: false
 
 env:
   SSH_HOST: 66.29.139.117
@@ -47,23 +48,47 @@ jobs:
         env:
           DEPLOY_SSH_KEY_B64: ${{ secrets.DEPLOY_SSH_KEY }}   # base64 (single line) of the OpenSSH private key
         run: |
+          set -euo pipefail
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          if [ -z "$DEPLOY_SSH_KEY_B64" ]; then
-            echo "::error::DEPLOY_SSH_KEY is empty — check it exists in the 'dev' environment and the job declares 'environment: dev'"
+
+          if [ -z "${DEPLOY_SSH_KEY_B64:-}" ]; then
+            echo "::error::secrets.DEPLOY_SSH_KEY is empty — check it exists in the 'dev' environment and the job declares 'environment: dev'"
             exit 1
           fi
-          printf '%s' "$DEPLOY_SSH_KEY_B64" | base64 -d > ~/.ssh/deploy_key
+
+          if ! printf '%s' "$DEPLOY_SSH_KEY_B64" | base64 -d > ~/.ssh/deploy_key 2>/tmp/base64.err; then
+            echo "::error::secrets.DEPLOY_SSH_KEY is not valid base64 ($(cat /tmp/base64.err)) — regenerate it with: base64 -w0 < deploy_key"
+            exit 1
+          fi
           chmod 600 ~/.ssh/deploy_key
-          ssh-keygen -y -f ~/.ssh/deploy_key >/dev/null   # fail fast if the key is malformed
-          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          if ! ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null; then
+            echo "::error::the decoded DEPLOY_SSH_KEY is not a usable OpenSSH private key"
+            exit 1
+          fi
+          echo "Deploy key loaded."
+
+          # Best effort only: ssh-keyscan can fail because the host firewalls the runner
+          # or is briefly down. That must not kill the job with a bare 'exit 1' and no
+          # output — the scp/ssh steps below use StrictHostKeyChecking=accept-new and
+          # will report the real connection error instead.
+          for attempt in 1 2 3; do
+            if ssh-keyscan -T 15 -H "$SSH_HOST" >> ~/.ssh/known_hosts && [ -s ~/.ssh/known_hosts ]; then
+              echo "known_hosts populated for $SSH_HOST (attempt $attempt)."
+              break
+            fi
+            echo "::warning::ssh-keyscan could not reach $SSH_HOST (attempt $attempt/3)"
+            sleep 5
+          done
 
       - name: Ship jar + deploy script
         run: |
-          SSH_OPTS="-o ServerAliveInterval=30 -o ServerAliveCountMax=20 -o ConnectTimeout=30"
+          SSH_OPTS="-o ServerAliveInterval=30 -o ServerAliveCountMax=20 -o ConnectTimeout=30 -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
           scp $SSH_OPTS -i ~/.ssh/deploy_key "${{ steps.jar.outputs.path }}" "$SSH_USER@$SSH_HOST:$REMOTE_DIR/backend/mysugu-app-api.jar.new"
           scp $SSH_OPTS -i ~/.ssh/deploy_key ci/deploy-backend.sh "$SSH_USER@$SSH_HOST:$REMOTE_DIR/deploy-backend.sh"
 
       - name: Deploy (backup → swap → rebuild → health-gate → rollback)
         run: |
           ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=20 -o ConnectTimeout=30 \
+            -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
             -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" "bash $REMOTE_DIR/deploy-backend.sh"

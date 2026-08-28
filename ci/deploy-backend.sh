@@ -44,8 +44,15 @@ done
 
 if [ "$ok" != "1" ]; then
   echo "HEALTH CHECK FAILED -- rolling back to $BAK"
+  docker logs --tail=80 mysugu-backend 2>&1 || true
   cp -f "$BAK" "$JAR"
-  docker compose up -d --build backend
+  # Roll back the same way we deployed: no resource-heavy rebuild on the prod host.
+  if docker container inspect mysugu-backend >/dev/null 2>&1; then
+    docker cp "$JAR" mysugu-backend:/app/mysugu-app-api.jar
+    docker restart mysugu-backend >/dev/null
+  else
+    docker compose up -d --build backend
+  fi
   echo "Rolled back to previous jar. DEPLOY FAILED."
   exit 2
 fi
