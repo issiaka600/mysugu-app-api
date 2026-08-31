@@ -181,7 +181,15 @@ public class NotificationServiceImpl implements NotificationService {
             String numeroVisible = numeroCommande != null && numeroCommande.startsWith("CMD-")
                     ? numeroCommande : "CMD-" + commandeId;
             String titre = "Commande annulée";
-            String message = "La commande " + numeroVisible + " a été annulée par le client.";
+            // L'auteur variait auparavant toujours "par le client" quel que soit canceledBy
+            // (correction PDF "vendeur annule la commande" : le client voyait "Annulé par le
+            // client" alors que c'était le vendeur).
+            String auteur = switch (canceledBy == null ? "" : canceledBy.toLowerCase()) {
+                case "seller", "vendeur" -> "par le vendeur";
+                case "livreur", "deliveryman" -> "par le livreur";
+                default -> "par le client";
+            };
+            String message = "La commande " + numeroVisible + " a été annulée " + auteur + ".";
             Notification notification = notificationRepository.save(Notification.builder()
                     .destinataire(user).titre(titre).message(message)
                     .type(TypeNotification.COMMANDE_ANNULEE).entityId(commandeId)

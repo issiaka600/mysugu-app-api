@@ -40,6 +40,15 @@ public interface CommandeService {
      */
     DevisLivraisonDTO calculerDevis(Long restaurantId, Double latitude, Double longitude, BigDecimal sousTotal);
     CommandeDTO updateCommandeStatus(Long id, CommandeUpdateStatusDTO commandeUpdateStatusDTO);
+
+    /**
+     * Variante utilisée par les endpoints authentifiés (vendeur) qui connaissent l'auteur du
+     * changement : {@code initiatorUserId} sert à (1) ne pas renvoyer à cette personne une
+     * notification de statut qui ne fait que confirmer sa propre action ("messages inutiles",
+     * correction PDF "Notifications de changement de statuts"), et (2) tracer l'auteur d'une
+     * annulation (canceled_by) quand le nouveau statut est ANNULEE.
+     */
+    CommandeDTO updateCommandeStatus(Long id, CommandeUpdateStatusDTO commandeUpdateStatusDTO, Long initiatorUserId);
     CommandeDTO assignLivreur(Long id, Long livreurId);
     CommandeDTO cancelCommande(Long id);
     CommandeDTO cancelCommandeByCustomer(Long id, String customerEmail, String reason);

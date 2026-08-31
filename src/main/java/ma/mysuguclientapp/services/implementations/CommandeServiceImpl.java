@@ -411,6 +411,11 @@ public class CommandeServiceImpl implements CommandeService {
 
     @Override
     public CommandeDTO updateCommandeStatus(Long id, CommandeUpdateStatusDTO statusDTO) {
+        return updateCommandeStatus(id, statusDTO, null);
+    }
+
+    @Override
+    public CommandeDTO updateCommandeStatus(Long id, CommandeUpdateStatusDTO statusDTO, Long initiatorUserId) {
         Commande commande = findCommande(id);
         StatutCommande nouveauStatut = parseStatut(statusDTO.getStatut());
 
@@ -430,10 +435,38 @@ public class CommandeServiceImpl implements CommandeService {
         }
         commande.setStatut(nouveauStatut);
 
+        // Livreur(s) à notifier explicitement de l'annulation (avec motif + auteur) : celui avec
+        // une offre encore PROPOSEE (pas encore acceptée) n'est pas commande.getLivreur() — sans
+        // ceci son offre resterait active/orpheline et il ne serait jamais notifié. Même logique
+        // que cancelCommandeByCustomer, ici pour l'annulation déclenchée par le vendeur
+        // (correction PDF "vendeur annule la commande" / "le livreur doit aussi recevoir le
+        // message d'annulation").
+        Set<Long> livreursANotifierAnnulation = new HashSet<>();
+        if (nouveauStatut == StatutCommande.ANNULEE) {
+            offreLivraisonRepository.findByCommandeIdAndStatut(id, StatutOffreLivraison.PROPOSEE)
+                    .ifPresent(offre -> {
+                        offre.setStatut(StatutOffreLivraison.ANNULEE);
+                        offre.setRespondedAt(LocalDateTime.now());
+                        offreLivraisonRepository.save(offre);
+                        livreursANotifierAnnulation.add(offre.getLivreur().getId());
+                    });
+            if (commande.getLivreur() != null) {
+                livreursANotifierAnnulation.add(commande.getLivreur().getId());
+            }
+        }
+
         if (estStatutEchec(nouveauStatut)) {
             // Champ réutilisé pour RETOURNEE/ECHEC_LIVRAISON (pas de champ dédié) : il porte la
             // raison de la non-livraison au sens large, pas seulement d'une annulation.
             commande.setRaisonAnnulation(statusDTO.getRaisonAnnulation());
+            if (nouveauStatut == StatutCommande.ANNULEE && initiatorUserId != null) {
+                // L'auteur réel de l'annulation, déduit de son rôle — correction PDF "vendeur
+                // annule la commande" / "Client annule la commande" : le client voyait un texte
+                // générique ou faussement attribué, quel que soit qui avait vraiment annulé.
+                userRepository.findById(initiatorUserId).ifPresent(initiator ->
+                        commande.setCanceledBy(canceledByLabel(initiator.getRole())));
+                commande.setCanceledAt(LocalDateTime.now());
+            }
             // Libérer le livreur si déjà assigné
             if (commande.getLivreur() != null) {
                 commande.getLivreur().setLivreurDisponible(true);
@@ -513,7 +546,14 @@ public class CommandeServiceImpl implements CommandeService {
         if (nouveauStatut == StatutCommande.CONFIRMEE) {
             envoyerNotificationsConfirmation(updatedCommande);
         }
-        notifierPartiesCommande(updatedCommande);
+        notifierPartiesCommande(updatedCommande, initiatorUserId);
+        livreursANotifierAnnulation.forEach(livreurId -> {
+            if (!livreurId.equals(initiatorUserId)) {
+                notificationService.envoyerNotificationAnnulationCommande(
+                        livreurId, updatedCommande.getNumeroCommande(), updatedCommande.getId(),
+                        updatedCommande.getCanceledBy(), updatedCommande.getRaisonAnnulation());
+            }
+        });
 
         log.info("Statut de la commande {} mis a jour: {}", commande.getNumeroCommande(), nouveauStatut);
         return convertToDTO(updatedCommande);
@@ -911,20 +951,58 @@ public class CommandeServiceImpl implements CommandeService {
 
     /** Notifie les acteurs actuellement liés à la commande avec le même statut de suivi. */
     private void notifierPartiesCommande(Commande commande) {
+        notifierPartiesCommande(commande, null);
+    }
+
+    /** Valeur de Commande.canceledBy selon le rôle de l'auteur d'une annulation. */
+    private String canceledByLabel(UserRole role) {
+        if (role == null) return "customer";
+        return switch (role) {
+            case RESTAURANT_OWNER, RESTAURANT_STAFF -> "seller";
+            case LIVREUR -> "livreur";
+            default -> "customer";
+        };
+    }
+
+    /**
+     * Notifie les acteurs actuellement liés à la commande. {@code excludeUserId} évite de
+     * renvoyer à l'auteur du changement une notification qui ne fait que confirmer sa propre
+     * action (correction PDF "Notifications de changement de statuts" : "le vendeur reçoit
+     * encore beaucoup de messages inutiles"). Quand le nouveau statut est une annulation déjà
+     * attribuée (canceledBy renseigné), le client et le livreur reçoivent le message
+     * d'annulation (avec motif + auteur) plutôt que le message de statut générique.
+     */
+    private void notifierPartiesCommande(Commande commande, Long excludeUserId) {
         if (commande == null || commande.getStatut() == null) return;
         Long commandeId = commande.getId();
         String numero = commande.getNumeroCommande();
-        if (commande.getClient() != null) {
-            notificationService.envoyerNotificationStatutCommande(
-                    commande.getClient().getId(), numero, commandeId, commande.getStatut());
+        boolean annuleeAvecAuteur = commande.getStatut() == StatutCommande.ANNULEE
+                && commande.getCanceledBy() != null;
+
+        if (commande.getClient() != null && !commande.getClient().getId().equals(excludeUserId)) {
+            if (annuleeAvecAuteur) {
+                notificationService.envoyerNotificationAnnulationCommande(
+                        commande.getClient().getId(), numero, commandeId,
+                        commande.getCanceledBy(), commande.getRaisonAnnulation());
+            } else {
+                notificationService.envoyerNotificationStatutCommande(
+                        commande.getClient().getId(), numero, commandeId, commande.getStatut());
+            }
         }
-        if (commande.getRestaurant() != null && commande.getRestaurant().getOwner() != null) {
+        if (commande.getRestaurant() != null && commande.getRestaurant().getOwner() != null
+                && !commande.getRestaurant().getOwner().getId().equals(excludeUserId)) {
             notificationService.envoyerNotificationStatutCommande(
                     commande.getRestaurant().getOwner().getId(), numero, commandeId, commande.getStatut());
         }
-        if (commande.getLivreur() != null) {
-            notificationService.envoyerNotificationStatutCommande(
-                    commande.getLivreur().getId(), numero, commandeId, commande.getStatut());
+        if (commande.getLivreur() != null && !commande.getLivreur().getId().equals(excludeUserId)) {
+            if (annuleeAvecAuteur) {
+                notificationService.envoyerNotificationAnnulationCommande(
+                        commande.getLivreur().getId(), numero, commandeId,
+                        commande.getCanceledBy(), commande.getRaisonAnnulation());
+            } else {
+                notificationService.envoyerNotificationStatutCommande(
+                        commande.getLivreur().getId(), numero, commandeId, commande.getStatut());
+            }
         }
     }
 

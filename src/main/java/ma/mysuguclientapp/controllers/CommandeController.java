@@ -14,6 +14,7 @@ import ma.mysuguclientapp.enumerations.StatutCommande;
 import ma.mysuguclientapp.services.interfaces.CommandeService;
 import ma.mysuguclientapp.services.implementations.CommandeContactService;
 import ma.mysuguclientapp.services.implementations.CommandeAccessService;
+import ma.mysuguclientapp.repositories.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -32,6 +33,7 @@ public class CommandeController {
     private final CommandeService commandeService;
     private final CommandeContactService commandeContactService;
     private final CommandeAccessService commandeAccessService;
+    private final UserRepository userRepository;
 
     /**
      * GET /api/commandes - Obtenir toutes les commandes
@@ -154,9 +156,16 @@ public class CommandeController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<CommandeDTO> updateCommandeStatus(
             @PathVariable Long id,
-            @Valid @RequestBody CommandeUpdateStatusDTO statusDTO) {
+            @Valid @RequestBody CommandeUpdateStatusDTO statusDTO,
+            @AuthenticationPrincipal String email) {
 
-        CommandeDTO updated = commandeService.updateCommandeStatus(id, statusDTO);
+        // L'auteur (client, vendeur, livreur...) sert à attribuer correctement une annulation
+        // (canceled_by) et à ne pas le re-notifier de sa propre action — corrections PDF
+        // "Client annule la commande" / "Notifications de changement de statuts".
+        Long initiatorUserId = email != null
+                ? userRepository.findByEmail(email).map(u -> u.getId()).orElse(null)
+                : null;
+        CommandeDTO updated = commandeService.updateCommandeStatus(id, statusDTO, initiatorUserId);
         return ResponseEntity.ok(updated);
     }
 
