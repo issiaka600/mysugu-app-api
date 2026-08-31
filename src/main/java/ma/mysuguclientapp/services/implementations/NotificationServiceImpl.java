@@ -359,6 +359,8 @@ public class NotificationServiceImpl implements NotificationService {
             case LIVREE -> "delivered";
             case ANNULEE -> "canceled";
             case NON_FINALISEE -> "pending";
+            case RETOURNEE -> "returned";
+            case ECHEC_LIVRAISON -> "failed";
         };
     }
 
@@ -373,6 +375,8 @@ public class NotificationServiceImpl implements NotificationService {
             case LIVREE -> "Commande livrée";
             case ANNULEE -> "Commande annulée";
             case NON_FINALISEE -> "Commande en attente";
+            case RETOURNEE -> "Commande retournée";
+            case ECHEC_LIVRAISON -> "Échec de la livraison";
         };
     }
 
@@ -388,6 +392,8 @@ public class NotificationServiceImpl implements NotificationService {
             case LIVREE -> "Votre commande " + numero + " a été livrée.";
             case ANNULEE -> "Votre commande " + numero + " a été annulée.";
             case NON_FINALISEE -> "Votre commande " + numero + " est en attente de finalisation.";
+            case RETOURNEE -> "Votre commande " + numero + " a été retournée.";
+            case ECHEC_LIVRAISON -> "La livraison de votre commande " + numero + " a échoué.";
         };
     }
 
@@ -398,7 +404,7 @@ public class NotificationServiceImpl implements NotificationService {
             case PRETE -> TypeNotification.COMMANDE_PRETE;
             case EN_COURS -> TypeNotification.COMMANDE_EN_COURS;
             case LIVREE -> TypeNotification.COMMANDE_LIVREE;
-            case ANNULEE -> TypeNotification.COMMANDE_ANNULEE;
+            case ANNULEE, RETOURNEE, ECHEC_LIVRAISON -> TypeNotification.COMMANDE_ANNULEE;
             case ASSIGNEE_LIVREUR -> TypeNotification.LIVREUR_ASSIGNE;
             default -> TypeNotification.SYSTEME;
         };

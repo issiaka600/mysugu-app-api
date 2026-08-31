@@ -166,6 +166,24 @@ public class DispatchLivraisonService {
         eventPublisher.publishEvent(new DispatchLivraisonEvent(commandeId));
     }
 
+    /**
+     * Démarre le dispatch des commandes dont le délai post-EN_PREPARATION (posé par
+     * CommandeServiceImpl#updateCommandeStatus, "sonneries persistantes" §2) est échu. Le champ
+     * est remis à null avant publication pour ne pas re-déclencher au poll suivant — publier
+     * l'événement suffit, {@code proposerProchainLivreur} gère lui-même l'idempotence (offre déjà
+     * PROPOSEE, livreur déjà assigné, etc.).
+     */
+    @Scheduled(fixedDelayString = "${delivery.offer.poll-delay-ms:5000}")
+    public void demarrerDispatchsDus() {
+        commandeRepository.findDispatchLivreurDueIds(LocalDateTime.now()).forEach(commandeId -> {
+            commandeRepository.findById(commandeId).ifPresent(c -> {
+                c.setDispatchLivreurAt(null);
+                commandeRepository.save(c);
+            });
+            eventPublisher.publishEvent(new DispatchLivraisonEvent(commandeId));
+        });
+    }
+
     /** Expire les offres non répondues puis déclenche l'offre suivante. */
     @Scheduled(fixedDelayString = "${delivery.offer.poll-delay-ms:5000}")
     public void expirerOffres() {

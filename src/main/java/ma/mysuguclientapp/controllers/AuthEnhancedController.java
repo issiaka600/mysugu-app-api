@@ -82,6 +82,21 @@ public class AuthEnhancedController {
         ));
     }
 
+    // ===== Connexion unifiée e-mail/téléphone (correction PDF "Connexion à son compte") =====
+    // e-mail+mdp -> code envoyé par e-mail, à valider via login-verify-otp.
+    // téléphone+mdp -> accès direct (loginResponse déjà rempli).
+
+    @PostMapping("/api/auth/login-identifiant")
+    public ResponseEntity<LoginStepResultDTO> loginParIdentifiant(@Valid @RequestBody LoginIdentifiantDTO dto) {
+        return ResponseEntity.ok(authEnhancedService.loginParIdentifiant(dto));
+    }
+
+    @PostMapping("/api/auth/login-verify-otp")
+    public ResponseEntity<ma.mysuguclientapp.dtos.LoginResponseDTO> verifierCodeConnexion(
+            @RequestBody VerifyOtpDTO dto) {
+        return ResponseEntity.ok(authEnhancedService.verifierCodeConnexion(dto));
+    }
+
     // ===== Token Management =====
 
     @PostMapping("/api/auth/refresh")

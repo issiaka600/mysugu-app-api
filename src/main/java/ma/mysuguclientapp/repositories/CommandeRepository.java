@@ -103,6 +103,14 @@ public interface CommandeRepository extends JpaRepository<Commande, Long> {
     @Query("SELECT c FROM Commande c WHERE c.id = :id")
     Optional<Commande> findByIdForUpdate(Long id);
 
+    /**
+     * Commandes dont le délai avant recherche de livreur (dispatchLivreurAt, posé à EN_PREPARATION
+     * — correction "sonneries persistantes" §2) est échu. Le poller de {@code
+     * DispatchLivraisonService} les traite puis remet dispatchLivreurAt à null.
+     */
+    @Query("SELECT c.id FROM Commande c WHERE c.dispatchLivreurAt IS NOT NULL AND c.dispatchLivreurAt <= :now")
+    List<Long> findDispatchLivreurDueIds(LocalDateTime now);
+
     // --- Vendor shim 3e: derivation-only (vendor->livreur ownership is NOT native, umbrella §4
     // GAP; 3e SCOPE DECISION). These derive the "roster" of livreurs who actually served a given
     // restaurant, read-only, from existing Commande rows — no ownership FK is created. ---

@@ -39,6 +39,8 @@ public class LegacyOrderMapper {
             case EN_COURS -> "out_for_delivery";
             case LIVREE -> "delivered";
             case ANNULEE -> "canceled";
+            case RETOURNEE -> "returned";
+            case ECHEC_LIVRAISON -> "failed";
         };
     }
 
@@ -48,7 +50,9 @@ public class LegacyOrderMapper {
         return switch (legacy.toLowerCase()) {
             case "out_for_delivery" -> StatutCommande.EN_COURS;
             case "delivered" -> StatutCommande.LIVREE;
-            case "canceled", "returned" -> StatutCommande.ANNULEE;
+            case "canceled" -> StatutCommande.ANNULEE;
+            case "returned" -> StatutCommande.RETOURNEE;
+            case "failed" -> StatutCommande.ECHEC_LIVRAISON;
             case "confirmed" -> StatutCommande.CONFIRMEE;
             case "processing" -> StatutCommande.EN_PREPARATION;
             case "pending" -> StatutCommande.EN_ATTENTE;
@@ -99,6 +103,14 @@ public class LegacyOrderMapper {
         m.put("is_shipping_free", false);
         m.put("total_commission", nz(c.getMontantCommissionTotal()));
         m.put("seller_total", montantVendeur);
+        // Écran "Infos de paiement" appli livreurs (correction PDF bug #10) :
+        // total commande = total vendeur + commission (prix produits, hors livraison, hors remise admin)
+        // commissions = notre commission ; total vendeur = déjà calculé ci-dessus (montant_vendeur)
+        // remise = promotion automatique restaurant (toujours admin) ; coupon = code saisi par le client
+        // total général = montant que le client paie au final (déjà exposé via order_amount/montantFinal)
+        m.put("total_commande", montantVendeur.add(nz(c.getMontantCommissionTotal())));
+        m.put("montant_remise_promotion", nz(c.getMontantRemisePromotion()));
+        m.put("montant_coupon", nz(c.getMontantCoupon()));
 
         Map<String, Object> address = addressMap(c);
         m.put("shipping_address", address);
@@ -120,10 +132,17 @@ public class LegacyOrderMapper {
         return r.getId();
     }
 
+    /**
+     * Montant net vendeur : prix des plats/produits moins la commission, hors livraison.
+     * Une remise financée par l'admin n'est pas déduite du montant vendeur (correction "résumé
+     * de commande vendeur" / infos de paiement livreur, §3d et §3f) — voir la même logique dans
+     * CommandeServiceImpl#calculerMontantVendeur.
+     */
     private BigDecimal montantVendeur(Commande commande, BigDecimal montantFinal) {
         return montantFinal
                 .subtract(nz(commande.getFraisLivraison()))
                 .subtract(nz(commande.getMontantCommissionTotal()))
+                .add(nz(commande.getMontantRemiseAdmin()))
                 .max(BigDecimal.ZERO);
     }
 

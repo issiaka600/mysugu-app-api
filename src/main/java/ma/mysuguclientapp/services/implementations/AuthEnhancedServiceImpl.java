@@ -39,6 +39,10 @@ public class AuthEnhancedServiceImpl implements AuthEnhancedService {
 
     private static final String TYPE_OTP = "PASSWORD_RESET_OTP";
     private static final String TYPE_RESET = "PASSWORD_RESET";
+    // Type distinct de TYPE_OTP : un code de connexion (correction PDF "Connexion à son compte")
+    // ne doit pas pouvoir être rejoué dans le flux de réinitialisation de mot de passe, ni
+    // inversement.
+    private static final String TYPE_LOGIN_OTP = "LOGIN_OTP";
     private final java.security.SecureRandom secureRandom = new java.security.SecureRandom();
 
     @Override
@@ -176,6 +180,123 @@ public class AuthEnhancedServiceImpl implements AuthEnhancedService {
         tokenVerificationRepository.save(resetTv);
 
         return resetToken;
+    }
+
+    // ===== Connexion unifiée e-mail/téléphone (correction PDF "Connexion à son compte") =====
+
+    @Override
+    @Transactional
+    public ma.mysuguclientapp.dtos.auth.LoginStepResultDTO loginParIdentifiant(
+            ma.mysuguclientapp.dtos.auth.LoginIdentifiantDTO dto) {
+        String saisi = dto.getIdentifiant() == null ? "" : dto.getIdentifiant().trim();
+        boolean estEmail = saisi.contains("@");
+
+        User user;
+        if (estEmail) {
+            user = userRepository.findByEmail(saisi.toLowerCase())
+                    .orElseThrow(() -> new ma.mysuguclientapp.exceptions.UnauthorizedException(
+                            "Identifiants incorrects."));
+        } else {
+            // Même logique de reconnaissance des variantes de numéro (E.164 stocké vs saisie
+            // locale) que pour la connexion livreur — voir DeliveryManAuthController#phoneCandidates.
+            java.util.Set<String> candidats = ma.mysuguclientapp.legacy.deliveryman.controller
+                    .DeliveryManAuthController.phoneCandidates("212", saisi);
+            List<User> matches = candidats.isEmpty()
+                    ? List.of()
+                    : userRepository.findByTelephoneIn(candidats);
+            if (matches.isEmpty()) {
+                throw new ma.mysuguclientapp.exceptions.UnauthorizedException("Identifiants incorrects.");
+            }
+            user = matches.get(0);
+        }
+
+        if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
+            throw new ma.mysuguclientapp.exceptions.UnauthorizedException("Identifiants incorrects.");
+        }
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new ma.mysuguclientapp.exceptions.UnauthorizedException("Compte désactivé");
+        }
+
+        if (estEmail) {
+            if (!Boolean.TRUE.equals(user.getEmailVerified())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "Email non vérifié. Consultez votre boîte e-mail pour vérifier votre compte.");
+            }
+            String otp = String.format("%06d", secureRandom.nextInt(1_000_000));
+            TokenVerification tv = TokenVerification.builder()
+                    .user(user)
+                    .token(otp)
+                    .type(TYPE_LOGIN_OTP)
+                    .expiresAt(LocalDateTime.now().plusMinutes(10))
+                    .build();
+            tokenVerificationRepository.save(tv);
+            emailService.envoyerCodeOtp(user.getEmail(), otp);
+            log.info("Code de connexion envoyé à {}", user.getEmail());
+            return ma.mysuguclientapp.dtos.auth.LoginStepResultDTO.builder()
+                    .requiresOtp(true)
+                    .email(user.getEmail())
+                    .build();
+        }
+
+        // Téléphone : accès direct, comme demandé par le PDF.
+        return ma.mysuguclientapp.dtos.auth.LoginStepResultDTO.builder()
+                .requiresOtp(false)
+                .loginResponse(buildLoginResponse(user))
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public ma.mysuguclientapp.dtos.LoginResponseDTO verifierCodeConnexion(VerifyOtpDTO dto) {
+        User user = userRepository.findByEmail(dto.getEmail())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Code invalide"));
+
+        TokenVerification tv = tokenVerificationRepository.findByTokenAndType(dto.getOtp(), TYPE_LOGIN_OTP)
+                .filter(t -> t.getUser().getId().equals(user.getId()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Code invalide"));
+
+        if (tv.isExpired()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Code expiré");
+        if (tv.isUsed()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Code déjà utilisé");
+
+        tv.setUsedAt(LocalDateTime.now());
+        tokenVerificationRepository.save(tv);
+
+        return buildLoginResponse(user);
+    }
+
+    /**
+     * Construit la réponse de connexion (token + profil) — même forme que
+     * UserServiceImpl#buildLoginResponse, dupliquée ici intentionnellement : AuthEnhancedServiceImpl
+     * ne peut pas dépendre de UserService (UserServiceImpl dépend déjà de AuthEnhancedService,
+     * une dépendance dans l'autre sens créerait un cycle de beans Spring au démarrage).
+     */
+    private ma.mysuguclientapp.dtos.LoginResponseDTO buildLoginResponse(User user) {
+        String token = jwtTokenProvider.generateToken(user);
+        ma.mysuguclientapp.dtos.LoginResponseDTO response = new ma.mysuguclientapp.dtos.LoginResponseDTO();
+        response.setToken(token);
+        ma.mysuguclientapp.dtos.UserDTO userDto = new ma.mysuguclientapp.dtos.UserDTO();
+        userDto.setId(user.getId());
+        userDto.setEmail(user.getEmail());
+        userDto.setNom(user.getNom());
+        userDto.setPrenom(user.getPrenom());
+        userDto.setTelephone(user.getTelephone());
+        userDto.setRole(user.getRole().name());
+        userDto.setAvatar(user.getAvatar());
+        userDto.setIsActive(user.getIsActive());
+        userDto.setLivreurDisponible(user.getLivreurDisponible());
+        userDto.setCreatedAt(user.getCreatedAt());
+        if (user.getLocalisation() != null) {
+            userDto.setLocalisation(ma.mysuguclientapp.dtos.LocalisationDTO.builder()
+                    .latitude(user.getLocalisation().getLatitude())
+                    .longitude(user.getLocalisation().getLongitude())
+                    .adresse(user.getLocalisation().getAdresse())
+                    .ville(user.getLocalisation().getVille())
+                    .codePostal(user.getLocalisation().getCodePostal())
+                    .pays(user.getLocalisation().getPays())
+                    .build());
+        }
+        response.setUser(userDto);
+        return response;
     }
 
     @Override

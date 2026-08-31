@@ -31,6 +31,8 @@ public class OrderStatusMapper {
         OUTBOUND_STATUS.put(StatutCommande.LIVREE, "delivered");
         OUTBOUND_STATUS.put(StatutCommande.ANNULEE, "canceled");
         OUTBOUND_STATUS.put(StatutCommande.NON_FINALISEE, "failed");
+        OUTBOUND_STATUS.put(StatutCommande.RETOURNEE, "returned");
+        OUTBOUND_STATUS.put(StatutCommande.ECHEC_LIVRAISON, "failed");
     }
 
     // ---- Inbound: 6valley order_status -> native StatutCommande (spec §3) ----
@@ -42,9 +44,10 @@ public class OrderStatusMapper {
             "out_for_delivery", StatutCommande.EN_COURS,
             "delivered", StatutCommande.LIVREE,
             "canceled", StatutCommande.ANNULEE,
-            // native has no return/fail state (spec §6) — both collapse to ANNULEE
-            "returned", StatutCommande.ANNULEE,
-            "failed", StatutCommande.ANNULEE
+            // Distincts depuis l'ajout de RETOURNEE/ECHEC_LIVRAISON (spec §6 obsolète sur ce point) :
+            // "returned" et "failed" ne collapsent plus dans ANNULEE.
+            "returned", StatutCommande.RETOURNEE,
+            "failed", StatutCommande.ECHEC_LIVRAISON
     );
 
     // ---- Outbound: native StatutPaiement -> 6valley payment_status (spec §3b) ----
