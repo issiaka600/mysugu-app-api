@@ -191,11 +191,19 @@ public class DispatchLivraisonService {
                 .forEach(this::expirerOffre);
     }
 
-    /** Relance l'alerte tant que l'offre est encore réservée au même livreur. */
+    /**
+     * Ré-émission désactivée (correction PDF "Sonneries commandes", même traitement que
+     * {@link AlerteCommandeVendeurService#sendDueAlerts()}) : renvoyer un FCM {@code notification}
+     * complet toutes les {@code offerAlertIntervalSeconds} recréait une alerte "comme si c'était
+     * une nouvelle commande" au lieu d'un son réellement persistant. L'unique envoi initial (voir
+     * {@link #envoyerAlerteOffre}) porte désormais une notification Android FLAG_INSISTENT +
+     * non-annulable côté app livreur : le son se répète en continu jusqu'à ce que le livreur
+     * ouvre la commande. Ne concerne QUE le rappel au même livreur pendant sa fenêtre d'offre —
+     * {@link #expirerOffres()} et la rotation vers le livreur suivant restent inchangés.
+     */
     @Scheduled(fixedDelayString = "${delivery.offer.poll-delay-ms:5000}")
     public void rappelerOffres() {
-        offreRepository.findAlertDueIds(StatutOffreLivraison.PROPOSEE, LocalDateTime.now())
-                .forEach(this::rappelerOffre);
+        // Intentionnellement no-op — voir Javadoc ci-dessus.
     }
 
     private void expirerOffre(Long offreId) {

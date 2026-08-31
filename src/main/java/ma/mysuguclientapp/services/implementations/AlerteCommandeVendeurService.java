@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 /**
  * Gère l'alerte répétée d'une nouvelle commande pour son vendeur.
@@ -72,10 +71,20 @@ public class AlerteCommandeVendeurService {
         });
     }
 
-    /** Réveille les campagnes arrivées à échéance. La ligne est verrouillée pendant chaque envoi. */
+    /**
+     * Ré-émission désactivée (correction PDF "Sonneries commandes") : renvoyer un FCM
+     * {@code notification} complet toutes les {@code intervalSeconds} recréait à chaque fois une
+     * alerte visuellement identique à une nouvelle commande ("ça sonne une fois, puis mets un peu
+     * de temps avant de sonner encore... avec le même message... comme si c'était une nouvelle
+     * commande") et n'offrait qu'un anneau intermittent plutôt qu'un son réellement persistant.
+     * Le seul envoi (voir {@link #sendImmediatelyForCommande}) porte désormais une notification
+     * Android FLAG_INSISTENT + non-annulable (MyNotification.showBigTextNotification côté app
+     * vendeur) : le son/la vibration se répètent en continu jusqu'à ce que le vendeur ouvre la
+     * commande, sans ré-envoi serveur. L'infrastructure d'audit (AlerteCommandeVendeur,
+     * stopForCommande) reste en place si une ré-émission de secours devait être réintroduite.
+     */
     @Scheduled(fixedDelayString = "${order.seller-alert.poll-delay-ms:5000}")
     public void sendDueAlerts() {
-        List<Long> dueIds = alerteRepository.findDueIds(StatutAlerteCommandeVendeur.ACTIVE, LocalDateTime.now());
-        dueIds.forEach(id -> sender.sendDueAlert(id, false));
+        // Intentionnellement no-op — voir Javadoc ci-dessus.
     }
 }

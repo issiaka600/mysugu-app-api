@@ -138,7 +138,16 @@ public class OrderSellerController {
         }
         CommandeUpdateStatusDTO dto = new CommandeUpdateStatusDTO();
         dto.setStatut(statut.name());
-        commandeService.updateCommandeStatus(id, dto);
+        if (statut == StatutCommande.ANNULEE) {
+            // Motif d'annulation saisi par le vendeur (correction PDF "vendeur annule la
+            // commande" : jusqu'ici aucun champ de saisie n'existait côté vendeur).
+            Object reason = body != null ? body.get("cancel_reason") : null;
+            if (reason != null && !reason.toString().isBlank()) {
+                dto.setRaisonAnnulation(reason.toString().trim());
+            }
+        }
+        Long vendeurId = sellerContext.requireOwner(email).getId();
+        commandeService.updateCommandeStatus(id, dto, vendeurId);
         return ResponseEntity.ok(Map.of("message", "Statut mis à jour."));
     }
 

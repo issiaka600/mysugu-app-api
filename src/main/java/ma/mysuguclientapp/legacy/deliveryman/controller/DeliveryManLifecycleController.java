@@ -92,6 +92,8 @@ public class DeliveryManLifecycleController {
                 stockService.restituer(c);
                 c.setStatut(StatutCommande.ANNULEE);
                 if (cause != null) c.setRaisonAnnulation(cause);
+                c.setCanceledBy("livreur");
+                c.setCanceledAt(LocalDateTime.now());
                 libererLivreur(c);
                 commandeRepository.save(c);
             }
@@ -110,7 +112,7 @@ public class DeliveryManLifecycleController {
             }
         }
         commandeStatusHistoryService.record(c);
-        notifierPartiesStatut(c);
+        notifierPartiesStatut(c, l.getId());
         return ResponseEntity.ok(new MessageResponse("Order status updated successfully!"));
     }
 
@@ -265,16 +267,37 @@ public class DeliveryManLifecycleController {
         }
     }
 
-    private void notifierPartiesStatut(Commande c) {
-        if (c.getClient() != null) {
-            notificationService.envoyerNotificationStatutCommande(
-                    c.getClient().getId(), c.getNumeroCommande(), c.getId(), c.getStatut());
+    /**
+     * {@code excludeUserId} : ne pas renvoyer au livreur auteur du changement une notification
+     * qui ne fait que confirmer sa propre action (correction PDF "Notifications de changement de
+     * statuts" — le même souci que côté vendeur). Quand le nouveau statut est une annulation
+     * attribuée (canceledBy renseigné, ex: le livreur annule/retourne la commande), client et
+     * vendeur reçoivent le message d'annulation (motif + auteur) plutôt que le message générique.
+     */
+    private void notifierPartiesStatut(Commande c, Long excludeUserId) {
+        boolean annuleeAvecAuteur = c.getStatut() == StatutCommande.ANNULEE && c.getCanceledBy() != null;
+        if (c.getClient() != null && !c.getClient().getId().equals(excludeUserId)) {
+            if (annuleeAvecAuteur) {
+                notificationService.envoyerNotificationAnnulationCommande(
+                        c.getClient().getId(), c.getNumeroCommande(), c.getId(),
+                        c.getCanceledBy(), c.getRaisonAnnulation());
+            } else {
+                notificationService.envoyerNotificationStatutCommande(
+                        c.getClient().getId(), c.getNumeroCommande(), c.getId(), c.getStatut());
+            }
         }
-        if (c.getRestaurant() != null && c.getRestaurant().getOwner() != null) {
-            notificationService.envoyerNotificationStatutCommande(
-                    c.getRestaurant().getOwner().getId(), c.getNumeroCommande(), c.getId(), c.getStatut());
+        if (c.getRestaurant() != null && c.getRestaurant().getOwner() != null
+                && !c.getRestaurant().getOwner().getId().equals(excludeUserId)) {
+            if (annuleeAvecAuteur) {
+                notificationService.envoyerNotificationAnnulationCommande(
+                        c.getRestaurant().getOwner().getId(), c.getNumeroCommande(), c.getId(),
+                        c.getCanceledBy(), c.getRaisonAnnulation());
+            } else {
+                notificationService.envoyerNotificationStatutCommande(
+                        c.getRestaurant().getOwner().getId(), c.getNumeroCommande(), c.getId(), c.getStatut());
+            }
         }
-        if (c.getLivreur() != null) {
+        if (c.getLivreur() != null && !c.getLivreur().getId().equals(excludeUserId)) {
             notificationService.envoyerNotificationStatutCommande(
                     c.getLivreur().getId(), c.getNumeroCommande(), c.getId(), c.getStatut());
         }
