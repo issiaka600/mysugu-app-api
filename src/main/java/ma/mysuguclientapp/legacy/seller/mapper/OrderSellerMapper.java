@@ -38,12 +38,15 @@ public class OrderSellerMapper {
         m.put("order_status", statusMapper.toSixValleyStatus(parseStatut(dto.getStatut())));
         m.put("payment_status", statusMapper.toSixValleyPayment(parseStatutPaiement(dto.getStatutPaiement())));
         m.put("payment_method", dto.getMethodePaiement());
-        // Never-null: the app calls .toDouble() on these (spec §4).
-        m.put("order_amount", nonNull(dto.getMontantFinal()));
-        m.put("montantFinal", nonNull(dto.getMontantFinal()));
+        // "Total général" côté vendeur = "total vendeur" (correction résumé de commande vendeur) :
+        // jamais le total payé par le client (qui inclut livraison + commission), pour ne pas
+        // laisser croire au vendeur que ces montants lui reviennent. Never-null (spec §4).
+        BigDecimal montantVendeur = nonNull(dto.getMontantVendeur());
+        m.put("order_amount", montantVendeur);
+        m.put("montantFinal", montantVendeur);
         m.put("shipping_cost", nonNull(dto.getFraisLivraison()));
         m.put("discount_amount", nonNull(dto.getMontantRemise()));
-        m.put("montant_vendeur", nonNull(dto.getMontantVendeur()));
+        m.put("montant_vendeur", montantVendeur);
         m.put("montant_commission_total", nonNull(dto.getMontantCommissionTotal()));
         m.put("delivery_man_id", dto.getLivreur() != null ? dto.getLivreur().getId() : null);
         m.put("delivery_man", toDeliveryMan(dto.getLivreur()));

@@ -67,7 +67,7 @@ public class CommandeStatusHistoryService {
             case EN_COURS -> "out_for_delivery";
             case LIVREE -> "delivered";
             // Une annulation et l'assignation ne constituent pas une étape du parcours Customer demandé.
-            case ASSIGNEE_LIVREUR, ANNULEE, NON_FINALISEE -> null;
+            case ASSIGNEE_LIVREUR, ANNULEE, NON_FINALISEE, RETOURNEE, ECHEC_LIVRAISON -> null;
         };
     }
 }

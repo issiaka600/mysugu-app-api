@@ -2,6 +2,7 @@ package ma.mysuguclientapp.services.interfaces;
 
 import ma.mysuguclientapp.dtos.CommandeCreateDTO;
 import ma.mysuguclientapp.dtos.CommandeDTO;
+import ma.mysuguclientapp.dtos.DevisLivraisonDTO;
 import ma.mysuguclientapp.dtos.CommandeUpdateStatusDTO;
 import ma.mysuguclientapp.dtos.AssignThirdPartyDeliveryDTO;
 import ma.mysuguclientapp.dtos.UpdatePaymentStatusDTO;
@@ -11,6 +12,7 @@ import ma.mysuguclientapp.enumerations.StatutCommande;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -29,6 +31,14 @@ public interface CommandeService {
     List<CommandeDTO> getCommandesByLivreur(Long livreurId);
     List<CommandeDTO> getCommandesEnCours();
     CommandeDTO createCommande(CommandeCreateDTO commandeCreateDTO);
+    /**
+     * Devis (aperçu) des frais de livraison et de la remise automatique restaurant, calculé
+     * avec exactement la même logique que createCommande — sans créer de commande ni
+     * incrémenter le compteur d'utilisation de la promotion. Permet au panier client d'afficher
+     * AVANT validation le même total que celui facturé APRÈS (correction PDF "Problème de
+     * montant total").
+     */
+    DevisLivraisonDTO calculerDevis(Long restaurantId, Double latitude, Double longitude, BigDecimal sousTotal);
     CommandeDTO updateCommandeStatus(Long id, CommandeUpdateStatusDTO commandeUpdateStatusDTO);
     CommandeDTO assignLivreur(Long id, Long livreurId);
     CommandeDTO cancelCommande(Long id);

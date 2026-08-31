@@ -134,6 +134,21 @@ public class CommandeController {
     }
 
     /**
+     * GET /api/commandes/devis - Devis (aperçu) des frais de livraison et de la remise
+     * automatique restaurant AVANT de passer la commande (correction PDF "Problème de montant
+     * total" : le panier doit afficher le même total que celui facturé après validation).
+     * latitude/longitude optionnels : sans adresse encore choisie, fraisLivraison vaut 0.
+     */
+    @GetMapping("/devis")
+    public ResponseEntity<ma.mysuguclientapp.dtos.DevisLivraisonDTO> getDevis(
+            @RequestParam Long restaurantId,
+            @RequestParam(required = false) Double latitude,
+            @RequestParam(required = false) Double longitude,
+            @RequestParam(required = false) java.math.BigDecimal sousTotal) {
+        return ResponseEntity.ok(commandeService.calculerDevis(restaurantId, latitude, longitude, sousTotal));
+    }
+
+    /**
      * PATCH /api/commandes/{id}/status - Mettre à jour le statut
      */
     @PatchMapping("/{id}/status")

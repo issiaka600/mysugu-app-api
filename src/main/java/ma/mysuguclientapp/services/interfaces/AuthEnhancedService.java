@@ -14,6 +14,12 @@ public interface AuthEnhancedService {
     // OTP (code à 6 chiffres, alternative mobile au lien email)
     void demanderCodeOtp(ForgotPasswordDTO dto);
     String verifierOtp(VerifyOtpDTO dto);
+
+    // Connexion unifiée e-mail/téléphone (correction PDF "Connexion à son compte") :
+    // e-mail+mdp -> code envoyé par e-mail (2e étape verifierCodeConnexion) ;
+    // téléphone+mdp -> accès direct (loginResponse déjà rempli dans le résultat).
+    LoginStepResultDTO loginParIdentifiant(LoginIdentifiantDTO dto);
+    ma.mysuguclientapp.dtos.LoginResponseDTO verifierCodeConnexion(VerifyOtpDTO dto);
     RefreshTokenResponseDTO rafraichirToken(RefreshTokenRequestDTO dto);
     void logout(String accessToken, LogoutDTO dto);
     void changerMotDePasse(Long userId, ChangePasswordDTO dto);

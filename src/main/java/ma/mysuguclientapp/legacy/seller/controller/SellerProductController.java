@@ -57,6 +57,33 @@ public class SellerProductController {
         return mapper.listEnvelope("products", page);
     }
 
+    /**
+     * GET products/{sellerId}/all-products?limit&offset&search : route RÉELLEMENT appelée par
+     * l'écran <Menu> -> <Produits> de Tiktak-vendor-app-moso (product_repository.dart:18,
+     * product_list_screen.dart:27) — distincte de GET products/ ci-dessus (utilisée par d'autres
+     * écrans). Cette route n'existait pas du tout : la requête tombait en 404, et comme l'appli
+     * ne réinitialise {@code _isLoading} qu'en cas de statut 200 (product_controller.dart:90-108),
+     * l'écran restait bloqué indéfiniment en "téléchargement" sans jamais afficher les produits
+     * ni une erreur (correction PDF "Produits ... les données ne viennent jamais"). {@code
+     * sellerId} du chemin n'est pas utilisé pour le scoping : comme partout ailleurs dans ce
+     * contrôleur, celui-ci se fait via le vendeur authentifié (SellerContext), jamais via une
+     * valeur fournie par le client. Même pagination que GET products/ ci-dessus (offset envoyé
+     * par l'appli en tant que "page" 1-based sur le premier appel, puis piloté par la valeur
+     * "offset" échangée dans l'enveloppe de réponse — cohérent avec {@code offset / limit} déjà
+     * utilisé ci-dessus).
+     * GAP: {@code search} n'est pas encore branché sur un filtre réel (PlatService n'expose pas
+     * de recherche par nom scopée restaurant) — la liste se charge désormais correctement, mais
+     * la barre de recherche de cet écran ne filtre pas encore côté serveur.
+     */
+    @GetMapping("/{sellerId}/all-products")
+    public Map<String, Object> allProducts(@AuthenticationPrincipal String email,
+                                            @PathVariable Long sellerId,
+                                            @RequestParam(defaultValue = "10") int limit,
+                                            @RequestParam(defaultValue = "0") int offset,
+                                            @RequestParam(required = false) String search) {
+        return list(email, limit, offset);
+    }
+
     /** GET products/details/{id} et GET products/edit/{id} : détail d'un produit du vendeur. */
     @GetMapping({"/details/{id}", "/edit/{id}"})
     public Map<String, Object> detail(@AuthenticationPrincipal String email, @PathVariable Long id) {

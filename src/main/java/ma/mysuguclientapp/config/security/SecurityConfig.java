@@ -104,7 +104,10 @@ public class SecurityConfig {
                         // Auth enhanced (email verification, forgot password — public)
                         .requestMatchers("/api/auth/verify-email", "/api/auth/resend-verification", "/api/auth/forgot-password",
                                 "/api/auth/send-otp", "/api/auth/verify-otp",
-                                "/api/auth/reset-password", "/api/auth/refresh").permitAll()
+                                "/api/auth/reset-password", "/api/auth/refresh",
+                                // Connexion unifiée e-mail/téléphone (correction PDF) : endpoints de
+                                // login, forcément publics (pas encore de token à ce stade).
+                                "/api/auth/login-identifiant", "/api/auth/login-verify-otp").permitAll()
 
                         // Routes admin uniquement
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")

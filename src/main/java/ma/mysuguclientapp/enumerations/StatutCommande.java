@@ -9,5 +9,9 @@ public enum StatutCommande {
     EN_COURS,
     LIVREE,
     ANNULEE,
-    NON_FINALISEE
+    NON_FINALISEE,
+    /** Commande livrée puis retournée (retour vendeur/client). Distincte d'ANNULEE. */
+    RETOURNEE,
+    /** Tentative de livraison ayant échoué (client absent, adresse injoignable, etc.). Distincte d'ANNULEE. */
+    ECHEC_LIVRAISON
 }

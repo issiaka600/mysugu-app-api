@@ -70,6 +70,38 @@ public class Commande {
     @Column(name = "montant_remise")
     private BigDecimal montantRemise = BigDecimal.ZERO;
 
+    /**
+     * Part de {@link #montantRemise} financée par l'admin (promotion restaurant — toujours
+     * admin, aucun endpoint vendeur n'en crée — ou code promo natif, createdBy null). N'est
+     * jamais déduite du montant vendeur (correction "résumé de commande vendeur").
+     */
+    @Column(name = "montant_remise_admin")
+    private BigDecimal montantRemiseAdmin = BigDecimal.ZERO;
+
+    /**
+     * Part de {@link #montantRemise} financée par le vendeur (code promo créé par lui via le
+     * shim coupon vendeur, createdBy = owner). Déduite du montant vendeur.
+     */
+    @Column(name = "montant_remise_vendeur")
+    private BigDecimal montantRemiseVendeur = BigDecimal.ZERO;
+
+    /**
+     * Part de {@link #montantRemise} venant de la promotion automatique du restaurant
+     * (Promotion.pourcentage, toujours admin). Distincte de {@link #montantCoupon} pour
+     * l'écran "Infos de paiement" de l'appli livreurs (correction PDF) qui affiche les deux
+     * séparément.
+     */
+    @Column(name = "montant_remise_promotion")
+    private BigDecimal montantRemisePromotion = BigDecimal.ZERO;
+
+    /**
+     * Part de {@link #montantRemise} venant d'un code promo saisi par le client (CodePromo,
+     * financé par l'admin ou le vendeur selon CodePromo.createdBy). Distincte de
+     * {@link #montantRemisePromotion} pour l'écran "Infos de paiement" de l'appli livreurs.
+     */
+    @Column(name = "montant_coupon")
+    private BigDecimal montantCoupon = BigDecimal.ZERO;
+
     @Column(name = "montant_final")
     private BigDecimal montantFinal;
 
@@ -77,6 +109,17 @@ public class Commande {
     private String codePromoUtilise;
 
     private BigDecimal fraisLivraison;
+
+    /**
+     * Moment à partir duquel la recherche de livreur (dispatch séquentiel) peut démarrer pour
+     * cette commande. Posé à "maintenant + délai configuré" quand le vendeur passe la commande à
+     * EN_PREPARATION (correction "sonneries persistantes" : le livreur ne doit être sollicité que
+     * 10 minutes après, pas immédiatement) ; remis à null une fois le dispatch effectivement
+     * déclenché par {@code DispatchLivraisonService}. Non concerné par PRETE, qui déclenche le
+     * dispatch immédiatement (la nourriture est déjà prête).
+     */
+    @Column(name = "dispatch_livreur_at")
+    private LocalDateTime dispatchLivreurAt;
 
     @Column(name = "temps_livraison_estime")
     private Integer tempsLivraisonEstime; // en minutes

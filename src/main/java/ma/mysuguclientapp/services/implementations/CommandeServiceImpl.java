@@ -6,6 +6,7 @@ import ma.mysuguclientapp.dtos.CategorieRestaurantDTO;
 import ma.mysuguclientapp.dtos.CommandeCreateDTO;
 import ma.mysuguclientapp.dtos.CommandeDTO;
 import ma.mysuguclientapp.dtos.CommandeUpdateStatusDTO;
+import ma.mysuguclientapp.dtos.DevisLivraisonDTO;
 import ma.mysuguclientapp.dtos.AssignThirdPartyDeliveryDTO;
 import ma.mysuguclientapp.dtos.UpdatePaymentStatusDTO;
 import ma.mysuguclientapp.dtos.DeliveryChargeDateUpdateDTO;
@@ -82,6 +83,14 @@ public class CommandeServiceImpl implements CommandeService {
      */
     @org.springframework.beans.factory.annotation.Value("${dispatch.auto.enabled:false}")
     private boolean autoDispatchEnabled;
+
+    /**
+     * Délai avant le début de la recherche de livreur après passage à EN_PREPARATION (correction
+     * "sonneries persistantes" §2 : "10 minutes après la commande doit sonner ... chez le
+     * livreur"). Ne s'applique pas à PRETE, qui déclenche le dispatch immédiatement.
+     */
+    @org.springframework.beans.factory.annotation.Value("${dispatch.livreur.delai-minutes:10}")
+    private long dispatchLivreurDelaiMinutes;
     private final NotificationService notificationService;
     private final AvisRepository avisRepository;
     private final CodePromoRepository codePromoRepository;
@@ -301,29 +310,25 @@ public class CommandeServiceImpl implements CommandeService {
         commande.setLignesCommande(lignes);
 
         // ── Calcul des remises ────────────────────────────────────────────────
-        BigDecimal remisePromotion = BigDecimal.ZERO;
         BigDecimal remiseCode = BigDecimal.ZERO;
 
-        // 1. Promotion automatique liée au restaurant
+        // 1. Promotion automatique liée au restaurant — logique extraite dans
+        // calculerRemisePromotion() pour être réutilisée telle quelle par calculerDevis()
+        // (aperçu panier, correction PDF "Problème de montant total"), garantissant que le
+        // panier annonce exactement la même remise que celle qui sera appliquée ici.
         Promotion promoRestaurant = restaurant.getPromotion();
-        if (promoRestaurant != null && Boolean.TRUE.equals(promoRestaurant.getIsActive())) {
-            LocalDateTime now = LocalDateTime.now();
-            boolean dateOk = (promoRestaurant.getDateDebut() == null || !now.isBefore(promoRestaurant.getDateDebut()))
-                    && (promoRestaurant.getDateFin() == null || !now.isAfter(promoRestaurant.getDateFin()));
-            boolean montantOk = promoRestaurant.getMontantMinCommande() == null
-                    || montantTotal.compareTo(promoRestaurant.getMontantMinCommande()) >= 0;
-            boolean usageOk = promoRestaurant.getUsageMax() == null
-                    || promoRestaurant.getUsageCount() < promoRestaurant.getUsageMax();
-            if (dateOk && montantOk && usageOk) {
-                remisePromotion = montantTotal
-                        .multiply(BigDecimal.valueOf(promoRestaurant.getPourcentage()))
-                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-                promoRestaurant.setUsageCount(promoRestaurant.getUsageCount() + 1);
-            }
+        BigDecimal remisePromotion = calculerRemisePromotion(restaurant, montantTotal);
+        if (remisePromotion.compareTo(BigDecimal.ZERO) > 0) {
+            promoRestaurant.setUsageCount(promoRestaurant.getUsageCount() + 1);
         }
 
         // 2. Code promo saisi manuellement par le client
         String codePromoSaisi = commandeDTO.getCodePromo();
+        // Un code promo créé par un vendeur (shim coupon vendeur, createdBy = owner) est financé
+        // par ce vendeur ; un code natif (createdBy null, créé par l'admin via /api/codes-promo)
+        // est financé par l'admin — voir répartition ci-dessous (correction "résumé de commande
+        // vendeur", admin vs vendeur).
+        boolean remiseCodeFinanceeParVendeur = false;
         if (codePromoSaisi != null && !codePromoSaisi.isBlank()) {
             CodePromo codePromo = codePromoRepository
                     .findValidCode(codePromoSaisi.trim().toUpperCase(), LocalDateTime.now())
@@ -346,6 +351,7 @@ public class CommandeServiceImpl implements CommandeService {
                 remiseCode = codePromo.getValeur().min(montantTotal);
             }
 
+            remiseCodeFinanceeParVendeur = codePromo.getCreatedBy() != null;
             codePromo.setUsageCount(codePromo.getUsageCount() + 1);
             commande.setCodePromoUtilise(codePromo.getCode());
         }
@@ -355,6 +361,19 @@ public class CommandeServiceImpl implements CommandeService {
         BigDecimal montantFinal = commande.getMontantTotal().subtract(totalRemise).max(BigDecimal.ZERO);
         commande.setMontantRemise(totalRemise);
         commande.setMontantFinal(montantFinal);
+        // remiseCode seul est déjà plafonné à montantTotal ci-dessus (POURCENTAGE : borné à 100%
+        // du sous-total puis à montantMaxReduction ; FIXE : .min(montantTotal)) — jamais réduit
+        // par le plafond combiné sur totalRemise. Le plafonnement éventuel (cas rare : promotion
+        // restaurant + code cumulés dépassant montantTotal) est donc entièrement absorbé côté
+        // admin, qui ne doit jamais faire porter au vendeur le coût d'un plafond de sécurité.
+        BigDecimal remiseVendeurAppliquee = remiseCodeFinanceeParVendeur ? remiseCode : BigDecimal.ZERO;
+        BigDecimal remiseAdminAppliquee = totalRemise.subtract(remiseVendeurAppliquee);
+        commande.setMontantRemiseVendeur(remiseVendeurAppliquee);
+        commande.setMontantRemiseAdmin(remiseAdminAppliquee);
+        // "Remise" (promotion auto restaurant) vs "Coupon" (code saisi) : deux lignes distinctes
+        // dans le résumé de paiement de l'appli livreurs (correction PDF bug #10).
+        commande.setMontantRemisePromotion(remisePromotion);
+        commande.setMontantCoupon(remiseCode);
         // ─────────────────────────────────────────────────────────────────────
 
         commande.setTempsLivraisonEstime(resolveTempsEstime(restaurant, lignes, modeReception));
@@ -397,7 +416,7 @@ public class CommandeServiceImpl implements CommandeService {
 
         validateStatusTransition(commande, nouveauStatut);
 
-        if (nouveauStatut == StatutCommande.ANNULEE) {
+        if (estStatutEchec(nouveauStatut)) {
             // Restituer AVANT toute mutation de `commande` (y compris setStatut juste en dessous) :
             // StockService.restituer() verrouille la ligne commandes puis la rafraîchit depuis la
             // base. Si `commande` portait déjà une modification en attente à cet instant, Hibernate
@@ -405,11 +424,15 @@ public class CommandeServiceImpl implements CommandeService {
             // mémoire lors de l'auto-flush qui précède la requête verrouillante — y compris
             // stock_restitue, avec sa valeur obsolète (false) — écrasant silencieusement le crédit
             // d'une transaction concurrente déjà committée entre-temps.
+            // S'applique aussi à RETOURNEE/ECHEC_LIVRAISON : ce sont, comme ANNULEE, des issues où
+            // la commande ne sera pas honorée — le stock doit être recrédité de la même façon.
             stockService.restituer(commande);
         }
         commande.setStatut(nouveauStatut);
 
-        if (nouveauStatut == StatutCommande.ANNULEE) {
+        if (estStatutEchec(nouveauStatut)) {
+            // Champ réutilisé pour RETOURNEE/ECHEC_LIVRAISON (pas de champ dédié) : il porte la
+            // raison de la non-livraison au sens large, pas seulement d'une annulation.
             commande.setRaisonAnnulation(statusDTO.getRaisonAnnulation());
             // Libérer le livreur si déjà assigné
             if (commande.getLivreur() != null) {
@@ -444,17 +467,28 @@ public class CommandeServiceImpl implements CommandeService {
             }
         }
 
+        // Dispatch livreur : PRETE déclenche immédiatement (nourriture déjà prête) ; EN_PREPARATION
+        // programme le déclenchement dans dispatchLivreurDelaiMinutes au lieu de solliciter le
+        // livreur tout de suite ("sonneries persistantes" §2 : "10 minutes après la commande doit
+        // sonner ... chez le livreur"). Tout changement de statut efface un délai en attente devenu
+        // obsolète (ex: passage direct à PRETE, annulation) : soit le dispatch se fait aussitôt
+        // (PRETE), soit il n'a plus lieu d'être.
+        commande.setDispatchLivreurAt(
+                nouveauStatut == StatutCommande.EN_PREPARATION
+                        && resolveModeReception(commande) == ModeReceptionCommande.LIVRAISON
+                        ? LocalDateTime.now().plusMinutes(dispatchLivreurDelaiMinutes)
+                        : null);
+
         Commande updatedCommande = commandeRepository.save(commande);
         commandeStatusHistoryService.record(updatedCommande);
 
         if (nouveauStatut == StatutCommande.CONFIRMEE) {
             alerteCommandeVendeurService.stopForCommande(updatedCommande.getId(), "COMMANDE_ACCEPTEE");
-        } else if ((nouveauStatut == StatutCommande.EN_PREPARATION
-                || nouveauStatut == StatutCommande.PRETE)
+        } else if (nouveauStatut == StatutCommande.PRETE
                 && resolveModeReception(updatedCommande) == ModeReceptionCommande.LIVRAISON) {
             applicationEventPublisher.publishEvent(new DispatchLivraisonEvent(updatedCommande.getId()));
-        } else if (nouveauStatut == StatutCommande.ANNULEE) {
-            alerteCommandeVendeurService.stopForCommande(updatedCommande.getId(), "COMMANDE_REFUSEE_OU_ANNULEE");
+        } else if (estStatutEchec(nouveauStatut)) {
+            alerteCommandeVendeurService.stopForCommande(updatedCommande.getId(), "COMMANDE_" + nouveauStatut.name());
         }
 
         if (nouveauStatut == StatutCommande.LIVREE && updatedCommande.getMethodePaiement() == MethodePaiement.ESPECES) {
@@ -960,6 +994,17 @@ public class CommandeServiceImpl implements CommandeService {
                 .orElseThrow(() -> new ResourceNotFoundException("Commande non trouvee"));
     }
 
+    /**
+     * Issues où la commande ne sera pas honorée : annulation, retour, ou échec de livraison.
+     * Regroupe les trois pour appliquer les mêmes effets de bord (restitution du stock,
+     * libération du livreur, remboursement) — voir updateCommandeStatus.
+     */
+    private boolean estStatutEchec(StatutCommande statut) {
+        return statut == StatutCommande.ANNULEE
+                || statut == StatutCommande.RETOURNEE
+                || statut == StatutCommande.ECHEC_LIVRAISON;
+    }
+
     private void validateStatusTransition(Commande commande, StatutCommande newStatut) {
         if (commande.getStatut() == newStatut) {
             return;
@@ -972,8 +1017,20 @@ public class CommandeServiceImpl implements CommandeService {
         validTransitions.put(StatutCommande.PRETE, resolveModeReception(commande) == ModeReceptionCommande.RETRAIT_SUR_PLACE
                 ? Arrays.asList(StatutCommande.LIVREE, StatutCommande.ANNULEE)
                 : Arrays.asList(StatutCommande.ASSIGNEE_LIVREUR, StatutCommande.ANNULEE));
-        validTransitions.put(StatutCommande.ASSIGNEE_LIVREUR, Arrays.asList(StatutCommande.EN_COURS, StatutCommande.ANNULEE));
-        validTransitions.put(StatutCommande.EN_COURS, List.of(StatutCommande.LIVREE));
+        validTransitions.put(StatutCommande.ASSIGNEE_LIVREUR,
+                Arrays.asList(StatutCommande.EN_COURS, StatutCommande.ANNULEE, StatutCommande.ECHEC_LIVRAISON));
+        // EN_COURS n'autorisait auparavant que LIVREE (aucune issue d'échec possible une fois le
+        // livreur en route) : RETOURNEE/ECHEC_LIVRAISON couvrent le retour et l'échec de livraison
+        // décrits dans la correction demandée ; ANNULEE reste ouvert par cohérence avec les étapes
+        // précédentes plutôt que de forcer un passage par RETOURNEE/ECHEC_LIVRAISON.
+        validTransitions.put(StatutCommande.EN_COURS,
+                Arrays.asList(StatutCommande.LIVREE, StatutCommande.ANNULEE,
+                        StatutCommande.RETOURNEE, StatutCommande.ECHEC_LIVRAISON));
+        // "Retourner" (spec "statuts de commande des vendeurs") s'applique typiquement APRÈS une
+        // livraison effectuée (client qui refuse/retourne le produit) : sans cette transition,
+        // LIVREE était terminale et le vendeur ne pouvait jamais poser ce statut sur une commande
+        // déjà livrée, alors que le PDF le liste explicitement parmi les statuts vendeur.
+        validTransitions.put(StatutCommande.LIVREE, Arrays.asList(StatutCommande.RETOURNEE));
 
         List<StatutCommande> allowedTransitions = validTransitions.get(commande.getStatut());
         if (allowedTransitions == null || !allowedTransitions.contains(newStatut)) {
@@ -995,6 +1052,8 @@ public class CommandeServiceImpl implements CommandeService {
                     : "COMMANDE_LIVREE";
             case ANNULEE -> "ANNULEE";
             case NON_FINALISEE -> "NON_FINALISEE";
+            case RETOURNEE -> "RETOURNEE";
+            case ECHEC_LIVRAISON -> "ECHEC_LIVRAISON";
         };
     }
 
@@ -1063,6 +1122,67 @@ public class CommandeServiceImpl implements CommandeService {
 
         log.debug("Adresse validée dans la zone '{}' (distance {}km / rayon {}km)",
                 zone.getNom(), String.format("%.1f", distanceKm), zone.getRayonKm());
+    }
+
+    /**
+     * Montant de la remise automatique restaurant (Promotion) applicable pour un sous-total
+     * donné — même règles d'éligibilité (dates, montant minimum, plafond d'utilisation) que dans
+     * createCommande, mais SANS incrémenter Promotion.usageCount (lecture seule, utilisé aussi
+     * par le devis panier calculerDevis()). L'incrémentation reste à la charge de l'appelant
+     * quand la remise est réellement appliquée à une commande.
+     */
+    private BigDecimal calculerRemisePromotion(Restaurant restaurant, BigDecimal montantTotal) {
+        Promotion promoRestaurant = restaurant.getPromotion();
+        if (promoRestaurant == null || !Boolean.TRUE.equals(promoRestaurant.getIsActive())) {
+            return BigDecimal.ZERO;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        boolean dateOk = (promoRestaurant.getDateDebut() == null || !now.isBefore(promoRestaurant.getDateDebut()))
+                && (promoRestaurant.getDateFin() == null || !now.isAfter(promoRestaurant.getDateFin()));
+        boolean montantOk = promoRestaurant.getMontantMinCommande() == null
+                || montantTotal.compareTo(promoRestaurant.getMontantMinCommande()) >= 0;
+        boolean usageOk = promoRestaurant.getUsageMax() == null
+                || promoRestaurant.getUsageCount() < promoRestaurant.getUsageMax();
+        if (dateOk && montantOk && usageOk) {
+            return montantTotal
+                    .multiply(BigDecimal.valueOf(promoRestaurant.getPourcentage()))
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        }
+        return BigDecimal.ZERO;
+    }
+
+    /**
+     * Devis panier (correction PDF "Problème de montant total") : réutilise exactement
+     * validerZoneDeploiement + calculerFraisAvecZone + calculerRemisePromotion — les mêmes
+     * méthodes que createCommande — pour que le total affiché au client AVANT de valider sa
+     * commande soit garanti identique à celui facturé APRÈS. Ne crée aucune commande, ne
+     * réserve aucun stock, n'incrémente aucun compteur d'utilisation de promotion.
+     */
+    @Override
+    public DevisLivraisonDTO calculerDevis(Long restaurantId, Double latitude, Double longitude, BigDecimal sousTotal) {
+        Restaurant restaurant = restaurantRepository.findById(restaurantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Restaurant non trouve"));
+
+        Localisation adresse = new Localisation();
+        adresse.setLatitude(latitude);
+        adresse.setLongitude(longitude);
+
+        BigDecimal sousTotalSur = sousTotal != null ? sousTotal : BigDecimal.ZERO;
+
+        BigDecimal fraisLivraison;
+        if (latitude != null && longitude != null) {
+            validerZoneDeploiement(restaurant, adresse);
+            fraisLivraison = calculerFraisAvecZone(restaurant, adresse);
+        } else {
+            // Pas encore d'adresse sélectionnée côté client : on ne peut pas calculer de frais
+            // fiables, on renvoie 0 plutôt qu'une estimation trompeuse (le vrai montant sera de
+            // toute façon recalculé ici même une fois l'adresse connue).
+            fraisLivraison = BigDecimal.ZERO;
+        }
+
+        BigDecimal remisePromotion = calculerRemisePromotion(restaurant, sousTotalSur);
+
+        return new DevisLivraisonDTO(fraisLivraison, remisePromotion);
     }
 
     /**
@@ -1355,8 +1475,11 @@ public class CommandeServiceImpl implements CommandeService {
     }
 
     /**
-     * Montant net vendeur : total payé après remises, hors livraison, moins la commission
-     * plateforme. Cette valeur est bornée à zéro pour les cas exceptionnels de remise élevée.
+     * Montant net vendeur : prix des plats/produits moins la commission plateforme, hors
+     * livraison — voir docs correction "résumé de commande vendeur". Une remise financée par
+     * l'admin (promotion restaurant, ou code promo natif) n'est PAS déduite du montant vendeur :
+     * seule une remise financée par le vendeur lui-même (code promo créé via le shim coupon
+     * vendeur) l'est. Cette valeur est bornée à zéro pour les cas exceptionnels de remise élevée.
      */
     private BigDecimal calculerMontantVendeur(Commande commande) {
         BigDecimal montantFinal = commande.getMontantFinal() != null
@@ -1366,7 +1489,12 @@ public class CommandeServiceImpl implements CommandeService {
                 ? commande.getFraisLivraison() : BigDecimal.ZERO;
         BigDecimal commission = commande.getMontantCommissionTotal() != null
                 ? commande.getMontantCommissionTotal() : BigDecimal.ZERO;
-        return montantFinal.subtract(fraisLivraison).subtract(commission).max(BigDecimal.ZERO);
+        BigDecimal remiseAdmin = commande.getMontantRemiseAdmin() != null
+                ? commande.getMontantRemiseAdmin() : BigDecimal.ZERO;
+        // montantFinal = items + livraison - (remiseAdmin + remiseVendeur) ; en retranchant la
+        // livraison et la commission puis en rajoutant remiseAdmin, il ne reste retranché que la
+        // part vendeur de la remise (remiseVendeur), conformément à la spec.
+        return montantFinal.subtract(fraisLivraison).subtract(commission).add(remiseAdmin).max(BigDecimal.ZERO);
     }
 
     private LocalisationDTO toLocalisationDTO(Localisation localisation) {

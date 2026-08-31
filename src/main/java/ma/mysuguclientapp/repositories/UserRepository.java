@@ -63,4 +63,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByTelephoneAndRole(String telephone, UserRole role);
     List<User> findByTelephoneInAndRole(java.util.Collection<String> telephones, UserRole role);
     List<User> findByTelephone(String telephone);
+    // Connexion unifiée e-mail/téléphone (correction PDF "Connexion à son compte"), tous rôles.
+    List<User> findByTelephoneIn(java.util.Collection<String> telephones);
 }
