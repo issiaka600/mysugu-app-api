@@ -62,13 +62,13 @@ public class DispatchLivraisonService {
     @Value("${delivery.driver-location.max-age-seconds:120}")
     private long maxLocationAgeSeconds;
 
-    @Value("${delivery.seller-location.max-age-seconds:86400}")
+    @Value("${delivery.seller-location.max-age-seconds:300}")
     private long maxSellerLocationAgeSeconds;
 
     /**
      * Propose la commande au prochain livreur éligible, ordonné par distance à la position GPS
-     * récente du vendeur. La position fixe du restaurant reste le repli si le vendeur n'a pas
-     * encore partagé sa position ou si celle-ci est trop ancienne.
+     * récente du vendeur. Aucune adresse saisie manuellement ni ancienne position ne sert à
+     * choisir un livreur.
      */
     public void proposerProchainLivreur(Long commandeId) {
         Commande commande = commandeRepository.findByIdForUpdate(commandeId).orElse(null);
@@ -79,7 +79,7 @@ public class DispatchLivraisonService {
 
         LocationPoint dispatchOrigin = resolveDispatchOrigin(commande, LocalDateTime.now());
         if (dispatchOrigin == null) {
-            log.warn("Commande {} : vendeur et restaurant sans position GPS exploitable, aucun livreur ne peut être proposé",
+            log.warn("Commande {} : position GPS récente du vendeur absente, aucun livreur ne peut être proposé",
                     commandeId);
             return;
         }
@@ -318,12 +318,6 @@ public class DispatchLivraisonService {
                     seller.getLocalisation().getLongitude(), "vendeur");
         }
 
-        if (commande.getRestaurant().getLocalisation() != null
-                && commande.getRestaurant().getLocalisation().getLatitude() != null
-                && commande.getRestaurant().getLocalisation().getLongitude() != null) {
-            return new LocationPoint(commande.getRestaurant().getLocalisation().getLatitude(),
-                    commande.getRestaurant().getLocalisation().getLongitude(), "restaurant");
-        }
         return null;
     }
 
@@ -342,7 +336,7 @@ public class DispatchLivraisonService {
                 && zone.getRayonKm() != null && zone.getRayonKm().signum() > 0) {
             return zone.getNom() + " (" + zone.getRayonKm() + " km)";
         }
-        return "repli " + Constants.AUTO_ASSIGN_RADIUS_KM + " km";
+        return "position GPS vendeur";
     }
 
     private String joinAndTruncate(List<String> values) {
