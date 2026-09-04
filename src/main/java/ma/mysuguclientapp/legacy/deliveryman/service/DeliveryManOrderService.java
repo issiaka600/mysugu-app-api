@@ -53,16 +53,19 @@ public class DeliveryManOrderService {
     private void notifierApresAcceptation(Commande c, User livreur) {
         String numero = c.getNumeroCommande();
         try {
+            // La commande reste EN_PREPARATION jusqu'à ce que le vendeur la marque PRETE.
+            // La notification représente cependant l'événement d'affectation, afin que le client
+            // et le vendeur rafraîchissent immédiatement les informations du livreur.
             if (c.getClient() != null) {
                 notificationService.envoyerNotificationStatutCommande(
-                        c.getClient().getId(), numero, c.getId(), c.getStatut());
+                        c.getClient().getId(), numero, c.getId(), StatutCommande.ASSIGNEE_LIVREUR);
             }
             if (c.getRestaurant() != null && c.getRestaurant().getOwner() != null) {
                 notificationService.envoyerNotificationStatutCommande(
-                        c.getRestaurant().getOwner().getId(), numero, c.getId(), c.getStatut());
+                        c.getRestaurant().getOwner().getId(), numero, c.getId(), StatutCommande.ASSIGNEE_LIVREUR);
             }
             notificationService.envoyerNotificationStatutCommande(
-                    livreur.getId(), numero, c.getId(), c.getStatut());
+                    livreur.getId(), numero, c.getId(), StatutCommande.ASSIGNEE_LIVREUR);
         } catch (Exception e) {
             log.warn("Notifications post-acceptation commande {} : {}", numero, e.getMessage());
         }

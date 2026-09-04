@@ -206,6 +206,21 @@ public class DispatchLivraisonService {
         // Intentionnellement no-op — voir Javadoc ci-dessus.
     }
 
+    /**
+     * Filet de sécurité du dispatch. Un refus/une expiration déclenche normalement la prochaine
+     * proposition après commit, mais aucune commande ne doit rester bloquée si aucun livreur
+     * n'était disponible à cet instant (ou après un redémarrage de l'application).
+     */
+    @Scheduled(fixedDelayString = "${delivery.dispatch.retry-delay-ms:15000}")
+    public void relancerCommandesSansOffre() {
+        commandeRepository.findByStatutInAndLivreurIsNullOrderByCreatedAtAsc(
+                        List.of(StatutCommande.EN_PREPARATION, StatutCommande.PRETE))
+                .stream()
+                .filter(c -> c.getModeReception() == ModeReceptionCommande.LIVRAISON)
+                .map(Commande::getId)
+                .forEach(this::proposerProchainLivreur);
+    }
+
     private void expirerOffre(Long offreId) {
         OffreLivraison offre = offreRepository.findByIdForUpdate(offreId).orElse(null);
         if (offre == null || offre.getStatut() != StatutOffreLivraison.PROPOSEE

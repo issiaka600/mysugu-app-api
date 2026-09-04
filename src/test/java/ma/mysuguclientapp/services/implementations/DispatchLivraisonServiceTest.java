@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -39,13 +40,14 @@ class DispatchLivraisonServiceTest {
     private final OffreLivraisonRepository offreRepository = mock(OffreLivraisonRepository.class);
     private final UserRepository userRepository = mock(UserRepository.class);
     private final FcmService fcmService = mock(FcmService.class);
+    private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
     private final DispatchLivraisonService service = new DispatchLivraisonService(
             commandeRepository,
             offreRepository,
             mock(TentativeOffreLivraisonRepository.class),
             userRepository,
             fcmService,
-            mock(ApplicationEventPublisher.class));
+            eventPublisher);
 
     DispatchLivraisonServiceTest() {
         ReflectionTestUtils.setField(service, "offerDurationSeconds", 30L);
@@ -135,6 +137,42 @@ class DispatchLivraisonServiceTest {
         service.proposerProchainLivreur(42L);
 
         assertThat(offreSauvegardee.getLivreur()).isSameAs(procheRestaurant);
+    }
+
+    @Test
+    void refusDeclencheLaRechercheDuLivreurSuivantApresCommit() {
+        Commande commande = commande(StatutCommande.EN_PREPARATION);
+        User livreur = new User();
+        livreur.setId(7L);
+        OffreLivraison offre = OffreLivraison.builder()
+                .commande(commande)
+                .livreur(livreur)
+                .statut(StatutOffreLivraison.PROPOSEE)
+                .expiresAt(LocalDateTime.now().plusSeconds(30))
+                .build();
+        when(offreRepository.findForUpdate(42L, 7L, StatutOffreLivraison.PROPOSEE))
+                .thenReturn(Optional.of(offre));
+
+        service.refuserOffre(42L, livreur);
+
+        assertThat(offre.getStatut()).isEqualTo(StatutOffreLivraison.REFUSEE);
+        assertThat(offre.getRespondedAt()).isNotNull();
+        verify(eventPublisher).publishEvent(new ma.mysuguclientapp.events.DispatchLivraisonEvent(42L));
+    }
+
+    @Test
+    void relanceUneCommandeResteeSansOffreQuandUnLivreurDevientDisponible() {
+        Commande commande = commandeAvecRestaurant(StatutCommande.EN_PREPARATION,
+                localisation(14.7000, -17.4500));
+        User livreur = livreur(7L, 14.7001, -17.4501);
+        when(commandeRepository.findByStatutInAndLivreurIsNullOrderByCreatedAtAsc(anyList()))
+                .thenReturn(List.of(commande));
+        preparerRecherche(commande, livreur);
+
+        service.relancerCommandesSansOffre();
+
+        assertThat(offreSauvegardee.getLivreur()).isSameAs(livreur);
+        verify(commandeRepository, times(1)).findByIdForUpdate(42L);
     }
 
     private OffreLivraison offreSauvegardee;
