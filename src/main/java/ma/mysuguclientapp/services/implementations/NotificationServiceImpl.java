@@ -134,8 +134,8 @@ public class NotificationServiceImpl implements NotificationService {
         if (statut == null) return;
         userRepository.findById(userId).ifPresent(user -> {
             String externalStatus = externalOrderStatus(statut);
-            String titre = buildTitreStatutCommande(statut);
-            String message = buildMessageStatutCommande(statut, numeroCommande);
+            String titre = buildTitreStatutCommande(statut, user.getRole());
+            String message = buildMessageStatutCommande(statut, numeroCommande, user.getRole());
             Notification notification = notificationRepository.save(Notification.builder()
                     .destinataire(user).titre(titre).message(message)
                     .type(notificationType(statut)).entityId(commandeId)
@@ -372,7 +372,37 @@ public class NotificationServiceImpl implements NotificationService {
         };
     }
 
-    private String buildTitreStatutCommande(StatutCommande statut) {
+    private String buildTitreStatutCommande(StatutCommande statut, UserRole role) {
+        if (role == UserRole.RESTAURANT_OWNER || role == UserRole.RESTAURANT_STAFF) {
+            return switch (statut) {
+                case EN_ATTENTE -> "Nouvelle commande";
+                case CONFIRMEE -> "Commande confirmée";
+                case EN_PREPARATION -> "Préparation en cours";
+                case PRETE -> "Commande prête";
+                case ASSIGNEE_LIVREUR -> "Livreur assigné";
+                case EN_COURS -> "Commande prise en charge";
+                case LIVREE -> "Commande livrée";
+                case ANNULEE -> "Commande annulée";
+                case NON_FINALISEE -> "Commande non finalisée";
+                case RETOURNEE -> "Commande retournée";
+                case ECHEC_LIVRAISON -> "Échec de livraison";
+            };
+        }
+        if (role == UserRole.LIVREUR) {
+            return switch (statut) {
+                case EN_ATTENTE -> "Commande en attente";
+                case CONFIRMEE -> "Commande confirmée";
+                case EN_PREPARATION -> "Commande en préparation";
+                case PRETE -> "Commande à récupérer";
+                case ASSIGNEE_LIVREUR -> "Nouvelle livraison";
+                case EN_COURS -> "Livraison en cours";
+                case LIVREE -> "Livraison terminée";
+                case ANNULEE -> "Livraison annulée";
+                case NON_FINALISEE -> "Commande non finalisée";
+                case RETOURNEE -> "Commande retournée";
+                case ECHEC_LIVRAISON -> "Échec de livraison";
+            };
+        }
         return switch (statut) {
             case EN_ATTENTE -> "Commande reçue";
             case CONFIRMEE -> "Commande confirmée";
@@ -388,8 +418,38 @@ public class NotificationServiceImpl implements NotificationService {
         };
     }
 
-    private String buildMessageStatutCommande(StatutCommande statut, String numeroCommande) {
+    private String buildMessageStatutCommande(StatutCommande statut, String numeroCommande, UserRole role) {
         String numero = numeroCommande != null ? numeroCommande : "";
+        if (role == UserRole.RESTAURANT_OWNER || role == UserRole.RESTAURANT_STAFF) {
+            return switch (statut) {
+                case EN_ATTENTE -> "La commande " + numero + " vient d'être reçue.";
+                case CONFIRMEE -> "La commande " + numero + " a été confirmée.";
+                case EN_PREPARATION -> "La commande " + numero + " est en cours de préparation.";
+                case PRETE -> "La commande " + numero + " est prête pour la récupération.";
+                case ASSIGNEE_LIVREUR -> "Un livreur a été assigné à la commande " + numero + ".";
+                case EN_COURS -> "La commande " + numero + " a été prise en charge par le livreur.";
+                case LIVREE -> "La commande " + numero + " a été livrée au client.";
+                case ANNULEE -> "La commande " + numero + " a été annulée.";
+                case NON_FINALISEE -> "La commande " + numero + " n'a pas été finalisée.";
+                case RETOURNEE -> "La commande " + numero + " a été retournée.";
+                case ECHEC_LIVRAISON -> "La livraison de la commande " + numero + " a échoué.";
+            };
+        }
+        if (role == UserRole.LIVREUR) {
+            return switch (statut) {
+                case EN_ATTENTE -> "La commande " + numero + " est en attente de confirmation.";
+                case CONFIRMEE -> "La commande " + numero + " a été confirmée par le restaurant.";
+                case EN_PREPARATION -> "Le restaurant prépare la commande " + numero + ".";
+                case PRETE -> "La commande " + numero + " est prête à être récupérée.";
+                case ASSIGNEE_LIVREUR -> "La livraison de la commande " + numero + " vous a été assignée.";
+                case EN_COURS -> "La livraison de la commande " + numero + " est en cours.";
+                case LIVREE -> "La livraison de la commande " + numero + " est terminée.";
+                case ANNULEE -> "La livraison de la commande " + numero + " a été annulée.";
+                case NON_FINALISEE -> "La commande " + numero + " n'a pas été finalisée.";
+                case RETOURNEE -> "La commande " + numero + " a été retournée.";
+                case ECHEC_LIVRAISON -> "La livraison de la commande " + numero + " a échoué.";
+            };
+        }
         return switch (statut) {
             case EN_ATTENTE -> "Votre commande " + numero + " a été reçue.";
             case CONFIRMEE -> "Votre commande " + numero + " a été confirmée par le restaurant.";

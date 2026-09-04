@@ -5,6 +5,7 @@ import ma.mysuguclientapp.dtos.NotificationDTO;
 import ma.mysuguclientapp.entities.Notification;
 import ma.mysuguclientapp.entities.User;
 import ma.mysuguclientapp.enumerations.TypeNotification;
+import ma.mysuguclientapp.enumerations.StatutCommande;
 import ma.mysuguclientapp.enumerations.UserRole;
 import ma.mysuguclientapp.repositories.NotificationRepository;
 import ma.mysuguclientapp.repositories.TentativeNotificationFcmRepository;
@@ -34,6 +35,41 @@ class NotificationServiceImplTest {
     private final TentativeNotificationFcmRepository attempts = mock(TentativeNotificationFcmRepository.class);
     private final NotificationServiceImpl service = new NotificationServiceImpl(
             notifications, users, jwt, fcm, attempts);
+
+    @Test
+    void statutCommandeAdapteLeMessageAuRoleDuDestinataire() {
+        User customer = new User();
+        customer.setId(5L);
+        customer.setRole(UserRole.CLIENT);
+        User vendor = new User();
+        vendor.setId(7L);
+        vendor.setRole(UserRole.RESTAURANT_OWNER);
+        User deliveryMan = new User();
+        deliveryMan.setId(9L);
+        deliveryMan.setRole(UserRole.LIVREUR);
+        when(users.findById(5L)).thenReturn(Optional.of(customer));
+        when(users.findById(7L)).thenReturn(Optional.of(vendor));
+        when(users.findById(9L)).thenReturn(Optional.of(deliveryMan));
+        when(notifications.save(any(Notification.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(fcm.sendToUserWithResult(any(), any(), any(), any()))
+                .thenReturn(new FcmDeliveryResult(1, 1, List.of("fcm-id"), List.of()));
+
+        service.envoyerNotificationStatutCommande(5L, "CMD-123", 123L, StatutCommande.PRETE);
+        service.envoyerNotificationStatutCommande(7L, "CMD-123", 123L, StatutCommande.PRETE);
+        service.envoyerNotificationStatutCommande(9L, "CMD-123", 123L, StatutCommande.PRETE);
+
+        ArgumentCaptor<String> titles = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> messages = ArgumentCaptor.forClass(String.class);
+        org.mockito.Mockito.verify(fcm, org.mockito.Mockito.times(3)).sendToUserWithResult(
+                any(), titles.capture(), messages.capture(), any());
+
+        assertThat(titles.getAllValues()).containsExactly(
+                "Commande prête", "Commande prête", "Commande à récupérer");
+        assertThat(messages.getAllValues()).containsExactly(
+                "Votre commande CMD-123 est prête.",
+                "La commande CMD-123 est prête pour la récupération.",
+                "La commande CMD-123 est prête à être récupérée.");
+    }
 
     @Test
     void messageNotificationExposeLesDonneesDeRedirection() {
