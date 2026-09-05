@@ -31,10 +31,11 @@ public class PlatController {
             @RequestParam(required = false) String categorie,
             @RequestParam(required = false) String categorieProduit,
             @RequestParam(required = false) Boolean available,
+            @RequestParam(required = false) Boolean topVente,
             @RequestParam(required = false) String vertical,
             Pageable pageable) {
         return ResponseEntity.ok(
-                platService.getAllPlats(restaurantId, categorie, categorieProduit, available, vertical, pageable));
+                platService.getAllPlats(restaurantId, categorie, categorieProduit, available, topVente, vertical, pageable));
     }
 
     @GetMapping("/{id}")

@@ -4,7 +4,6 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import ma.mysuguclientapp.enumerations.CategoriePlat;
 import ma.mysuguclientapp.enumerations.ModeDisponibilitePlat;
 
 import java.math.BigDecimal;
@@ -67,6 +66,14 @@ public class Plat {
     private Integer seuilAlerteStock;
 
     /**
+     * Sélection manuelle « Top des ventes » affichée dans l'appli client : seuls les plats
+     * marqués à {@code true} depuis le dashboard apparaissent dans la rubrique Top des ventes.
+     * Rien d'automatique à partir des ventes — c'est le commerçant qui choisit.
+     */
+    @Column(name = "top_vente")
+    private Boolean topVente = false;
+
+    /**
      * Disponibilité réellement présentée au client : le flag vendeur pondéré par le stock.
      * Le flag {@code isAvailable} n'est jamais écrasé en base — un réapprovisionnement
      * rend le produit visible sans réintervention du commerçant.
@@ -77,8 +84,10 @@ public class Plat {
                 && (quantiteStock == null || quantiteStock > 0);
     }
 
-    @Enumerated(EnumType.STRING)
-    private CategoriePlat categoriePlat; // ENTREE, PLAT_PRINCIPAL, DESSERT, BOISSON
+    /** Code de catégorie de plat, stable, référencé dans {@code categorie_plat_defs}
+     * (ex : "PLAT_PRINCIPAL", ou une catégorie personnalisée créée depuis le dashboard). */
+    @Column(name = "categorie_plat")
+    private String categoriePlat;
 
     /** Catégorie produit libre pour les verticales non-restaurant (alimentaire/cosmétique). */
     @Column(name = "categorie_produit")

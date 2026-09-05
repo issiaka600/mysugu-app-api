@@ -27,10 +27,13 @@ STOMP (tracking). Devise MAD. Base path REST `/api/...`. `ddl-auto=update` (pas 
 ### 2. Restaurants & Catalogue
 - **Controllers** : `RestaurantController`, `RestaurateurController` (onboarding), `RestaurantDashboardController`,
   `RestaurantEmployeController`, `AdminRestaurantController`, `MenuController`, `PlatController`,
-  `PlatOptionController`, `CategoriePlatController`, `CategorieProduitController`, `CategorieRestaurantController`,
+  `PlatOptionController`, `CategoriePlatController`, `AdminCategoriePlatController`,
+  `CategorieProduitController`, `CategorieRestaurantController`,
   `ServiceCategorieController`, `FiltreController`/`AdminFiltreController`.
 - **Entités** : `Restaurant`, `RestaurantEmploye`, `Menu`, `MenuPlat`, `Plat`, `OptionGroup`, `OptionItem`,
-  `CategorieRestaurant`, `Category`, `ServiceCategorie`, `Filtre`, `Promotion`.
+  `CategorieRestaurant`, `Category`, `ServiceCategorie`, `Filtre`, `Promotion`, `CategoriePlatDef`
+  (catégories de plats configurables depuis le dashboard — remplace l'ancienne enum, semées par
+  `CategoriePlatDefInitializer`).
 
 ### 3. Commandes, Panier, Avis
 - **Controllers** : `CommandeController` (création, statut, assign-livreur, tracking), `PanierController`,
@@ -82,6 +85,7 @@ STOMP (tracking). Devise MAD. Base path REST `/api/...`. `ddl-auto=update` (pas 
 - **Entités** : `MessageContact`, `BaseEntity`.
 - **Config** : `config/` — `MinioConfig`/`MinioInitializer`, `FirebaseConfig`, `StripeConfig`,
   `WebSocketConfig`, `JacksonConfig`, `WebConfig`, `OpenApiConfig`, `FiltreInitializer`,
+  `CategorieProduitInitializer` (rayons boutiques), `CategoriePlatDefInitializer` (catégories de plats),
   `ParametresCaisseInitializer`, `TestDataInitializer` (seed si `TEST_DATA_ENABLED`).
 - **Scheduler** : `AlerteCaisseScheduler` (alertes plafond/réconciliation caisse).
 

@@ -7,11 +7,12 @@ import ma.mysuguclientapp.dtos.PlatCreateDTO;
 import ma.mysuguclientapp.dtos.PlatDTO;
 import ma.mysuguclientapp.entities.Plat;
 import ma.mysuguclientapp.entities.Restaurant;
-import ma.mysuguclientapp.enumerations.CategoriePlat;
+import ma.mysuguclientapp.entities.CategoriePlatDef;
 import ma.mysuguclientapp.enumerations.ModeDisponibilitePlat;
 import ma.mysuguclientapp.enumerations.Vertical;
 import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
+import ma.mysuguclientapp.repositories.CategoriePlatDefRepository;
 import ma.mysuguclientapp.repositories.PlatRepository;
 import ma.mysuguclientapp.repositories.RestaurantRepository;
 import ma.mysuguclientapp.services.interfaces.PlatService;
@@ -34,12 +35,13 @@ public class PlatServiceImpl implements PlatService {
     private final PlatRepository platRepository;
     private final RestaurantRepository restaurantRepository;
     private final MinioService minioService;
+    private final CategoriePlatDefRepository categoriePlatDefRepository;
 
     @Override
     @Transactional(readOnly = true)
     public Page<PlatDTO> getAllPlats(Long restaurantId, String categorie, String categorieProduit,
-                                     Boolean available, String vertical, Pageable pageable) {
-        CategoriePlat categoriePlat = parseCategorie(categorie);
+                                     Boolean available, Boolean topVente, String vertical, Pageable pageable) {
+        String categoriePlat = parseCategorie(categorie);
         Vertical v = "ALL".equalsIgnoreCase(vertical) ? null : parseVertical(vertical);
 
         Page<Plat> page = platRepository.rechercheFiltree(
@@ -49,9 +51,12 @@ public class PlatServiceImpl implements PlatService {
         // stock + expiration d'une indisponibilité temporaire), pas expressible en SQL seul : il
         // reste donc appliqué ici, en mémoire, après la requête paginée. Conséquence assumée : le
         // total de pagination (page.getTotalElements()) porte sur la requête SQL, avant ce filtre.
+        // Idem pour `topVente` : filtre en mémoire (dérivé JPA trivial mais inutile — il touche
+        // le flag exact, pas une expression calculée).
         List<PlatDTO> contenu = page.getContent().stream()
                 .map(this::refreshAvailabilityIfNeeded)
                 .filter(plat -> available == null || plat.isEffectivementDisponible() == available)
+                .filter(plat -> topVente == null || Boolean.TRUE.equals(plat.getTopVente()) == topVente)
                 .map(this::convertToDTO)
                 .toList();
 
@@ -105,6 +110,7 @@ public class PlatServiceImpl implements PlatService {
         plat.setTempsPreparation(platDTO.getTempsPreparation());
         plat.setQuantiteStock(platDTO.getQuantiteStock());
         plat.setSeuilAlerteStock(platDTO.getSeuilAlerteStock());
+        plat.setTopVente(Boolean.TRUE.equals(platDTO.getTopVente()));
 
         if (platDTO.getCategoriePlat() != null) {
             plat.setCategoriePlat(parseCategorie(platDTO.getCategoriePlat()));
@@ -150,6 +156,9 @@ public class PlatServiceImpl implements PlatService {
             }
             if (platDTO.getSeuilAlerteStock() != null) {
                 plat.setSeuilAlerteStock(platDTO.getSeuilAlerteStock());
+            }
+            if (platDTO.getTopVente() != null) {
+                plat.setTopVente(platDTO.getTopVente());
             }
 
             if (platDTO.getCategoriePlat() != null) {
@@ -272,16 +281,19 @@ public class PlatServiceImpl implements PlatService {
         }
     }
 
-    private CategoriePlat parseCategorie(String value) {
+    /**
+     * Valide et normalise un code de catégorie de plat. Les valeurs sont vérifiées contre la
+     * table {@code categorie_plat_defs} (dashboard) — plus d'enum figée.
+     */
+    private String parseCategorie(String value) {
         if (value == null || value.isBlank()) {
             return null;
         }
-
-        try {
-            return CategoriePlat.valueOf(value.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new BadRequestException("Catégorie de plat invalide: " + value);
+        String code = value.trim().toUpperCase();
+        if (!categoriePlatDefRepository.existsByCodeIgnoreCase(code)) {
+            throw new BadRequestException("Catégorie de plat inconnue: " + value);
         }
+        return code;
     }
 
     private PlatDTO convertToDTO(Plat plat) {
@@ -300,6 +312,7 @@ public class PlatServiceImpl implements PlatService {
         dto.setAlerteStockBas(plat.getQuantiteStock() != null
                 && plat.getSeuilAlerteStock() != null
                 && plat.getQuantiteStock() <= plat.getSeuilAlerteStock());
+        dto.setTopVente(plat.getTopVente());
         dto.setTempsPreparation(plat.getTempsPreparation());
         dto.setIndisponibleJusqua(plat.getIndisponibleJusqua());
 
@@ -307,7 +320,12 @@ public class PlatServiceImpl implements PlatService {
             dto.setAvailabilityMode(plat.getAvailabilityMode().name());
         }
         if (plat.getCategoriePlat() != null) {
-            dto.setCategoriePlat(plat.getCategoriePlat().name());
+            String code = plat.getCategoriePlat();
+            dto.setCategoriePlat(code);
+            CategoriePlatDef def = categoriePlatDefRepository.findByCodeIgnoreCase(code).orElse(null);
+            dto.setCategoriePlatLabel(def != null ? def.getLibelle() : code);
+            dto.setCategoriePlatOrdre(def != null ? def.getOrdre() : null);
+            dto.setCategoriePlatIcone(def != null ? def.getIcone() : null);
         }
         dto.setCategorieProduit(plat.getCategorieProduit());
         if (plat.getRestaurant() != null) {

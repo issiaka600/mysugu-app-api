@@ -433,6 +433,7 @@ Public · Paramètres optionnels :
 | `restaurantId` | Long | Filtrer par restaurant |
 | `categorie` | String | Filtrer par catégorie plat |
 | `available` | Boolean | Uniquement disponibles |
+| `topVente` | Boolean | `true` = uniquement les plats sélectionnés pour la rubrique « Top des ventes » |
 
 #### `GET /api/plats/{id}` · `GET /api/plats/restaurant/{restaurantId}` · `GET /api/plats/search?keyword=…` — Public
 
@@ -451,6 +452,7 @@ Public · Paramètres optionnels :
 | `tempsPreparation` | Int | En minutes |
 | `ingredients` | String[] | Liste des ingrédients |
 | `availabilityMode` | String | ALWAYS / SCHEDULED / MANUAL |
+| `topVente` | Boolean | Marque le plat pour la rubrique « Top des ventes » de l'appli client (`GET /api/plats?topVente=true`). Rien d'automatique : seul un plat marqué ici y apparaît. |
 | `image` | File | Photo du plat |
 
 #### `PUT /api/plats/{id}` — Modifier · `RESTAURANT_OWNER` ou `ADMIN`
@@ -947,13 +949,19 @@ Gestion du reversement aux restaurants partenaires.
 
 Réductions automatiques appliquées aux commandes d'un restaurant.
 
+> **Validité** : une promo est « active » (feed `GET /api/promotions`, badge
+> restaurant, remise en commande) UNIQUEMENT si elle est `isActive=true`, que la date
+> courante est dans `[dateDebut, dateFin]` ET que son plafond `usageMax` n'est pas
+> atteint — règle unique portée par `Promotion.isActiveNow()`. Une promo expirée
+> reste stockée (`isActive=true`) mais n'apparaît plus nulle part.
+
 | Méthode | Path | Auth | Description |
 |---|---|---|---|
-| `GET` | `/api/promotions` | Public | Promotions actives |
+| `GET` | `/api/promotions` | Public | Promotions actives (dans leur fenêtre de dates) |
 | `GET` | `/api/promotions/flash` | Public | Promotions flash |
 | `GET` | `/api/promotions/{id}` | Public | Par ID |
 | `GET` | `/api/promotions/restaurant/{restaurantId}` | Public | D'un restaurant |
-| `POST` | `/api/promotions` | `ADMIN` | Créer |
+| `POST` | `/api/promotions` | `ADMIN` | Créer (valide `pourcentage>0` et `dateFin > dateDebut`) |
 | `PATCH` | `/api/promotions/{id}/activer` | `ADMIN` | Activer/désactiver |
 | `DELETE` | `/api/promotions/{id}` | `ADMIN` | Supprimer |
 

@@ -52,7 +52,7 @@ public class SellerProductController {
         // donc filtrer en plus par verticale n'aurait aucun effet utile — et casserait le shim pour
         // les vendeurs de boutique (vertical != RESTAURANT) si on passait null ici, puisque null
         // signifie RESTAURANT-uniquement côté service.
-        Page<PlatDTO> page = platService.getAllPlats(restaurant.getId(), null, null, null, "ALL",
+        Page<PlatDTO> page = platService.getAllPlats(restaurant.getId(), null, null, null, null, "ALL",
                 PageRequest.of(offset / Math.max(limit, 1), Math.max(limit, 1)));
         return mapper.listEnvelope("products", page);
     }

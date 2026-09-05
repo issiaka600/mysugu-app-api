@@ -11,7 +11,7 @@ import java.util.List;
 
 public interface PlatService {
     Page<PlatDTO> getAllPlats(Long restaurantId, String categorie, String categorieProduit,
-                              Boolean available, String vertical, Pageable pageable);
+                              Boolean available, Boolean topVente, String vertical, Pageable pageable);
 
     PlatDTO getPlatById(Long id);
 

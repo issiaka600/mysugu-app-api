@@ -21,6 +21,9 @@ public class CommandeDTO {
     private List<CommandeStatusHistoryDTO> statusHistory;
     private LocalisationDTO adresseLivraison;
     private BigDecimal montantTotal;
+    /** Somme des montants des lignes d'article, hors frais de livraison et hors remises.
+     *  MontantTotal = montantArticles + fraisLivraison. */
+    private BigDecimal montantArticles;
     private BigDecimal montantRemise;
     private BigDecimal montantFinal;
     private String codePromoUtilise;

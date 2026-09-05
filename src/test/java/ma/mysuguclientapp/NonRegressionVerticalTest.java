@@ -164,7 +164,7 @@ class NonRegressionVerticalTest {
 
     @Test
     void platsSansVerticalNeVoientQueLesPlatsDeRestaurant() {
-        var page = platService.getAllPlats(null, null, null, null, null,
+        var page = platService.getAllPlats(null, null, null, null, null, null,
                 org.springframework.data.domain.PageRequest.of(0, 500));
         assertThat(page.getContent()).extracting("id")
                 .contains(platRestoId).doesNotContain(produitBoutiqueId);
@@ -172,14 +172,14 @@ class NonRegressionVerticalTest {
 
     @Test
     void platsFiltresParRayon() {
-        var page = platService.getAllPlats(null, null, "epicerie", null, "ALIMENTAIRE",
+        var page = platService.getAllPlats(null, null, "epicerie", null, null, "ALIMENTAIRE",
                 org.springframework.data.domain.PageRequest.of(0, 500));
         assertThat(page.getContent()).extracting("id").contains(produitBoutiqueId);
     }
 
     @Test
     void platsRayonInexistantRenvoieVide() {
-        var page = platService.getAllPlats(null, null, "rayon_inexistant", null, "ALIMENTAIRE",
+        var page = platService.getAllPlats(null, null, "rayon_inexistant", null, null, "ALIMENTAIRE",
                 org.springframework.data.domain.PageRequest.of(0, 500));
         assertThat(page.getContent()).isEmpty();
     }
@@ -237,7 +237,7 @@ class NonRegressionVerticalTest {
 
     @Test
     void platsSansVerticalVoitAussiLePlatDuRestaurantHistoriqueSansVertical() {
-        var page = platService.getAllPlats(null, null, null, null, null,
+        var page = platService.getAllPlats(null, null, null, null, null, null,
                 org.springframework.data.domain.PageRequest.of(0, 500));
         assertThat(page.getContent()).extracting("id").contains(platHistoriqueId);
     }

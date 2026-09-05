@@ -21,4 +21,5 @@ public class PlatCreateDTO {
     private String availabilityMode;
     private LocalDateTime indisponibleJusqua;
     private Boolean removeImage;
+    private Boolean topVente;
 }

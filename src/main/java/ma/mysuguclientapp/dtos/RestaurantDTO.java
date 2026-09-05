@@ -2,6 +2,8 @@ package ma.mysuguclientapp.dtos;
 
 import lombok.Data;
 
+import ma.mysuguclientapp.dtos.commerce.PromotionDTO;
+
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 

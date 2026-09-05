@@ -54,4 +54,24 @@ public class Promotion {
 
     @Column(name = "est_flash")
     private Boolean estFlash = false;
+
+    /**
+     * Règle unique d'activité d'une promotion : activée ET dans sa fenêtre de dates
+     * ET n'ayant pas atteint son plafond d'utilisation. Utilisée par le catalogue
+     * (feed promo, badge restaurant) et par le calcul de remise commande pour que
+     * tous les écrans partagent la même définition d'une promo « en cours ».
+     */
+    public boolean isActiveNow(LocalDateTime now) {
+        if (!Boolean.TRUE.equals(isActive)) {
+            return false;
+        }
+        LocalDateTime t = now != null ? now : LocalDateTime.now();
+        if (dateDebut != null && t.isBefore(dateDebut)) {
+            return false;
+        }
+        if (dateFin != null && t.isAfter(dateFin)) {
+            return false;
+        }
+        return usageMax == null || usageCount == null || usageCount < usageMax;
+    }
 }
