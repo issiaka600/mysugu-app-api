@@ -6,7 +6,7 @@ import ma.mysuguclientapp.dtos.CategorieRestaurantDTO;
 import ma.mysuguclientapp.dtos.EnumOptionDTO;
 import ma.mysuguclientapp.dtos.LocalisationDTO;
 import ma.mysuguclientapp.dtos.PlatDTO;
-import ma.mysuguclientapp.dtos.PromotionDTO;
+import ma.mysuguclientapp.dtos.commerce.PromotionDTO;
 import ma.mysuguclientapp.dtos.RestaurantCreateDTO;
 import ma.mysuguclientapp.dtos.RestaurantDTO;
 import ma.mysuguclientapp.dtos.ZoneDeploiementDTO;
@@ -39,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.List;
@@ -118,7 +119,7 @@ public class RestaurantServiceImpl implements RestaurantService {
     @Override
     @Transactional(readOnly = true)
     public List<PlatDTO> getRestaurantPlats(Long id, String categorieProduit) {
-        return platService.getAllPlats(id, null, categorieProduit, true, "ALL", Pageable.unpaged())
+        return platService.getAllPlats(id, null, categorieProduit, true, null, "ALL", Pageable.unpaged())
                 .getContent();
     }
 
@@ -764,7 +765,7 @@ public class RestaurantServiceImpl implements RestaurantService {
             dto.setCategorie(catDTO);
         }
 
-        if (restaurant.getPromotion() != null && restaurant.getPromotion().getIsActive()) {
+        if (restaurant.getPromotion() != null && restaurant.getPromotion().isActiveNow(LocalDateTime.now())) {
             PromotionDTO promoDTO = new PromotionDTO();
             promoDTO.setId(restaurant.getPromotion().getId());
             promoDTO.setPourcentage(restaurant.getPromotion().getPourcentage());

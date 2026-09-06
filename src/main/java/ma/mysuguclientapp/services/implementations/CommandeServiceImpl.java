@@ -318,8 +318,8 @@ public class CommandeServiceImpl implements CommandeService {
         // panier annonce exactement la même remise que celle qui sera appliquée ici.
         Promotion promoRestaurant = restaurant.getPromotion();
         BigDecimal remisePromotion = calculerRemisePromotion(restaurant, montantTotal);
-        if (remisePromotion.compareTo(BigDecimal.ZERO) > 0) {
-            promoRestaurant.setUsageCount(promoRestaurant.getUsageCount() + 1);
+        if (remisePromotion.compareTo(BigDecimal.ZERO) > 0 && promoRestaurant != null) {
+            promoRestaurant.setUsageCount((promoRestaurant.getUsageCount() == null ? 0 : promoRestaurant.getUsageCount()) + 1);
         }
 
         // 2. Code promo saisi manuellement par le client
@@ -1211,22 +1211,21 @@ public class CommandeServiceImpl implements CommandeService {
      */
     private BigDecimal calculerRemisePromotion(Restaurant restaurant, BigDecimal montantTotal) {
         Promotion promoRestaurant = restaurant.getPromotion();
-        if (promoRestaurant == null || !Boolean.TRUE.equals(promoRestaurant.getIsActive())) {
+        LocalDateTime now = LocalDateTime.now();
+        // Même règle d'activité (actif + dates + plafond d'usage) que le catalogue et
+        // l'entité — voir Promotion.isActiveNow(). Le montant minimum reste une condition
+        // propre à la commande (elle dépend du panier en cours de l'utilisateur).
+        if (promoRestaurant == null || !promoRestaurant.isActiveNow(now) || promoRestaurant.getPourcentage() == null) {
             return BigDecimal.ZERO;
         }
-        LocalDateTime now = LocalDateTime.now();
-        boolean dateOk = (promoRestaurant.getDateDebut() == null || !now.isBefore(promoRestaurant.getDateDebut()))
-                && (promoRestaurant.getDateFin() == null || !now.isAfter(promoRestaurant.getDateFin()));
         boolean montantOk = promoRestaurant.getMontantMinCommande() == null
                 || montantTotal.compareTo(promoRestaurant.getMontantMinCommande()) >= 0;
-        boolean usageOk = promoRestaurant.getUsageMax() == null
-                || promoRestaurant.getUsageCount() < promoRestaurant.getUsageMax();
-        if (dateOk && montantOk && usageOk) {
-            return montantTotal
-                    .multiply(BigDecimal.valueOf(promoRestaurant.getPourcentage()))
-                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        if (!montantOk) {
+            return BigDecimal.ZERO;
         }
-        return BigDecimal.ZERO;
+        return montantTotal
+                .multiply(BigDecimal.valueOf(promoRestaurant.getPourcentage()))
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
     }
 
     /**
@@ -1544,9 +1543,16 @@ public class CommandeServiceImpl implements CommandeService {
         dto.setAdresseLivraison(toLocalisationDTO(commande.getAdresseLivraison()));
 
         if (commande.getLignesCommande() != null) {
-            dto.setLignesCommande(commande.getLignesCommande().stream()
+            List<LigneCommandeDTO> lignesDTO = commande.getLignesCommande().stream()
                     .map(this::convertLigneToDTO)
-                    .toList());
+                    .toList();
+            dto.setLignesCommande(lignesDTO);
+            // Sous-total articles = somme des lignes, hors frais de livraison (montantTotal de la
+            // commande les inclut déjà : montantTotal = articles + fraisLivraison).
+            dto.setMontantArticles(lignesDTO.stream()
+                    .map(LigneCommandeDTO::getMontantTotal)
+                    .filter(m -> m != null)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add));
         }
 
         return dto;
@@ -1607,8 +1613,7 @@ public class CommandeServiceImpl implements CommandeService {
             platDTO.setPrix(ligne.getPlat().getPrix());
             platDTO.setImageUrl(ligne.getPlat().getImageUrl());
             platDTO.setIngredients(ligne.getPlat().getIngredients());
-            platDTO.setCategoriePlat(ligne.getPlat().getCategoriePlat() != null
-                    ? ligne.getPlat().getCategoriePlat().name() : null);
+            platDTO.setCategoriePlat(ligne.getPlat().getCategoriePlat());
             platDTO.setTempsPreparation(ligne.getPlat().getTempsPreparation());
             dto.setPlat(platDTO);
         }

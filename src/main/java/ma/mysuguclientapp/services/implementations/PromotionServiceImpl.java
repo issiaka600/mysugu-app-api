@@ -29,10 +29,22 @@ public class PromotionServiceImpl implements PromotionService {
     @Override
     @Transactional
     public PromotionDTO creerPromotion(PromotionCreateDTO dto) {
+        if (dto.getPourcentage() == null || dto.getPourcentage() <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Le pourcentage de la promotion doit être supérieur à 0");
+        }
+        if (dto.getDateDebut() == null || dto.getDateFin() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Les dates dateDebut et dateFin de la promotion sont obligatoires");
+        }
+        if (dto.getDateFin().isBefore(dto.getDateDebut())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "dateFin doit être postérieure à dateDebut");
+        }
         // La FK promotion_id est portée par la table restaurants (côté @ManyToOne).
         // On sauvegarde d'abord la promotion seule, puis on lie via Restaurant.setPromotion().
         Promotion promotion = Promotion.builder()
-                .pourcentage(dto.getPourcentage() != null ? dto.getPourcentage() : 0)
+                .pourcentage(dto.getPourcentage())
                 .dateDebut(dto.getDateDebut())
                 .dateFin(dto.getDateFin())
                 .description(dto.getDescription())
@@ -81,13 +93,19 @@ public class PromotionServiceImpl implements PromotionService {
     @Override
     @Transactional(readOnly = true)
     public List<PromotionDTO> getPromotionsActives() {
-        return promotionRepository.findByIsActiveTrue().stream().map(this::toDTO).collect(Collectors.toList());
+        LocalDateTime now = LocalDateTime.now();
+        return promotionRepository.findByIsActiveTrueAndDateFinAfter(now).stream()
+                .filter(p -> p.isActiveNow(now))
+                .map(this::toDTO).collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<PromotionDTO> getPromotionsRestaurant(Long restaurantId) {
-        return promotionRepository.findByRestaurantsId(restaurantId).stream().map(this::toDTO).collect(Collectors.toList());
+        LocalDateTime now = LocalDateTime.now();
+        return promotionRepository.findByRestaurantsId(restaurantId).stream()
+                .filter(p -> p.isActiveNow(now))
+                .map(this::toDTO).collect(Collectors.toList());
     }
 
     @Override
@@ -113,8 +131,10 @@ public class PromotionServiceImpl implements PromotionService {
     @Override
     @Transactional(readOnly = true)
     public List<PromotionDTO> getPromotionsFlash() {
-        return promotionRepository.findByEstFlashTrueAndIsActiveTrueAndDateFinAfter(LocalDateTime.now())
-                .stream().map(this::toDTO).collect(Collectors.toList());
+        LocalDateTime now = LocalDateTime.now();
+        return promotionRepository.findByEstFlashTrueAndIsActiveTrueAndDateFinAfter(now).stream()
+                .filter(p -> p.isActiveNow(now))
+                .map(this::toDTO).collect(Collectors.toList());
     }
 
     private Promotion findById(Long id) {

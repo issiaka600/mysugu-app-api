@@ -98,7 +98,7 @@ public class TestDataInitializer implements CommandLineRunner {
                 BigDecimal.valueOf(55),
                 restaurant,
                 List.of("Attieke", "Poisson", "Oignon", "Piment"),
-                CategoriePlat.PLAT_PRINCIPAL,
+                "PLAT_PRINCIPAL",
                 18
         );
 
@@ -108,7 +108,7 @@ public class TestDataInitializer implements CommandLineRunner {
                 BigDecimal.valueOf(75),
                 restaurant,
                 List.of("Poulet", "Frites", "Salade"),
-                CategoriePlat.PLAT_PRINCIPAL,
+                "PLAT_PRINCIPAL",
                 22
         );
 
@@ -118,7 +118,7 @@ public class TestDataInitializer implements CommandLineRunner {
                 BigDecimal.valueOf(20),
                 restaurant,
                 List.of("Hibiscus", "Menthe"),
-                CategoriePlat.BOISSON,
+                "BOISSON",
                 5
         );
 
@@ -195,7 +195,7 @@ public class TestDataInitializer implements CommandLineRunner {
             BigDecimal prix,
             Restaurant restaurant,
             List<String> ingredients,
-            CategoriePlat categoriePlat,
+            String categoriePlat,
             Integer tempsPreparation
     ) {
         return platRepository.findAll().stream()
@@ -216,6 +216,7 @@ public class TestDataInitializer implements CommandLineRunner {
                                 tempsPreparation,
                                 null,
                                 null,
+                                false,
                                 categoriePlat,
                                 null,
                                 new ArrayList<>()

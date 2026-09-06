@@ -14,5 +14,9 @@ public interface PromotionRepository extends JpaRepository<Promotion, Long> {
 
     List<Promotion> findByIsActiveTrue();
 
+    /** Promotions encore activées et non expirées côté date suivant l'API : reste à appliquer
+     *  la fenêtre de début (dateDebut) et le plafond d'usage côté service (Promotion.isActiveNow). */
+    List<Promotion> findByIsActiveTrueAndDateFinAfter(LocalDateTime now);
+
     List<Promotion> findByEstFlashTrueAndIsActiveTrueAndDateFinAfter(LocalDateTime now);
 }

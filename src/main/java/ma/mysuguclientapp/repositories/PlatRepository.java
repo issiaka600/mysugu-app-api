@@ -1,7 +1,6 @@
 package ma.mysuguclientapp.repositories;
 
 import ma.mysuguclientapp.entities.Plat;
-import ma.mysuguclientapp.enumerations.CategoriePlat;
 import ma.mysuguclientapp.enumerations.Vertical;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,12 +13,12 @@ import java.util.List;
 public interface PlatRepository extends JpaRepository<Plat, Long> {
     Page<Plat> findByRestaurantId(Long restaurantId, Pageable pageable);
     List<Plat> findByRestaurantId(Long restaurantId);
-    List<Plat> findByRestaurantIdAndCategoriePlat(Long restaurantId, CategoriePlat categoriePlat);
+    List<Plat> findByRestaurantIdAndCategoriePlat(Long restaurantId, String categoriePlat);
     List<Plat> findByRestaurantIdAndIsAvailable(Long restaurantId, Boolean isAvailable);
     Page<Plat> findByIsAvailable(Boolean isAvailable, Pageable pageable);
-    List<Plat> findByCategoriePlat(CategoriePlat categoriePlat);
+    List<Plat> findByCategoriePlat(String categoriePlat);
     Page<Plat> findByRestaurantIdAndCategoriePlatAndIsAvailable(
-            Long restaurantId, CategoriePlat categoriePlat, Boolean isAvailable, Pageable pageable);
+            Long restaurantId, String categoriePlat, Boolean isAvailable, Pageable pageable);
 
     @Query("SELECT p FROM Plat p WHERE " +
             "(LOWER(p.nom) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
@@ -40,7 +39,7 @@ public interface PlatRepository extends JpaRepository<Plat, Long> {
             " OR p.restaurant.vertical = :vertical) " +
             "ORDER BY p.id")
     Page<Plat> rechercheFiltree(@Param("restaurantId") Long restaurantId,
-                                @Param("categoriePlat") CategoriePlat categoriePlat,
+                                @Param("categoriePlat") String categoriePlat,
                                 @Param("categorieProduit") String categorieProduit,
                                 @Param("vertical") Vertical vertical,
                                 Pageable pageable);
@@ -66,4 +65,8 @@ public interface PlatRepository extends JpaRepository<Plat, Long> {
     @Query("SELECT DISTINCT p.categorieProduit FROM Plat p " +
             "WHERE p.restaurant.id = :restaurantId AND p.categorieProduit IS NOT NULL")
     List<String> findRayonsUtilises(@Param("restaurantId") Long restaurantId);
+
+    /** Nombre de plats référençant chaque catégorie de plat (code -> count). */
+    @Query("SELECT p.categoriePlat, COUNT(p) FROM Plat p WHERE p.categoriePlat IS NOT NULL GROUP BY p.categoriePlat")
+    List<Object[]> countPlatsParCategoriePlat();
 }

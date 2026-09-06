@@ -115,7 +115,7 @@ class ParcoursBoutiqueE2ETest {
         Plat produitEpicerie = creerProduit(boutique, "epicerie", 5);
         Plat produitCosmetique = creerProduit(boutique, "cosmetique", 5);
 
-        var page = platService.getAllPlats(null, null, "epicerie", null, "ALIMENTAIRE",
+        var page = platService.getAllPlats(null, null, "epicerie", null, null, "ALIMENTAIRE",
                 PageRequest.of(0, 500));
 
         assertThat(page.getContent()).extracting("id")
