@@ -189,6 +189,19 @@ public class Commande {
     @Column(name = "livraison_verifiee")
     private Boolean livraisonVerifiee = false;
 
+    @Column(name = "delivery_otp_expires_at")
+    private LocalDateTime deliveryOtpExpiresAt;
+
+    @Column(name = "delivery_otp_verified_at")
+    private LocalDateTime deliveryOtpVerifiedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "delivery_otp_verified_by")
+    private User deliveryOtpVerifiedBy;
+
+    @Column(name = "delivery_otp_attempts")
+    private Integer deliveryOtpAttempts = 0;
+
     /** Commande mise en pause par le livreur (6valley `orders.is_pause`) + cause. */
     @Column(name = "en_pause")
     private Boolean enPause = false;

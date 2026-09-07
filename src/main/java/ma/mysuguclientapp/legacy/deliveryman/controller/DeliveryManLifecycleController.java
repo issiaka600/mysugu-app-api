@@ -25,6 +25,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -57,6 +58,9 @@ public class DeliveryManLifecycleController {
     private final StockService stockService;
     private final CommandeStatusHistoryService commandeStatusHistoryService;
 
+    @Value("${delivery.otp.duration-seconds:600}")
+    private long deliveryOtpDurationSeconds;
+
     // ---------- T5 : lifecycle ----------
 
     @PostMapping("/update-order-status")
@@ -73,7 +77,20 @@ public class DeliveryManLifecycleController {
             return ResponseEntity.badRequest().body(ErrorsResponse.of("status", "Statut requis."));
         }
         switch (status.toLowerCase()) {
-            case "delivered" -> marquerLivree(c);
+            case "delivered" -> {
+                if (c.getStatut() != StatutCommande.EN_COURS) {
+                    return ResponseEntity.status(HttpStatus.CONFLICT)
+                            .body(ErrorsResponse.of("status", "La commande doit être en cours de livraison."));
+                }
+                if (!Boolean.TRUE.equals(c.getLivraisonVerifiee())
+                        || c.getDeliveryOtpVerifiedAt() == null
+                        || c.getDeliveryOtpVerifiedBy() == null
+                        || !c.getDeliveryOtpVerifiedBy().getId().equals(l.getId())) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(ErrorsResponse.of("verification_code", "Le code de livraison doit être vérifié avant de terminer la livraison."));
+                }
+                marquerLivree(c);
+            }
             case "canceled", "returned" -> {
                 // Chemin d'annulation supplémentaire (constat de revue, hors brief initial) :
                 // l'app livreur annule/retourne la commande directement sur l'entité, sans passer
@@ -98,13 +115,13 @@ public class DeliveryManLifecycleController {
                 commandeRepository.save(c);
             }
             case "out_for_delivery" -> {
-                if (c.getStatut() != StatutCommande.PRETE
-                        && c.getStatut() != StatutCommande.ASSIGNEE_LIVREUR) {
+                if (c.getStatut() != StatutCommande.PRETE) {
                     return ResponseEntity.status(HttpStatus.CONFLICT)
                             .body(ErrorsResponse.of("status",
                                     "La commande doit être prête avant de commencer la livraison."));
                 }
                 c.setStatut(StatutCommande.EN_COURS);
+                genererEtEnvoyerOtp(c);
                 commandeRepository.save(c);
             }
             default -> {
@@ -195,11 +212,25 @@ public class DeliveryManLifecycleController {
         User l = livreur(email);
         Commande c = owned(orderId(body), l);
         String code = str(body.get("verification_code"));
-        if (code != null && code.equals(c.getCodeVerificationLivraison())) {
+        if (c.getStatut() != StatutCommande.EN_COURS) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new MessageResponse("La commande n'est pas en cours de livraison."));
+        }
+        if (c.getDeliveryOtpExpiresAt() == null || !LocalDateTime.now().isBefore(c.getDeliveryOtpExpiresAt())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new MessageResponse("Code de vérification expiré."));
+        }
+        if (code != null && code.equals(c.getCodeVerificationLivraison())
+                && !Boolean.TRUE.equals(c.getLivraisonVerifiee())) {
             c.setLivraisonVerifiee(true);
+            c.setDeliveryOtpVerifiedAt(LocalDateTime.now());
+            c.setDeliveryOtpVerifiedBy(l);
+            c.setCodeVerificationLivraison(null);
             commandeRepository.save(c);
             return ResponseEntity.ok(new MessageResponse("Livraison vérifiée avec succès."));
         }
+        c.setDeliveryOtpAttempts((c.getDeliveryOtpAttempts() == null ? 0 : c.getDeliveryOtpAttempts()) + 1);
+        commandeRepository.save(c);
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new MessageResponse("Code de vérification incorrect."));
     }
 
@@ -208,22 +239,35 @@ public class DeliveryManLifecycleController {
     public ResponseEntity<?> resendVerificationCode(@AuthenticationPrincipal String email, @RequestBody Map<String, Object> body) {
         User l = livreur(email);
         Commande c = owned(orderId(body), l);
+        if (c.getStatut() != StatutCommande.EN_COURS) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ErrorsResponse.of("status", "La commande n'est pas en cours de livraison."));
+        }
+        genererEtEnvoyerOtp(c);
+        commandeRepository.save(c);
+        return ResponseEntity.ok(new MessageResponse("Code de vérification renvoyé."));
+    }
+
+    private void genererEtEnvoyerOtp(Commande c) {
         String code = String.format("%06d", RANDOM.nextInt(1_000_000));
         c.setCodeVerificationLivraison(code);
-        commandeRepository.save(c);
-        // Notif in-app + push FCM du code au client (best effort).
+        c.setLivraisonVerifiee(false);
+        c.setDeliveryOtpExpiresAt(LocalDateTime.now().plusSeconds(deliveryOtpDurationSeconds));
+        c.setDeliveryOtpVerifiedAt(null);
+        c.setDeliveryOtpVerifiedBy(null);
+        c.setDeliveryOtpAttempts(0);
         String msg = "Votre code de vérification de livraison pour la commande "
                 + c.getNumeroCommande() + " est : " + code;
         notifier(c.getClient(), c, "Code de livraison", msg);
         if (c.getClient() != null) {
             try {
                 fcmService.sendToUser(c.getClient().getId(), "Code de livraison", msg,
-                        java.util.Map.of("type", "delivery_otp", "order_id", String.valueOf(c.getId())));
+                        java.util.Map.of("type", "delivery_otp", "event", "delivery_otp",
+                                "order_id", String.valueOf(c.getId()), "verification_code", code));
             } catch (Exception e) {
                 log.warn("Échec push FCM code livraison commande {}: {}", c.getNumeroCommande(), e.getMessage());
             }
         }
-        return ResponseEntity.ok(new MessageResponse("Code de vérification renvoyé."));
     }
 
     @PostMapping(value = "/order-delivery-verification", consumes = {"multipart/form-data"})

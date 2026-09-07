@@ -8,6 +8,8 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -34,8 +36,10 @@ public class LegacyOrderMapper {
         if (s == null) return "pending";
         return switch (s) {
             case EN_ATTENTE, NON_FINALISEE -> "pending";
-            case CONFIRMEE, ASSIGNEE_LIVREUR -> "confirmed";
-            case EN_PREPARATION, PRETE -> "processing";
+            case CONFIRMEE -> "confirmed";
+            case EN_PREPARATION -> "processing";
+            case PRETE -> "ready";
+            case ASSIGNEE_LIVREUR -> "assigned";
             case EN_COURS -> "out_for_delivery";
             case LIVREE -> "delivered";
             case ANNULEE -> "canceled";
@@ -63,6 +67,10 @@ public class LegacyOrderMapper {
     // ---- Mapping principal ----
 
     public Map<String, Object> toOrderMap(Commande c, boolean includeDetails) {
+        return toOrderMap(c, includeDetails, null);
+    }
+
+    public Map<String, Object> toOrderMap(Commande c, boolean includeDetails, OffreLivraison offre) {
         Map<String, Object> m = new LinkedHashMap<>();
         Long sellerId = resolveSellerId(c);
 
@@ -91,8 +99,13 @@ public class LegacyOrderMapper {
         m.put("canceled_at", c.getCanceledAt() != null ? c.getCanceledAt().toString() : null);
         m.put("is_pause", Boolean.TRUE.equals(c.getEnPause()));
         m.put("is_guest", false);
-        m.put("verification_code", c.getCodeVerificationLivraison());
+        // Le code appartient au client et ne doit jamais être révélé au livreur.
+        m.put("verification_code", null);
         m.put("delivery_man_id", c.getLivreur() != null ? c.getLivreur().getId() : null);
+        m.put("assignment_state", assignmentState(c, offre));
+        m.put("delivery_offer_id", offre != null ? offre.getId() : null);
+        m.put("offer_expires_at", offerExpiresAt(offre));
+        m.put("offer_remaining_seconds", offerRemainingSeconds(offre));
         m.put("seller_id", sellerId);
         m.put("seller_is", "seller");
         m.put("shipping_method_id", 0);
@@ -123,6 +136,30 @@ public class LegacyOrderMapper {
             m.put("details", detailsList(c));
         }
         return m;
+    }
+
+    private String assignmentState(Commande commande, OffreLivraison offre) {
+        if (offre != null) {
+            return switch (offre.getStatut()) {
+                case PROPOSEE -> "offered";
+                case ACCEPTEE -> "accepted";
+                case REFUSEE, ANNULEE -> "rejected";
+                case EXPIREE -> "expired";
+            };
+        }
+        return commande.getLivreur() != null ? "accepted" : null;
+    }
+
+    private String offerExpiresAt(OffreLivraison offre) {
+        if (offre == null || offre.getStatut() != ma.mysuguclientapp.enumerations.StatutOffreLivraison.PROPOSEE
+                || offre.getExpiresAt() == null) return null;
+        return offre.getExpiresAt().toInstant(ZoneOffset.UTC).toString();
+    }
+
+    private long offerRemainingSeconds(OffreLivraison offre) {
+        if (offre == null || offre.getStatut() != ma.mysuguclientapp.enumerations.StatutOffreLivraison.PROPOSEE
+                || offre.getExpiresAt() == null) return 0L;
+        return Math.max(0L, ChronoUnit.SECONDS.between(LocalDateTime.now(), offre.getExpiresAt()));
     }
 
     private Long resolveSellerId(Commande c) {

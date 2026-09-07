@@ -16,6 +16,8 @@ import java.util.Optional;
 public interface OffreLivraisonRepository extends JpaRepository<OffreLivraison, Long> {
     Optional<OffreLivraison> findByCommandeIdAndStatut(Long commandeId, StatutOffreLivraison statut);
     Optional<OffreLivraison> findByCommandeIdAndLivreurIdAndStatut(Long commandeId, Long livreurId, StatutOffreLivraison statut);
+    Optional<OffreLivraison> findFirstByCommandeIdAndLivreurIdAndStatutOrderByRespondedAtDesc(
+            Long commandeId, Long livreurId, StatutOffreLivraison statut);
     List<OffreLivraison> findByLivreurIdAndStatutIn(Long livreurId, Collection<StatutOffreLivraison> statuts);
     List<OffreLivraison> findByCommandeIdOrderBySequenceNumberAsc(Long commandeId);
     long countByCommandeId(Long commandeId);

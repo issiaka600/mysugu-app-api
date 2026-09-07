@@ -21,6 +21,7 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Optional;
 import java.util.List;
+import java.util.Map;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,6 +33,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class DispatchLivraisonServiceTest {
@@ -120,6 +122,30 @@ class DispatchLivraisonServiceTest {
         service.proposerProchainLivreur(42L);
 
         assertThat(offreSauvegardee.getLivreur()).isSameAs(procheVendeur);
+    }
+
+    @Test
+    void notificationOffreExposeIdentifiantsTtlEtExpirationAbsolue() {
+        Commande commande = commandeAvecRestaurant(StatutCommande.EN_PREPARATION,
+                localisation(14.7000, -17.4500));
+        User vendeur = userAvecPosition(99L, 14.7000, -17.4500);
+        vendeur.setLastLocationAt(LocalDateTime.now());
+        commande.getRestaurant().setOwner(vendeur);
+        preparerRecherche(commande, livreur(7L, 14.7001, -17.4501));
+
+        service.proposerProchainLivreur(42L);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> data = ArgumentCaptor.forClass(Map.class);
+        verify(fcmService).sendToUserWithResult(eq(7L), eq("Nouvelle livraison"),
+                eq("Une commande est disponible"), data.capture());
+        assertThat(data.getValue())
+                .containsEntry("type", "order")
+                .containsEntry("event", "new_delivery")
+                .containsEntry("order_id", "42")
+                .containsEntry("delivery_offer_id", "123")
+                .containsEntry("ttlSeconds", "30");
+        assertThat(data.getValue().get("expires_at")).endsWith("Z");
     }
 
     @Test

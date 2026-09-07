@@ -48,8 +48,8 @@ public class DeliveryManOrderController {
         List<OffreLivraison> offres = offreLivraisonRepository.findByLivreurIdAndStatutIn(
                 l.getId(), List.of(StatutOffreLivraison.PROPOSEE));
         List<Map<String, Object>> out = new ArrayList<>();
-        mine.forEach(c -> out.add(mapper.toOrderMap(c, false)));
-        offres.forEach(o -> out.add(mapper.toOrderMap(o.getCommande(), false)));
+        mine.forEach(c -> out.add(mapper.toOrderMap(c, false, acceptedOffer(c, l))));
+        offres.forEach(o -> out.add(mapper.toOrderMap(o.getCommande(), false, o)));
         return out;
     }
 
@@ -66,7 +66,7 @@ public class DeliveryManOrderController {
                 .filter(c -> isPause == null || isPause.isBlank()
                         || ("1".equals(isPause)) == Boolean.TRUE.equals(c.getEnPause()))
                 .filter(c -> search == null || search.isBlank() || matchesSearch(c, search))
-                .map(c -> mapper.toOrderMap(c, false))
+                .map(c -> mapper.toOrderMap(c, false, acceptedOffer(c, l)))
                 .collect(Collectors.toList());
     }
 
@@ -83,7 +83,7 @@ public class DeliveryManOrderController {
         User l = livreur(email);
         return commandeRepository.findByLivreurIdOrderByCreatedAtDesc(l.getId()).stream()
                 .filter(c -> search == null || search.isBlank() || matchesSearch(c, search))
-                .map(c -> mapper.toOrderMap(c, false))
+                .map(c -> mapper.toOrderMap(c, false, acceptedOffer(c, l)))
                 .collect(Collectors.toList());
     }
 
@@ -105,7 +105,11 @@ public class DeliveryManOrderController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("success", false, "message", "Cette commande ne vous est pas proposée."));
         }
-        Map<String, Object> order = mapper.toOrderMap(c, true);
+        OffreLivraison offer = c.getLivreur() == null
+                ? offreLivraisonRepository.findByCommandeIdAndLivreurIdAndStatut(
+                        orderId, l.getId(), StatutOffreLivraison.PROPOSEE).orElse(null)
+                : acceptedOffer(c, l);
+        Map<String, Object> order = mapper.toOrderMap(c, true, offer);
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("success", true);
         body.put("order", order);
@@ -144,6 +148,13 @@ public class DeliveryManOrderController {
             return name.contains(s);
         }
         return false;
+    }
+
+    private OffreLivraison acceptedOffer(Commande commande, User livreur) {
+        return offreLivraisonRepository
+                .findFirstByCommandeIdAndLivreurIdAndStatutOrderByRespondedAtDesc(
+                        commande.getId(), livreur.getId(), StatutOffreLivraison.ACCEPTEE)
+                .orElse(null);
     }
 
     private User livreur(String email) {

@@ -59,7 +59,7 @@ public class UserController {
         return ResponseEntity.ok(userService.updateProfile(token, updateDTO, avatar));
     }
 
-    @PatchMapping("users/location")
+    @PatchMapping({"users/location", "api/users/location"})
     public ResponseEntity<UserDTO> updateLocation(
             @RequestHeader("Authorization") String token,
             @Valid @RequestBody LocationUpdateDTO locationDTO) {

@@ -8,9 +8,11 @@ import ma.mysuguclientapp.enumerations.StatutCommande;
 import ma.mysuguclientapp.enumerations.UserRole;
 import ma.mysuguclientapp.legacy.deliveryman.mapper.LegacyOrderMapper;
 import ma.mysuguclientapp.repositories.CommandeRepository;
+import ma.mysuguclientapp.repositories.OffreLivraisonRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
 import ma.mysuguclientapp.services.implementations.DispatchLivraisonService;
 import ma.mysuguclientapp.services.interfaces.NotificationService;
+import ma.mysuguclientapp.enumerations.StatutOffreLivraison;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,12 +39,17 @@ public class DeliveryManOrderService {
     private final NotificationService notificationService;
     private final LegacyOrderMapper mapper;
     private final DispatchLivraisonService dispatchLivraisonService;
+    private final OffreLivraisonRepository offreLivraisonRepository;
 
     @Transactional
     public Map<String, Object> accept(Long orderId, User livreur) {
         Commande c = dispatchLivraisonService.accepterOffre(orderId, livreur);
         notifierApresAcceptation(c, livreur);
-        return mapper.toOrderMap(c, false);
+        var offre = offreLivraisonRepository
+                .findFirstByCommandeIdAndLivreurIdAndStatutOrderByRespondedAtDesc(
+                        orderId, livreur.getId(), StatutOffreLivraison.ACCEPTEE)
+                .orElse(null);
+        return mapper.toOrderMap(c, false, offre);
     }
 
     @Transactional

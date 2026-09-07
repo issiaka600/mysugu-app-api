@@ -29,6 +29,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.time.Duration;
+import java.time.ZoneOffset;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -258,6 +259,7 @@ public class DispatchLivraisonService {
                         Map.entry("notificationTag", "order-" + offre.getCommande().getId()),
                         Map.entry("collapseKey", "order-" + offre.getCommande().getId()),
                         Map.entry("ttlSeconds", Long.toString(ttlSeconds)),
+                        Map.entry("expires_at", offre.getExpiresAt().toInstant(ZoneOffset.UTC).toString()),
                         Map.entry("apnsSound", "order_alert.wav"),
                         Map.entry("apnsPushType", "alert"),
                         Map.entry("apnsPriority", "10"),
@@ -316,6 +318,14 @@ public class DispatchLivraisonService {
                 && !seller.getLastLocationAt().isBefore(now.minusSeconds(maxSellerLocationAgeSeconds))) {
             return new LocationPoint(seller.getLocalisation().getLatitude(),
                     seller.getLocalisation().getLongitude(), "vendeur");
+        }
+
+        if (commande.getRestaurant() != null
+                && commande.getRestaurant().getLocalisation() != null
+                && commande.getRestaurant().getLocalisation().getLatitude() != null
+                && commande.getRestaurant().getLocalisation().getLongitude() != null) {
+            return new LocationPoint(commande.getRestaurant().getLocalisation().getLatitude(),
+                    commande.getRestaurant().getLocalisation().getLongitude(), "restaurant");
         }
 
         return null;
