@@ -23,6 +23,12 @@ public interface PlatService {
 
     PlatDTO updatePlat(Long id, PlatCreateDTO platDTO, MultipartFile image);
 
+    /** Remplace intégralement la liste des ingrédients d'un plat (liste vide = aucun ingrédient). */
+    PlatDTO updateIngredients(Long id, List<String> ingredients);
+
+    /** Bascule du flag MANUEL « Top des ventes » (choix du commerçant/admin). */
+    PlatDTO updateTopVente(Long id, Boolean topVente);
+
     void deletePlat(Long id);
 
     PlatDTO updateAvailability(Long id, PlatAvailabilityUpdateDTO availabilityDTO);

@@ -61,6 +61,15 @@ public class ZoneDeploiement {
     @Column(name = "prix_extra_par_km", precision = 8, scale = 2)
     private BigDecimal prixExtraParKm;
 
+    /**
+     * Prix de 1 km en DH pour le modèle de facturation « au kilomètre ».
+     * Si renseigné, il prend le pas sur la grille distanceMinKm/prixExtraParKm :
+     * frais = max(fraisLivraisonMin, distance × prixParKm).
+     * Non renseigné = la zone garde l'ancien modèle (fraisMin + extra/km).
+     */
+    @Column(name = "prix_par_km", precision = 8, scale = 2)
+    private BigDecimal prixParKm;
+
     @Column(name = "is_active")
     private Boolean isActive = true;
 

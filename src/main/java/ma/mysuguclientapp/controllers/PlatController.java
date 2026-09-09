@@ -82,6 +82,13 @@ public class PlatController {
         return ResponseEntity.ok(platService.updatePlat(id, platDTO, image));
     }
 
+    @PutMapping(value = "/{id}/ingredients")
+    public ResponseEntity<PlatDTO> updatePlatIngredients(
+            @PathVariable Long id,
+            @RequestBody List<String> ingredients) {
+        return ResponseEntity.ok(platService.updateIngredients(id, ingredients));
+    }
+
     @PatchMapping(value = "/{id}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<PlatDTO> updatePlatImage(
             @PathVariable Long id,
@@ -101,5 +108,16 @@ public class PlatController {
             @PathVariable Long id,
             @RequestBody(required = false) PlatAvailabilityUpdateDTO availabilityDTO) {
         return ResponseEntity.ok(platService.updateAvailability(id, availabilityDTO));
+    }
+
+    /**
+     * Bascule du flag MANUEL « Top des ventes » (choix du commerçant ou de l'admin).
+     * Body JSON : {@code true} / {@code false} (booléen nu).
+     */
+    @PatchMapping("/{id}/top-vente")
+    public ResponseEntity<PlatDTO> updatePlatTopVente(
+            @PathVariable Long id,
+            @RequestBody Boolean topVente) {
+        return ResponseEntity.ok(platService.updateTopVente(id, topVente));
     }
 }
