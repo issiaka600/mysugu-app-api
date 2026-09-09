@@ -37,6 +37,9 @@ public class ZoneDeploiementServiceImpl implements ZoneDeploiementService {
                 .centreLongitude(dto.getCentreLongitude())
                 .rayonKm(dto.getRayonKm())
                 .fraisLivraisonMin(dto.getFraisLivraisonMin())
+                .distanceMinKm(dto.getDistanceMinKm())
+                .prixExtraParKm(dto.getPrixExtraParKm())
+                .prixParKm(dto.getPrixParKm())
                 .isActive(true)
                 .build();
 
@@ -62,6 +65,9 @@ public class ZoneDeploiementServiceImpl implements ZoneDeploiementService {
         zone.setCentreLongitude(dto.getCentreLongitude());
         zone.setRayonKm(dto.getRayonKm());
         zone.setFraisLivraisonMin(dto.getFraisLivraisonMin());
+        zone.setDistanceMinKm(dto.getDistanceMinKm());
+        zone.setPrixExtraParKm(dto.getPrixExtraParKm());
+        zone.setPrixParKm(dto.getPrixParKm());
 
         return toDTO(zoneDeploiementRepository.save(zone));
     }
@@ -127,6 +133,9 @@ public class ZoneDeploiementServiceImpl implements ZoneDeploiementService {
         dto.setCentreLongitude(z.getCentreLongitude());
         dto.setRayonKm(z.getRayonKm());
         dto.setFraisLivraisonMin(z.getFraisLivraisonMin());
+        dto.setDistanceMinKm(z.getDistanceMinKm());
+        dto.setPrixExtraParKm(z.getPrixExtraParKm());
+        dto.setPrixParKm(z.getPrixParKm());
         dto.setIsActive(z.getIsActive());
         dto.setCreatedAt(z.getCreatedAt());
         return dto;

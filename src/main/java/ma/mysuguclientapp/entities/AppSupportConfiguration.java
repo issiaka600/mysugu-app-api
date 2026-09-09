@@ -17,7 +17,6 @@ public class AppSupportConfiguration {
     private String address;
     private String workingHours;
     private String website;
-    @Lob
-    @Column(name = "emergency_contacts_json")
+    @Column(name = "emergency_contacts_json", columnDefinition = "text")
     private String emergencyContactsJson;
 }

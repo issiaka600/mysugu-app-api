@@ -16,6 +16,7 @@ import ma.mysuguclientapp.repositories.CategoriePlatDefRepository;
 import ma.mysuguclientapp.repositories.PlatRepository;
 import ma.mysuguclientapp.repositories.RestaurantRepository;
 import ma.mysuguclientapp.services.interfaces.PlatService;
+import ma.mysuguclientapp.services.interfaces.TopVenteService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,6 +38,7 @@ public class PlatServiceImpl implements PlatService {
     private final RestaurantRepository restaurantRepository;
     private final MinioService minioService;
     private final CategoriePlatDefRepository categoriePlatDefRepository;
+    private final TopVenteService topVenteService;
 
     @Override
     @Transactional(readOnly = true)
@@ -51,13 +54,15 @@ public class PlatServiceImpl implements PlatService {
         // stock + expiration d'une indisponibilité temporaire), pas expressible en SQL seul : il
         // reste donc appliqué ici, en mémoire, après la requête paginée. Conséquence assumée : le
         // total de pagination (page.getTotalElements()) porte sur la requête SQL, avant ce filtre.
-        // Idem pour `topVente` : filtre en mémoire (dérivé JPA trivial mais inutile — il touche
-        // le flag exact, pas une expression calculée).
+        // Idem pour `topVente` : le statut est EFFECTIF (flag manuel OU ventes livrées ≥ seuil),
+        // calculé ici en mémoire à partir des ventes cumulées.
+        Map<Long, Long> ventes = topVenteService.ventesParPlatLivrees();
         List<PlatDTO> contenu = page.getContent().stream()
                 .map(this::refreshAvailabilityIfNeeded)
                 .filter(plat -> available == null || plat.isEffectivementDisponible() == available)
-                .filter(plat -> topVente == null || Boolean.TRUE.equals(plat.getTopVente()) == topVente)
-                .map(this::convertToDTO)
+                .filter(plat -> topVente == null
+                        || topVenteService.estTopVente(plat.getId(), plat.getTopVente(), ventes) == topVente)
+                .map(plat -> convertToDTO(plat, ventes))
                 .toList();
 
         return new PageImpl<>(contenu, pageable, page.getTotalElements());
@@ -68,16 +73,17 @@ public class PlatServiceImpl implements PlatService {
     public PlatDTO getPlatById(Long id) {
         Plat plat = platRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Plat non trouvé avec l'ID: " + id));
-        return convertToDTO(refreshAvailabilityIfNeeded(plat));
+        return convertToDTO(refreshAvailabilityIfNeeded(plat), topVenteService.ventesParPlatLivrees());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<PlatDTO> getPlatsByRestaurant(Long restaurantId) {
+        Map<Long, Long> ventes = topVenteService.ventesParPlatLivrees();
         return platRepository.findByRestaurantId(restaurantId).stream()
                 .map(this::refreshAvailabilityIfNeeded)
                 .filter(Plat::isEffectivementDisponible)
-                .map(this::convertToDTO)
+                .map(plat -> convertToDTO(plat, ventes))
                 .toList();
     }
 
@@ -85,9 +91,10 @@ public class PlatServiceImpl implements PlatService {
     @Transactional(readOnly = true)
     public List<PlatDTO> searchPlats(String keyword, String vertical) {
         Vertical v = "ALL".equalsIgnoreCase(vertical) ? null : parseVertical(vertical);
+        Map<Long, Long> ventes = topVenteService.ventesParPlatLivrees();
         return platRepository.searchByKeywordAndVertical(keyword, v).stream()
                 .map(this::refreshAvailabilityIfNeeded)
-                .map(this::convertToDTO)
+                .map(plat -> convertToDTO(plat, ventes))
                 .collect(Collectors.toList());
     }
 
@@ -138,7 +145,7 @@ public class PlatServiceImpl implements PlatService {
 
         Plat savedPlat = platRepository.save(plat);
         log.info("Plat créé: {}", savedPlat.getNom());
-        return convertToDTO(savedPlat);
+        return convertToDTO(savedPlat, topVenteService.ventesParPlatLivrees());
     }
 
     @Override
@@ -198,7 +205,31 @@ public class PlatServiceImpl implements PlatService {
 
         Plat updatedPlat = platRepository.save(plat);
         log.info("Plat mis à jour: {}", updatedPlat.getNom());
-        return convertToDTO(updatedPlat);
+        return convertToDTO(updatedPlat, topVenteService.ventesParPlatLivrees());
+    }
+
+    @Override
+    @Transactional
+    public PlatDTO updateIngredients(Long id, List<String> ingredients) {
+        Plat plat = platRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Plat non trouvé"));
+        List<String> nettoyes = ingredients == null ? List.of() : ingredients.stream()
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+        plat.setIngredients(nettoyes);
+        log.info("Ingrédients du plat {} mis à jour ({} élément(s))", plat.getNom(), nettoyes.size());
+        return convertToDTO(platRepository.save(plat), topVenteService.ventesParPlatLivrees());
+    }
+
+    @Override
+    @Transactional
+    public PlatDTO updateTopVente(Long id, Boolean topVente) {
+        Plat plat = platRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Plat non trouvé"));
+        plat.setTopVente(Boolean.TRUE.equals(topVente));
+        log.info("Flag manuel « Top des ventes » du plat {} → {}", plat.getNom(), plat.getTopVente());
+        return convertToDTO(platRepository.save(plat), topVenteService.ventesParPlatLivrees());
     }
 
     @Override
@@ -234,7 +265,7 @@ public class PlatServiceImpl implements PlatService {
 
         Plat updatedPlat = platRepository.save(plat);
         log.info("Disponibilité du plat {} changée à: {}", plat.getNom(), plat.getAvailabilityMode());
-        return convertToDTO(updatedPlat);
+        return convertToDTO(updatedPlat, topVenteService.ventesParPlatLivrees());
     }
 
     private void applyAvailabilityMode(Plat plat, ModeDisponibilitePlat mode, LocalDateTime indisponibleJusqua) {
@@ -296,7 +327,7 @@ public class PlatServiceImpl implements PlatService {
         return code;
     }
 
-    private PlatDTO convertToDTO(Plat plat) {
+    private PlatDTO convertToDTO(Plat plat, Map<Long, Long> ventes) {
         PlatDTO dto = new PlatDTO();
         dto.setId(plat.getId());
         dto.setNom(plat.getNom());
@@ -312,7 +343,7 @@ public class PlatServiceImpl implements PlatService {
         dto.setAlerteStockBas(plat.getQuantiteStock() != null
                 && plat.getSeuilAlerteStock() != null
                 && plat.getQuantiteStock() <= plat.getSeuilAlerteStock());
-        dto.setTopVente(plat.getTopVente());
+        dto.setTopVente(topVenteService.estTopVente(plat.getId(), plat.getTopVente(), ventes));
         dto.setTempsPreparation(plat.getTempsPreparation());
         dto.setIndisponibleJusqua(plat.getIndisponibleJusqua());
 

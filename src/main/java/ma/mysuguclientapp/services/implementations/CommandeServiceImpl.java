@@ -1283,6 +1283,24 @@ public class CommandeServiceImpl implements CommandeService {
                 && zone.getDistanceMinKm() != null
                 && zone.getPrixExtraParKm() != null;
 
+        // Modèle « au kilomètre » (optionnel) : prix de 1 km fixé, plancher = fraisLivraisonMin.
+        // frais = max(fraisLivraisonMin, distance × prixParKm). Renseigné, il prévaut sur la
+        // grille distanceMinKm/prixExtraParKm de l'ancien modèle.
+        boolean hasPerKmTariff = zone != null
+                && zone.getPrixParKm() != null
+                && zone.getFraisLivraisonMin() != null;
+
+        if (canCalculateDistance && hasPerKmTariff) {
+            double distanceKm = calculateDistance(
+                    restaurant.getLocalisation().getLatitude(),
+                    restaurant.getLocalisation().getLongitude(),
+                    adresse.getLatitude(), adresse.getLongitude());
+            BigDecimal distance = BigDecimal.valueOf(distanceKm);
+            BigDecimal auKilometre = distance.multiply(zone.getPrixParKm());
+            return auKilometre.max(zone.getFraisLivraisonMin())
+                    .setScale(0, RoundingMode.UP);
+        }
+
         if (canCalculateDistance && hasZoneTariff) {
             double distanceKm = calculateDistance(
                     restaurant.getLocalisation().getLatitude(),

@@ -16,6 +16,7 @@ public class ZoneDeploiementDTO {
     private BigDecimal fraisLivraisonMin;
     private BigDecimal distanceMinKm;
     private BigDecimal prixExtraParKm;
+    private BigDecimal prixParKm;
     private Boolean isActive;
     private LocalDateTime createdAt;
 }
