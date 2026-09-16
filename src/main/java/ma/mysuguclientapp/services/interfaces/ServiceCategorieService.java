@@ -33,6 +33,8 @@ public interface ServiceCategorieService {
             Integer ordre,
             Boolean isActive,
             MultipartFile imageTop,
-            MultipartFile imageBanner);
+            MultipartFile imageBanner,
+            Boolean removeImageTop,
+            Boolean removeImageBanner);
     void deleteService(Long id);
 }
