@@ -82,7 +82,9 @@ public class ServiceCategorieServiceImpl implements ServiceCategorieService {
             Integer ordre,
             Boolean isActive,
             MultipartFile imageTop,
-            MultipartFile imageBanner) {
+            MultipartFile imageBanner,
+            Boolean removeImageTop,
+            Boolean removeImageBanner) {
         ServiceCategorie service = findService(id);
         repository.findByNom(nom).ifPresent(existing -> {
             if (!existing.getId().equals(id)) {
@@ -94,8 +96,8 @@ public class ServiceCategorieServiceImpl implements ServiceCategorieService {
         if (vertical != null && !vertical.isBlank()) {
             service.setVertical(parseVerticalNullable(vertical));
         }
-        service.setImageTopUrl(replaceImage(service.getImageTopUrl(), imageTop));
-        service.setImageBannerUrl(replaceImage(service.getImageBannerUrl(), imageBanner));
+        service.setImageTopUrl(updateImage(service.getImageTopUrl(), imageTop, Boolean.TRUE.equals(removeImageTop)));
+        service.setImageBannerUrl(updateImage(service.getImageBannerUrl(), imageBanner, Boolean.TRUE.equals(removeImageBanner)));
         return toDTO(repository.save(service));
     }
 
@@ -156,6 +158,15 @@ public class ServiceCategorieServiceImpl implements ServiceCategorieService {
         if (image == null || image.isEmpty()) return currentImageUrl;
         deleteImage(currentImageUrl);
         return uploadImage(image);
+    }
+
+    /** Met à jour une image : suppression demandée ⇒ null ; nouveau fichier ⇒ remplacement ; sinon inchangée. */
+    private String updateImage(String currentImageUrl, MultipartFile image, boolean remove) {
+        if (remove) {
+            deleteImage(currentImageUrl);
+            return null;
+        }
+        return replaceImage(currentImageUrl, image);
     }
 
     private void deleteImage(String imageUrl) {

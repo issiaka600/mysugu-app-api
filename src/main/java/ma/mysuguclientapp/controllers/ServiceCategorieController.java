@@ -71,7 +71,9 @@ public class ServiceCategorieController {
             @RequestParam(required = false) Integer ordre,
             @RequestParam(required = false) Boolean isActive,
             @RequestParam(required = false) MultipartFile imageTop,
-            @RequestParam(required = false) MultipartFile imageBanner) {
+            @RequestParam(required = false) MultipartFile imageBanner,
+            @RequestParam(required = false) Boolean removeImageTop,
+            @RequestParam(required = false) Boolean removeImageBanner) {
         ServiceCategorieDTO updated = serviceCategorieService.updateService(
                 id,
                 nom,
@@ -83,7 +85,9 @@ public class ServiceCategorieController {
                 ordre,
                 isActive,
                 imageTop,
-                imageBanner);
+                imageBanner,
+                removeImageTop,
+                removeImageBanner);
         return ResponseEntity.ok(updated);
     }
 
