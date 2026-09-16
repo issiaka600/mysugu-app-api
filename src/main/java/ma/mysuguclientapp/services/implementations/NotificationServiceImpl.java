@@ -152,8 +152,7 @@ public class NotificationServiceImpl implements NotificationService {
             data.put("entityId", String.valueOf(commandeId));
             data.put("entityType", "COMMANDE");
             data.put("channelId", statusChannelFor(user));
-            data.put("androidSound", "order_alert");
-            data.put("apnsSound", "order_alert.wav");
+            data.put("sound", "default");
             data.put("priority", "high");
             data.put("androidVisibility", "public");
             data.put("notificationTag", "order-" + commandeId);

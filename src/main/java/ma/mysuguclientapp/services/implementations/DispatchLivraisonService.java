@@ -54,7 +54,7 @@ public class DispatchLivraisonService {
     private final FcmService fcmService;
     private final ApplicationEventPublisher eventPublisher;
 
-    @Value("${delivery.offer.duration-seconds:30}")
+    @Value("${delivery.offer.duration-seconds:180}")
     private long offerDurationSeconds;
 
     @Value("${delivery.offer.alert-interval-seconds:20}")
@@ -231,6 +231,7 @@ public class DispatchLivraisonService {
         offre.setStatut(StatutOffreLivraison.EXPIREE);
         offre.setRespondedAt(LocalDateTime.now());
         offreRepository.save(offre);
+        envoyerExpirationOffre(offre);
         eventPublisher.publishEvent(new DispatchLivraisonEvent(offre.getCommande().getId()));
     }
 
@@ -252,6 +253,8 @@ public class DispatchLivraisonService {
                         Map.entry("type", "order"),
                         Map.entry("event", "new_delivery"),
                         Map.entry("order_id", offre.getCommande().getId().toString()),
+                        Map.entry("order_status", "processing"),
+                        Map.entry("status", "processing"),
                         Map.entry("delivery_offer_id", offre.getId().toString()),
                         Map.entry("channelId", CHANNEL_ID),
                         Map.entry("androidSound", "order_alert"),
@@ -278,6 +281,23 @@ public class DispatchLivraisonService {
         offre.setLastAlertAt(now);
         offre.setNextAlertAt(now.plusSeconds(offerAlertIntervalSeconds));
         offreRepository.save(offre);
+    }
+
+    private void envoyerExpirationOffre(OffreLivraison offre) {
+        fcmService.sendToUserWithResult(offre.getLivreur().getId(),
+                "Offre de livraison expirée",
+                "Cette offre de livraison n'est plus disponible",
+                Map.ofEntries(
+                        Map.entry("event", "delivery_offer_expired"),
+                        Map.entry("type", "order_status"),
+                        Map.entry("order_id", offre.getCommande().getId().toString()),
+                        Map.entry("delivery_offer_id", offre.getId().toString()),
+                        Map.entry("status", "expired"),
+                        Map.entry("channelId", CHANNEL_ID),
+                        Map.entry("sound", "default"),
+                        Map.entry("notificationTag", "order-" + offre.getCommande().getId()),
+                        Map.entry("collapseKey", "order-" + offre.getCommande().getId())
+                ));
     }
 
     private boolean eligiblePourDispatch(Commande commande) {

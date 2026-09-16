@@ -89,7 +89,7 @@ public class CommandeServiceImpl implements CommandeService {
      * "sonneries persistantes" §2 : "10 minutes après la commande doit sonner ... chez le
      * livreur"). Ne s'applique pas à PRETE, qui déclenche le dispatch immédiatement.
      */
-    @org.springframework.beans.factory.annotation.Value("${dispatch.livreur.delai-minutes:10}")
+    @org.springframework.beans.factory.annotation.Value("${dispatch.livreur.delai-minutes:0}")
     private long dispatchLivreurDelaiMinutes;
     private final NotificationService notificationService;
     private final AvisRepository avisRepository;
@@ -506,18 +506,15 @@ public class CommandeServiceImpl implements CommandeService {
         // sonner ... chez le livreur"). Tout changement de statut efface un délai en attente devenu
         // obsolète (ex: passage direct à PRETE, annulation) : soit le dispatch se fait aussitôt
         // (PRETE), soit il n'a plus lieu d'être.
-        commande.setDispatchLivreurAt(
-                nouveauStatut == StatutCommande.EN_PREPARATION
-                        && resolveModeReception(commande) == ModeReceptionCommande.LIVRAISON
-                        ? LocalDateTime.now().plusMinutes(dispatchLivreurDelaiMinutes)
-                        : null);
+        commande.setDispatchLivreurAt(null);
 
         Commande updatedCommande = commandeRepository.save(commande);
         commandeStatusHistoryService.record(updatedCommande);
 
         if (nouveauStatut == StatutCommande.CONFIRMEE) {
             alerteCommandeVendeurService.stopForCommande(updatedCommande.getId(), "COMMANDE_ACCEPTEE");
-        } else if (nouveauStatut == StatutCommande.PRETE
+        } else if ((nouveauStatut == StatutCommande.EN_PREPARATION
+                || nouveauStatut == StatutCommande.PRETE)
                 && resolveModeReception(updatedCommande) == ModeReceptionCommande.LIVRAISON) {
             applicationEventPublisher.publishEvent(new DispatchLivraisonEvent(updatedCommande.getId()));
         } else if (estStatutEchec(nouveauStatut)) {

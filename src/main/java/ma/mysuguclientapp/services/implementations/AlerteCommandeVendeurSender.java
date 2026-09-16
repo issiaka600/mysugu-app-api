@@ -54,6 +54,7 @@ public class AlerteCommandeVendeurSender {
                         Map.entry("type", "order"),
                         Map.entry("event", "new_order"),
                         Map.entry("order_id", commande.getId().toString()),
+                        Map.entry("order_status", "pending"),
                         Map.entry("channelId", CHANNEL_ID),
                         Map.entry("androidSound", "order_alert"),
                         Map.entry("androidVisibility", "public"),

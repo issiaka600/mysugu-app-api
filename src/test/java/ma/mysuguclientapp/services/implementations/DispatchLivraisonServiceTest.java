@@ -52,7 +52,7 @@ class DispatchLivraisonServiceTest {
             eventPublisher);
 
     DispatchLivraisonServiceTest() {
-        ReflectionTestUtils.setField(service, "offerDurationSeconds", 30L);
+        ReflectionTestUtils.setField(service, "offerDurationSeconds", 180L);
         ReflectionTestUtils.setField(service, "offerAlertIntervalSeconds", 20L);
         ReflectionTestUtils.setField(service, "maxLocationAgeSeconds", 120L);
         ReflectionTestUtils.setField(service, "maxSellerLocationAgeSeconds", 86400L);
@@ -143,9 +143,46 @@ class DispatchLivraisonServiceTest {
                 .containsEntry("type", "order")
                 .containsEntry("event", "new_delivery")
                 .containsEntry("order_id", "42")
+                .containsEntry("order_status", "processing")
+                .containsEntry("status", "processing")
                 .containsEntry("delivery_offer_id", "123")
-                .containsEntry("ttlSeconds", "30");
+                .containsEntry("ttlSeconds", "180");
         assertThat(data.getValue().get("expires_at")).endsWith("Z");
+    }
+
+    @Test
+    void expirationNotifieLeLivreurEtDeclencheLaRechercheSuivante() {
+        Commande commande = commande(StatutCommande.EN_PREPARATION);
+        User livreur = new User();
+        livreur.setId(7L);
+        OffreLivraison offre = OffreLivraison.builder()
+                .id(123L)
+                .commande(commande)
+                .livreur(livreur)
+                .statut(StatutOffreLivraison.PROPOSEE)
+                .expiresAt(LocalDateTime.now().minusSeconds(1))
+                .build();
+        when(offreRepository.findExpiredIds(eq(StatutOffreLivraison.PROPOSEE), any()))
+                .thenReturn(List.of(123L));
+        when(offreRepository.findByIdForUpdate(123L)).thenReturn(Optional.of(offre));
+        when(fcmService.sendToUserWithResult(any(), any(), any(), any()))
+                .thenReturn(new FcmDeliveryResult(1, 1, List.of("fcm-id"), List.of()));
+
+        service.expirerOffres();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> data = ArgumentCaptor.forClass(Map.class);
+        verify(fcmService).sendToUserWithResult(eq(7L), eq("Offre de livraison expirée"),
+                any(), data.capture());
+        assertThat(data.getValue())
+                .containsEntry("event", "delivery_offer_expired")
+                .containsEntry("type", "order_status")
+                .containsEntry("order_id", "42")
+                .containsEntry("delivery_offer_id", "123")
+                .containsEntry("status", "expired")
+                .containsEntry("sound", "default");
+        assertThat(offre.getStatut()).isEqualTo(StatutOffreLivraison.EXPIREE);
+        verify(eventPublisher).publishEvent(new ma.mysuguclientapp.events.DispatchLivraisonEvent(42L));
     }
 
     @Test
