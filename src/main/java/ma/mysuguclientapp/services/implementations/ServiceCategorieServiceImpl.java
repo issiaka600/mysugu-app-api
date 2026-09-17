@@ -64,7 +64,13 @@ public class ServiceCategorieServiceImpl implements ServiceCategorieService {
 
         ServiceCategorie service = new ServiceCategorie();
         applyFields(service, nom, tag, description, icon, type, ordre, isActive);
-        service.setVertical(parseVerticalNullable(vertical));
+        if (vertical != null && !vertical.isBlank()) {
+            Vertical v = parseVerticalNullable(vertical);
+            repository.findByVertical(v).ifPresent(existing -> {
+                throw new BadRequestException("Une tuile existe déjà pour cette verticale");
+            });
+            service.setVertical(v);
+        }
         service.setImageTopUrl(uploadImage(imageTop));
         service.setImageBannerUrl(uploadImage(imageBanner));
         return toDTO(repository.save(service));
@@ -94,7 +100,13 @@ public class ServiceCategorieServiceImpl implements ServiceCategorieService {
 
         applyFields(service, nom, tag, description, icon, type, ordre, isActive);
         if (vertical != null && !vertical.isBlank()) {
-            service.setVertical(parseVerticalNullable(vertical));
+            Vertical v = parseVerticalNullable(vertical);
+            repository.findByVertical(v).ifPresent(existing -> {
+                if (!existing.getId().equals(id)) {
+                    throw new BadRequestException("Une tuile existe déjà pour cette verticale");
+                }
+            });
+            service.setVertical(v);
         }
         service.setImageTopUrl(updateImage(service.getImageTopUrl(), imageTop, Boolean.TRUE.equals(removeImageTop)));
         service.setImageBannerUrl(updateImage(service.getImageBannerUrl(), imageBanner, Boolean.TRUE.equals(removeImageBanner)));
