@@ -1,6 +1,7 @@
 package ma.mysuguclientapp.repositories;
 
 import ma.mysuguclientapp.entities.ServiceCategorie;
+import ma.mysuguclientapp.enumerations.Vertical;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -12,4 +13,5 @@ public interface ServiceCategorieRepository extends JpaRepository<ServiceCategor
     List<ServiceCategorie> findByIsActiveTrueOrderByOrdreAscNomAsc();
     List<ServiceCategorie> findAllByOrderByOrdreAscNomAsc();
     Optional<ServiceCategorie> findByNom(String nom);
+    Optional<ServiceCategorie> findByVertical(Vertical vertical);
 }
