@@ -16,6 +16,23 @@ public class CommandeDTO {
     private UserDTO livreur;
     private List<LigneCommandeDTO> lignesCommande;
     private String statut;
+    /** Alias mobile normalisé de {@link #statut}. */
+    @JsonProperty("status")
+    public String getStatus() {
+        if (statut == null) return null;
+        return switch (statut) {
+            case "EN_ATTENTE", "NON_FINALISEE" -> "pending";
+            case "CONFIRMEE" -> "confirmed";
+            case "EN_PREPARATION" -> "processing";
+            case "PRETE" -> "ready";
+            case "ASSIGNEE_LIVREUR", "EN_COURS" -> "out_for_delivery";
+            case "LIVREE" -> "delivered";
+            case "ANNULEE" -> "canceled";
+            case "RETOURNEE" -> "returned";
+            case "ECHEC_LIVRAISON" -> "failed";
+            default -> statut.toLowerCase();
+        };
+    }
     private String trackingStatut;
     /** Historique chronologique du suivi Customer, avec statuts normalisés pour mobile. */
     private List<CommandeStatusHistoryDTO> statusHistory;

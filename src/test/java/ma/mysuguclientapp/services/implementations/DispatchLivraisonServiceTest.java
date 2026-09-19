@@ -227,6 +227,34 @@ class DispatchLivraisonServiceTest {
     }
 
     @Test
+    void desistementLibereLeLivreurSansAnnulerLaCommande() {
+        Commande commande = commande(StatutCommande.EN_COURS);
+        User livreur = new User();
+        livreur.setId(7L);
+        livreur.setLivreurDisponible(false);
+        commande.setLivreur(livreur);
+        OffreLivraison offre = OffreLivraison.builder()
+                .id(456L)
+                .commande(commande)
+                .livreur(livreur)
+                .statut(StatutOffreLivraison.ACCEPTEE)
+                .build();
+        when(commandeRepository.findByIdForUpdate(42L)).thenReturn(Optional.of(commande));
+        when(offreRepository.findFirstByCommandeIdAndLivreurIdAndStatutOrderByRespondedAtDesc(
+                42L, 7L, StatutOffreLivraison.ACCEPTEE)).thenReturn(Optional.of(offre));
+
+        Long offerId = service.desisterCommande(42L, livreur);
+
+        assertThat(offerId).isEqualTo(456L);
+        assertThat(offre.getStatut()).isEqualTo(StatutOffreLivraison.REFUSEE);
+        assertThat(commande.getStatut()).isEqualTo(StatutCommande.PRETE);
+        assertThat(commande.getLivreur()).isNull();
+        assertThat(livreur.getLivreurDisponible()).isTrue();
+        verify(eventPublisher).publishEvent(new ma.mysuguclientapp.events.DispatchLivraisonEvent(42L));
+        verifyNoInteractions(fcmService);
+    }
+
+    @Test
     void relanceUneCommandeResteeSansOffreQuandUnLivreurDevientDisponible() {
         Commande commande = commandeAvecRestaurant(StatutCommande.EN_PREPARATION,
                 localisation(14.7000, -17.4500));

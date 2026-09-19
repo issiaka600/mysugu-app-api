@@ -35,7 +35,9 @@ public class OrderSellerMapper {
     public Map<String, Object> toOrder(CommandeDTO dto) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", dto.getId());
-        m.put("order_status", statusMapper.toSixValleyStatus(parseStatut(dto.getStatut())));
+        String status = statusMapper.toSixValleyStatus(parseStatut(dto.getStatut()));
+        m.put("order_status", status);
+        m.put("status", status);
         m.put("payment_status", statusMapper.toSixValleyPayment(parseStatutPaiement(dto.getStatutPaiement())));
         m.put("payment_method", dto.getMethodePaiement());
         // "Total général" côté vendeur = "total vendeur" (correction résumé de commande vendeur) :

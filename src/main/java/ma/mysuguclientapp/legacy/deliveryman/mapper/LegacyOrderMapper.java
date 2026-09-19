@@ -77,7 +77,9 @@ public class LegacyOrderMapper {
         m.put("id", c.getId());
         m.put("customer_id", c.getClient() != null ? c.getClient().getId() : null);
         m.put("customer_type", "customer");
-        m.put("order_status", toLegacyStatus(c.getStatut()));
+        String status = toLegacyStatus(c.getStatut());
+        m.put("order_status", status);
+        m.put("status", status);
         m.put("payment_status", c.getStatutPaiement() == StatutPaiement.PAYE ? "paid" : "unpaid");
         m.put("payment_method", c.getMethodePaiement() == MethodePaiement.ESPECES ? "cash_on_delivery" : "digital_payment");
         m.put("transaction_ref", c.getStripePaymentIntentId());
@@ -94,7 +96,7 @@ public class LegacyOrderMapper {
         m.put("coupon_code", c.getCodePromoUtilise());
         m.put("order_note", c.getCommentaire());
         m.put("cause", c.getRaisonAnnulation());
-        m.put("canceled_by", c.getCanceledBy());
+        m.put("canceled_by", normalizeCanceledBy(c.getCanceledBy()));
         m.put("cancellation_reason", c.getRaisonAnnulation());
         m.put("canceled_at", c.getCanceledAt() != null ? c.getCanceledAt().toString() : null);
         m.put("is_pause", Boolean.TRUE.equals(c.getEnPause()));
@@ -136,6 +138,15 @@ public class LegacyOrderMapper {
             m.put("details", detailsList(c));
         }
         return m;
+    }
+
+    private String normalizeCanceledBy(String canceledBy) {
+        if (canceledBy == null) return null;
+        return switch (canceledBy.toLowerCase()) {
+            case "vendor", "seller", "vendeur" -> "vendor";
+            case "client", "customer" -> "client";
+            default -> null;
+        };
     }
 
     private String assignmentState(Commande commande, OffreLivraison offre) {

@@ -53,8 +53,8 @@ public class DeliveryManOrderService {
     }
 
     @Transactional
-    public void reject(Long orderId, User livreur) {
-        dispatchLivraisonService.refuserOffre(orderId, livreur);
+    public Long reject(Long orderId, User livreur) {
+        return dispatchLivraisonService.refuserOffre(orderId, livreur);
     }
 
     private void notifierApresAcceptation(Commande c, User livreur) {

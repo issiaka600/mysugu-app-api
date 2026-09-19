@@ -463,8 +463,13 @@ public class CommandeServiceImpl implements CommandeService {
                 // L'auteur réel de l'annulation, déduit de son rôle — correction PDF "vendeur
                 // annule la commande" / "Client annule la commande" : le client voyait un texte
                 // générique ou faussement attribué, quel que soit qui avait vraiment annulé.
-                userRepository.findById(initiatorUserId).ifPresent(initiator ->
-                        commande.setCanceledBy(canceledByLabel(initiator.getRole())));
+                String canceledBy = userRepository.findById(initiatorUserId)
+                        .map(initiator -> canceledByLabel(initiator.getRole()))
+                        .orElse(null);
+                if (canceledBy == null) {
+                    throw new BadRequestException("Le retrait d'un livreur ne peut pas annuler la commande");
+                }
+                commande.setCanceledBy(canceledBy);
                 commande.setCanceledAt(LocalDateTime.now());
             }
             // Libérer le livreur si déjà assigné
@@ -720,6 +725,8 @@ public class CommandeServiceImpl implements CommandeService {
         // silencieusement le crédit d'une transaction concurrente déjà committée entre-temps.
         stockService.restituer(commande);
         commande.setStatut(StatutCommande.ANNULEE);
+        commande.setCanceledBy("vendor");
+        commande.setCanceledAt(LocalDateTime.now());
         if (commande.getRaisonAnnulation() == null || commande.getRaisonAnnulation().isBlank()) {
             commande.setRaisonAnnulation("Commande annulee");
         }
@@ -781,7 +788,7 @@ public class CommandeServiceImpl implements CommandeService {
         stockService.restituer(commande);
         commande.setStatut(StatutCommande.ANNULEE);
         commande.setRaisonAnnulation(reason.trim());
-        commande.setCanceledBy("customer");
+        commande.setCanceledBy("client");
         commande.setCanceledAt(LocalDateTime.now());
 
         if (commande.getMethodePaiement() == MethodePaiement.CARTE_BANCAIRE
@@ -802,11 +809,11 @@ public class CommandeServiceImpl implements CommandeService {
         if (cancelled.getRestaurant() != null && cancelled.getRestaurant().getOwner() != null) {
             notificationService.envoyerNotificationAnnulationCommande(
                     cancelled.getRestaurant().getOwner().getId(), cancelled.getNumeroCommande(),
-                    cancelled.getId(), "customer", cancelled.getRaisonAnnulation());
+                    cancelled.getId(), "client", cancelled.getRaisonAnnulation());
         }
         livreursANotifier.forEach(livreurId -> notificationService.envoyerNotificationAnnulationCommande(
                 livreurId, cancelled.getNumeroCommande(), cancelled.getId(),
-                "customer", cancelled.getRaisonAnnulation()));
+                "client", cancelled.getRaisonAnnulation()));
 
         log.info("Commande {} annulee par le client {}", cancelled.getNumeroCommande(), customerEmail);
         return convertToDTO(cancelled);
@@ -953,11 +960,11 @@ public class CommandeServiceImpl implements CommandeService {
 
     /** Valeur de Commande.canceledBy selon le rôle de l'auteur d'une annulation. */
     private String canceledByLabel(UserRole role) {
-        if (role == null) return "customer";
+        if (role == null) return null;
         return switch (role) {
-            case RESTAURANT_OWNER, RESTAURANT_STAFF -> "seller";
-            case LIVREUR -> "livreur";
-            default -> "customer";
+            case RESTAURANT_OWNER, RESTAURANT_STAFF -> "vendor";
+            case CLIENT -> "client";
+            default -> null;
         };
     }
 
@@ -1474,7 +1481,7 @@ public class CommandeServiceImpl implements CommandeService {
         dto.setTempsLivraisonEstime(commande.getTempsLivraisonEstime());
         dto.setCommentaire(commande.getCommentaire());
         dto.setRaisonAnnulation(commande.getRaisonAnnulation());
-        dto.setCanceledBy(commande.getCanceledBy());
+        dto.setCanceledBy(normalizeCanceledBy(commande.getCanceledBy()));
         dto.setCancellationReason(commande.getRaisonAnnulation());
         dto.setCanceledAt(commande.getCanceledAt());
         dto.setModeReception(resolveModeReception(commande).name());
@@ -1571,6 +1578,15 @@ public class CommandeServiceImpl implements CommandeService {
         }
 
         return dto;
+    }
+
+    private String normalizeCanceledBy(String canceledBy) {
+        if (canceledBy == null) return null;
+        return switch (canceledBy.toLowerCase()) {
+            case "vendor", "seller", "vendeur" -> "vendor";
+            case "client", "customer" -> "client";
+            default -> null;
+        };
     }
 
     /**

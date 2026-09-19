@@ -134,8 +134,15 @@ public class DeliveryManOrderController {
     @PostMapping("/{orderId}/reject")
     public ResponseEntity<?> reject(@AuthenticationPrincipal String email, @PathVariable Long orderId) {
         User l = livreur(email);
-        orderService.reject(orderId, l);
-        return ResponseEntity.ok(Map.of("message", "Offre refusée."));
+        Long offerId = orderService.reject(orderId, l);
+        return ResponseEntity.ok(Map.of(
+                "event", "delivery_offer_declined",
+                "type", "delivery_offer",
+                "order_id", orderId,
+                "delivery_offer_id", offerId,
+                "status", "declined",
+                "declined_by", "courier",
+                "message", "Offre refusée."));
     }
 
     private boolean matchesSearch(Commande c, String search) {

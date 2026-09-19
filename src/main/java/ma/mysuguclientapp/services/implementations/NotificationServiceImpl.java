@@ -188,12 +188,13 @@ public class NotificationServiceImpl implements NotificationService {
             // L'auteur variait auparavant toujours "par le client" quel que soit canceledBy
             // (correction PDF "vendeur annule la commande" : le client voyait "Annulé par le
             // client" alors que c'était le vendeur).
-            String auteur = switch (canceledBy == null ? "" : canceledBy.toLowerCase()) {
-                case "seller", "vendeur" -> "par le vendeur";
-                case "livreur", "deliveryman" -> "par le livreur";
-                default -> "par le client";
+            String normalizedCanceledBy = switch (canceledBy == null ? "" : canceledBy.toLowerCase()) {
+                case "vendor", "seller", "vendeur" -> "vendor";
+                default -> "client";
             };
-            String message = "La commande " + numeroVisible + " a été annulée " + auteur + ".";
+            String message = "vendor".equals(normalizedCanceledBy)
+                    ? "Le vendeur a annulé la commande \"" + numeroVisible + "\"."
+                    : "Le client a annulé la commande \"" + numeroVisible + "\".";
             Notification notification = notificationRepository.save(Notification.builder()
                     .destinataire(user).titre(titre).message(message)
                     .type(TypeNotification.COMMANDE_ANNULEE).entityId(commandeId)
@@ -208,7 +209,7 @@ public class NotificationServiceImpl implements NotificationService {
             data.put("title", titre);
             data.put("body", message);
             data.put("sound", "default");
-            data.put("canceled_by", canceledBy);
+            data.put("canceled_by", normalizedCanceledBy);
             data.put("cancellation_reason", cancellationReason);
 
             FcmDeliveryResult result = fcmService.sendToUserWithResult(userId, titre, message, data);

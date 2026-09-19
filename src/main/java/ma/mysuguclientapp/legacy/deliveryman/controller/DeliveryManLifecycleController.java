@@ -17,6 +17,7 @@ import ma.mysuguclientapp.repositories.PreuveLivraisonRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
 import ma.mysuguclientapp.services.implementations.CaisseServiceImpl;
 import ma.mysuguclientapp.services.implementations.CommandeStatusHistoryService;
+import ma.mysuguclientapp.services.implementations.DispatchLivraisonService;
 import ma.mysuguclientapp.services.implementations.GainsLivreurServiceImpl;
 import ma.mysuguclientapp.services.implementations.MinioService;
 import ma.mysuguclientapp.services.implementations.StockService;
@@ -57,6 +58,7 @@ public class DeliveryManLifecycleController {
     private final ma.mysuguclientapp.services.interfaces.FcmService fcmService;
     private final StockService stockService;
     private final CommandeStatusHistoryService commandeStatusHistoryService;
+    private final DispatchLivraisonService dispatchLivraisonService;
 
     @Value("${delivery.otp.duration-seconds:600}")
     private long deliveryOtpDurationSeconds;
@@ -92,27 +94,15 @@ public class DeliveryManLifecycleController {
                 marquerLivree(c);
             }
             case "canceled", "returned" -> {
-                // Chemin d'annulation supplémentaire (constat de revue, hors brief initial) :
-                // l'app livreur annule/retourne la commande directement sur l'entité, sans passer
-                // par CommandeServiceImpl — sans cet appel, le stock resterait débité
-                // indéfiniment. Le remboursement Stripe et l'arrêt d'alerte restent, eux,
-                // court-circuités par ce chemin : divergence architecturale préexistante, hors
-                // périmètre de cette tâche (stock uniquement).
-                //
-                // Appelé AVANT setStatut/setRaisonAnnulation ci-dessous, délibérément :
-                // StockService.restituer() verrouille la ligne commandes puis la rafraîchit
-                // depuis la base. Si `c` portait déjà une mutation en attente à cet instant,
-                // Hibernate (pas de @DynamicUpdate ici) ré-écrirait TOUTES les colonnes avec les
-                // valeurs en mémoire lors de l'auto-flush qui précède la requête verrouillante —
-                // y compris stock_restitue avec sa valeur obsolète — écrasant silencieusement le
-                // crédit d'une transaction concurrente déjà committée entre-temps.
-                stockService.restituer(c);
-                c.setStatut(StatutCommande.ANNULEE);
-                if (cause != null) c.setRaisonAnnulation(cause);
-                c.setCanceledBy("livreur");
-                c.setCanceledAt(LocalDateTime.now());
-                libererLivreur(c);
-                commandeRepository.save(c);
+                Long offerId = dispatchLivraisonService.desisterCommande(c.getId(), l);
+                Map<String, Object> response = new java.util.LinkedHashMap<>();
+                response.put("event", "delivery_offer_declined");
+                response.put("type", "delivery_offer");
+                response.put("order_id", c.getId());
+                response.put("delivery_offer_id", offerId);
+                response.put("status", "declined");
+                response.put("declined_by", "courier");
+                return ResponseEntity.ok(response);
             }
             case "out_for_delivery" -> {
                 if (c.getStatut() != StatutCommande.PRETE) {

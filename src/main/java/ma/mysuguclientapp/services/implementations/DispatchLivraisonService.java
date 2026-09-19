@@ -157,7 +157,7 @@ public class DispatchLivraisonService {
     }
 
     /** Refus explicite : la prochaine offre est créée une fois la transaction validée. */
-    public void refuserOffre(Long commandeId, User livreur) {
+    public Long refuserOffre(Long commandeId, User livreur) {
         OffreLivraison offre = offreRepository.findForUpdate(commandeId, livreur.getId(), StatutOffreLivraison.PROPOSEE)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT,
                         "Aucune offre active pour cette commande."));
@@ -165,6 +165,41 @@ public class DispatchLivraisonService {
         offre.setRespondedAt(LocalDateTime.now());
         offreRepository.save(offre);
         eventPublisher.publishEvent(new DispatchLivraisonEvent(commandeId));
+        return offre.getId();
+    }
+
+    /**
+     * Retire un livreur d'une commande sans annuler celle-ci et relance le dispatch.
+     * Aucun push client/vendeur n'est émis par ce chemin.
+     */
+    public Long desisterCommande(Long commandeId, User livreur) {
+        Commande commande = commandeRepository.findByIdForUpdate(commandeId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Commande introuvable."));
+        if (commande.getLivreur() == null || !commande.getLivreur().getId().equals(livreur.getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Cette commande n'est pas assignée à ce livreur.");
+        }
+
+        OffreLivraison offre = offreRepository
+                .findFirstByCommandeIdAndLivreurIdAndStatutOrderByRespondedAtDesc(
+                        commandeId, livreur.getId(), StatutOffreLivraison.ACCEPTEE)
+                .orElse(null);
+        if (offre != null) {
+            offre.setStatut(StatutOffreLivraison.REFUSEE);
+            offre.setRespondedAt(LocalDateTime.now());
+            offreRepository.save(offre);
+        }
+
+        livreur.setLivreurDisponible(true);
+        userRepository.save(livreur);
+        commande.setLivreur(null);
+        if (commande.getStatut() == StatutCommande.EN_COURS
+                || commande.getStatut() == StatutCommande.ASSIGNEE_LIVREUR) {
+            commande.setStatut(StatutCommande.PRETE);
+        }
+        commandeRepository.save(commande);
+        eventPublisher.publishEvent(new DispatchLivraisonEvent(commandeId));
+        return offre != null ? offre.getId() : null;
     }
 
     /**

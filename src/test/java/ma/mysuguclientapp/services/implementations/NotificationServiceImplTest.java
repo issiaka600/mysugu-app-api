@@ -150,7 +150,7 @@ class NotificationServiceImplTest {
                 .thenReturn(new FcmDeliveryResult(1, 1, List.of("fcm-id"), List.of()));
 
         service.envoyerNotificationAnnulationCommande(
-                7L, "CMD-2030", 2030L, "customer", "Le délai est trop long");
+                7L, "CMD-2030", 2030L, "client", "Le délai est trop long");
 
         ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
         @SuppressWarnings("unchecked")
@@ -158,12 +158,44 @@ class NotificationServiceImplTest {
         org.mockito.Mockito.verify(fcm).sendToUserWithResult(
                 org.mockito.ArgumentMatchers.eq(7L), any(), message.capture(), data.capture());
 
-        assertThat(message.getValue()).isEqualTo("La commande CMD-2030 a été annulée par le client.");
+        assertThat(message.getValue()).isEqualTo("Le client a annulé la commande \"CMD-2030\".");
         assertThat(data.getValue()).containsEntry("type", "order_status")
                 .containsEntry("event", "order_canceled")
                 .containsEntry("order_id", "2030")
                 .containsEntry("status", "canceled")
-                .containsEntry("canceled_by", "customer")
+                .containsEntry("canceled_by", "client")
                 .containsEntry("cancellation_reason", "Le délai est trop long");
+    }
+
+    @Test
+    void annulationVendeurEnvoieLeContratAttendu() {
+        User customer = new User();
+        customer.setId(5L);
+        when(users.findById(5L)).thenReturn(Optional.of(customer));
+        when(notifications.save(any(Notification.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(fcm.sendToUserWithResult(any(), any(), any(), any()))
+                .thenReturn(new FcmDeliveryResult(1, 1, List.of("fcm-id"), List.of()));
+
+        service.envoyerNotificationAnnulationCommande(
+                5L, "CMD-2030", 2030L, "vendor", "Restaurant fermé");
+
+        ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> data = ArgumentCaptor.forClass(Map.class);
+        org.mockito.Mockito.verify(fcm).sendToUserWithResult(
+                org.mockito.ArgumentMatchers.eq(5L), any(), message.capture(), data.capture());
+
+        assertThat(message.getValue()).isEqualTo("Le vendeur a annulé la commande \"CMD-2030\".");
+        assertThat(data.getValue())
+                .containsEntry("event", "order_canceled")
+                .containsEntry("type", "order_status")
+                .containsEntry("order_id", "2030")
+                .containsEntry("order_number", "CMD-2030")
+                .containsEntry("status", "canceled")
+                .containsEntry("canceled_by", "vendor")
+                .containsEntry("cancellation_reason", "Restaurant fermé")
+                .containsEntry("title", "Commande annulée")
+                .containsEntry("body", "Le vendeur a annulé la commande \"CMD-2030\".")
+                .containsEntry("sound", "default");
     }
 }

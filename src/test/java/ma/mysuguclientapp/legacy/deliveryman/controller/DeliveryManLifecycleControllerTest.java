@@ -10,6 +10,7 @@ import ma.mysuguclientapp.repositories.PreuveLivraisonRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
 import ma.mysuguclientapp.services.implementations.CaisseServiceImpl;
 import ma.mysuguclientapp.services.implementations.CommandeStatusHistoryService;
+import ma.mysuguclientapp.services.implementations.DispatchLivraisonService;
 import ma.mysuguclientapp.services.implementations.GainsLivreurServiceImpl;
 import ma.mysuguclientapp.services.implementations.MinioService;
 import ma.mysuguclientapp.services.implementations.StockService;
@@ -28,6 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class DeliveryManLifecycleControllerTest {
@@ -35,17 +37,20 @@ class DeliveryManLifecycleControllerTest {
     private final CommandeRepository commandes = mock(CommandeRepository.class);
     private final UserRepository users = mock(UserRepository.class);
     private final FcmService fcm = mock(FcmService.class);
+    private final NotificationService notifications = mock(NotificationService.class);
+    private final DispatchLivraisonService dispatch = mock(DispatchLivraisonService.class);
     private final DeliveryManLifecycleController controller = new DeliveryManLifecycleController(
             commandes,
             users,
             mock(GainsLivreurServiceImpl.class),
             mock(CaisseServiceImpl.class),
-            mock(NotificationService.class),
+            notifications,
             mock(MinioService.class),
             mock(PreuveLivraisonRepository.class),
             fcm,
             mock(StockService.class),
-            mock(CommandeStatusHistoryService.class));
+            mock(CommandeStatusHistoryService.class),
+            dispatch);
 
     private User livreur;
     private Commande commande;
@@ -141,5 +146,28 @@ class DeliveryManLifecycleControllerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(commande.getStatut()).isEqualTo(StatutCommande.ASSIGNEE_LIVREUR);
+    }
+
+    @Test
+    void desistementLivreurNeDevientPasUneAnnulationEtNenvoieAucunPushMetier() {
+        commande.setStatut(StatutCommande.EN_COURS);
+        when(dispatch.desisterCommande(51L, livreur)).thenReturn(456L);
+
+        var response = controller.updateOrderStatus(livreur.getEmail(),
+                Map.of("order_id", 51L, "status", "canceled", "cause", "Indisponible"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        assertThat(body)
+                .containsEntry("event", "delivery_offer_declined")
+                .containsEntry("type", "delivery_offer")
+                .containsEntry("order_id", 51L)
+                .containsEntry("delivery_offer_id", 456L)
+                .containsEntry("status", "declined")
+                .containsEntry("declined_by", "courier");
+        verify(dispatch).desisterCommande(51L, livreur);
+        verifyNoInteractions(notifications);
+        verifyNoInteractions(fcm);
     }
 }
