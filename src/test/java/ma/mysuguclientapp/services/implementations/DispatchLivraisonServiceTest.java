@@ -138,13 +138,16 @@ class DispatchLivraisonServiceTest {
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Map<String, String>> data = ArgumentCaptor.forClass(Map.class);
         verify(fcmService).sendToUserWithResult(eq(7L), eq("Nouvelle livraison"),
-                eq("Une commande est disponible"), data.capture());
+                eq("La livraison de la commande \"CMD-42\" vous a été assignée."), data.capture());
         assertThat(data.getValue())
                 .containsEntry("type", "order")
                 .containsEntry("event", "new_delivery")
                 .containsEntry("order_id", "42")
+                .containsEntry("order_number", "CMD-42")
                 .containsEntry("order_status", "processing")
                 .containsEntry("status", "processing")
+                .containsEntry("title", "Nouvelle livraison")
+                .containsEntry("body", "La livraison de la commande \"CMD-42\" vous a été assignée.")
                 .containsEntry("delivery_offer_id", "123")
                 .containsEntry("ttlSeconds", "180");
         assertThat(data.getValue().get("expires_at")).endsWith("Z");

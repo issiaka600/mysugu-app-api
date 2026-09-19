@@ -26,6 +26,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -67,7 +68,7 @@ class DeliveryManLifecycleControllerTest {
         commande.setStatut(StatutCommande.PRETE);
         commande.setMethodePaiement(MethodePaiement.CARTE_BANCAIRE);
         when(users.findByEmail(livreur.getEmail())).thenReturn(Optional.of(livreur));
-        when(commandes.findById(51L)).thenReturn(Optional.of(commande));
+        when(commandes.findByIdForUpdate(51L)).thenReturn(Optional.of(commande));
         when(commandes.save(any(Commande.class))).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
@@ -80,6 +81,7 @@ class DeliveryManLifecycleControllerTest {
         assertThat(commande.getCodeVerificationLivraison()).matches("\\d{6}");
         assertThat(commande.getDeliveryOtpExpiresAt()).isNotNull();
         verify(fcm).sendToUser(any(), any(), any(), any());
+        assertThat(commande.getDeliveryOtpNotificationSentAt()).isNotNull();
 
         String otp = commande.getCodeVerificationLivraison();
         var verified = controller.verifyDeliveryOtp(livreur.getEmail(),
@@ -94,6 +96,29 @@ class DeliveryManLifecycleControllerTest {
                 Map.of("order_id", 51L, "status", "delivered"));
         assertThat(delivered.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(commande.getStatut()).isEqualTo(StatutCommande.LIVREE);
+    }
+
+    @Test
+    void otpEstEnvoyeUneSeuleFoisAvecUneCleIdempotence() {
+        controller.updateOrderStatus(livreur.getEmail(),
+                Map.of("order_id", 51L, "status", "out_for_delivery"));
+
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<Map<String, String>> payload = org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(fcm).sendToUser(any(), any(), any(), payload.capture());
+        assertThat(payload.getValue())
+                .containsEntry("event", "delivery_otp")
+                .containsEntry("type", "order_status")
+                .containsEntry("order_id", "51")
+                .containsEntry("order_number", "CMD-51")
+                .containsEntry("status", "out_for_delivery")
+                .containsEntry("idempotency_key", "delivery-otp:51")
+                .containsKeys("verification_code", "title", "body")
+                .containsEntry("sound", "default");
+
+        controller.resendVerificationCode(livreur.getEmail(), Map.of("order_id", 51L));
+
+        verify(fcm, times(1)).sendToUser(any(), any(), any(), any());
     }
 
     @Test

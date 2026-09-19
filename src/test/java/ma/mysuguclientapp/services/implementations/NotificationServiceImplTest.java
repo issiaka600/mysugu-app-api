@@ -60,15 +60,24 @@ class NotificationServiceImplTest {
 
         ArgumentCaptor<String> titles = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> messages = ArgumentCaptor.forClass(String.class);
-        org.mockito.Mockito.verify(fcm, org.mockito.Mockito.times(3)).sendToUserWithResult(
-                any(), titles.capture(), messages.capture(), any());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> payloads = ArgumentCaptor.forClass(Map.class);
+        org.mockito.Mockito.verify(fcm, org.mockito.Mockito.times(2)).sendToUserWithResult(
+                any(), titles.capture(), messages.capture(), payloads.capture());
 
         assertThat(titles.getAllValues()).containsExactly(
-                "Commande prête", "Commande prête", "Commande à récupérer");
+                "Commande prête", "Commande à récupérer");
         assertThat(messages.getAllValues()).containsExactly(
-                "Votre commande CMD-123 est prête.",
-                "La commande CMD-123 est prête pour la récupération.",
-                "La commande CMD-123 est prête à être récupérée.");
+                "Votre commande \"CMD-123\" est prête.",
+                "La commande \"CMD-123\" est prête à être récupérée.");
+        payloads.getAllValues().forEach(payload -> assertThat(payload)
+                .containsEntry("event", "order_status_changed")
+                .containsEntry("type", "order_status")
+                .containsEntry("order_id", "123")
+                .containsEntry("order_number", "CMD-123")
+                .containsEntry("status", "ready")
+                .containsKeys("title", "body")
+                .containsEntry("sound", "default"));
     }
 
     @Test

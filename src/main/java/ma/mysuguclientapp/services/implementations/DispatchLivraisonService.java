@@ -246,15 +246,22 @@ public class DispatchLivraisonService {
 
     private void envoyerAlerteOffre(OffreLivraison offre, LocalDateTime now) {
         long ttlSeconds = Math.max(1L, Duration.between(now, offre.getExpiresAt()).toSeconds());
+        String orderNumber = offre.getCommande().getNumeroCommande() != null
+                ? offre.getCommande().getNumeroCommande() : "CMD-" + offre.getCommande().getId();
+        String title = "Nouvelle livraison";
+        String body = "La livraison de la commande \"" + orderNumber + "\" vous a été assignée.";
         ma.mysuguclientapp.services.FcmDeliveryResult result = fcmService.sendToUserWithResult(offre.getLivreur().getId(),
-                "Nouvelle livraison",
-                "Une commande est disponible",
+                title,
+                body,
                 Map.ofEntries(
                         Map.entry("type", "order"),
                         Map.entry("event", "new_delivery"),
                         Map.entry("order_id", offre.getCommande().getId().toString()),
+                        Map.entry("order_number", orderNumber),
                         Map.entry("order_status", "processing"),
                         Map.entry("status", "processing"),
+                        Map.entry("title", title),
+                        Map.entry("body", body),
                         Map.entry("delivery_offer_id", offre.getId().toString()),
                         Map.entry("channelId", CHANNEL_ID),
                         Map.entry("androidSound", "order_alert"),
@@ -284,15 +291,22 @@ public class DispatchLivraisonService {
     }
 
     private void envoyerExpirationOffre(OffreLivraison offre) {
+        String orderNumber = offre.getCommande().getNumeroCommande() != null
+                ? offre.getCommande().getNumeroCommande() : "CMD-" + offre.getCommande().getId();
+        String title = "Offre de livraison expirée";
+        String body = "Cette offre de livraison n'est plus disponible";
         fcmService.sendToUserWithResult(offre.getLivreur().getId(),
-                "Offre de livraison expirée",
-                "Cette offre de livraison n'est plus disponible",
+                title,
+                body,
                 Map.ofEntries(
                         Map.entry("event", "delivery_offer_expired"),
                         Map.entry("type", "order_status"),
                         Map.entry("order_id", offre.getCommande().getId().toString()),
+                        Map.entry("order_number", orderNumber),
                         Map.entry("delivery_offer_id", offre.getId().toString()),
                         Map.entry("status", "expired"),
+                        Map.entry("title", title),
+                        Map.entry("body", body),
                         Map.entry("channelId", CHANNEL_ID),
                         Map.entry("sound", "default"),
                         Map.entry("notificationTag", "order-" + offre.getCommande().getId()),

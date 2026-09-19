@@ -46,15 +46,23 @@ public class AlerteCommandeVendeurSender {
         if (!force && now.isBefore(alerte.getNextAttemptAt())) return;
 
         Commande commande = alerte.getCommande();
+        String orderNumber = commande.getNumeroCommande() != null
+                ? commande.getNumeroCommande() : "CMD-" + commande.getId();
+        String title = "Nouvelle commande";
+        String body = "Une nouvelle commande attend votre confirmation.";
         FcmDeliveryResult result = fcmService.sendToUserWithResult(
                 alerte.getVendeur().getId(),
-                "Nouvelle commande",
-                "Une nouvelle commande attend votre validation",
+                title,
+                body,
                 Map.ofEntries(
                         Map.entry("type", "order"),
                         Map.entry("event", "new_order"),
                         Map.entry("order_id", commande.getId().toString()),
+                        Map.entry("order_number", orderNumber),
                         Map.entry("order_status", "pending"),
+                        Map.entry("status", "pending"),
+                        Map.entry("title", title),
+                        Map.entry("body", body),
                         Map.entry("channelId", CHANNEL_ID),
                         Map.entry("androidSound", "order_alert"),
                         Map.entry("androidVisibility", "public"),

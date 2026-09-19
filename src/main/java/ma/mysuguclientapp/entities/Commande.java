@@ -202,6 +202,10 @@ public class Commande {
     @Column(name = "delivery_otp_attempts")
     private Integer deliveryOtpAttempts = 0;
 
+    /** Marqueur persistant garantissant qu'un seul push OTP est émis par commande. */
+    @Column(name = "delivery_otp_notification_sent_at")
+    private LocalDateTime deliveryOtpNotificationSentAt;
+
     /** Commande mise en pause par le livreur (6valley `orders.is_pause`) + cause. */
     @Column(name = "en_pause")
     private Boolean enPause = false;

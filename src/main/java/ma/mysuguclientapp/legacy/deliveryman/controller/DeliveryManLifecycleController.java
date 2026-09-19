@@ -243,12 +243,17 @@ public class DeliveryManLifecycleController {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(ErrorsResponse.of("status", "La commande n'est pas en cours de livraison."));
         }
-        genererEtEnvoyerOtp(c);
+        boolean envoye = genererEtEnvoyerOtp(c);
         commandeRepository.save(c);
-        return ResponseEntity.ok(new MessageResponse("Code de vérification renvoyé."));
+        return ResponseEntity.ok(new MessageResponse(envoye
+                ? "Code de vérification envoyé."
+                : "Le code de vérification a déjà été envoyé pour cette commande."));
     }
 
-    private void genererEtEnvoyerOtp(Commande c) {
+    private boolean genererEtEnvoyerOtp(Commande c) {
+        if (c.getDeliveryOtpNotificationSentAt() != null) {
+            return false;
+        }
         String code = String.format("%06d", RANDOM.nextInt(1_000_000));
         c.setCodeVerificationLivraison(code);
         c.setLivraisonVerifiee(false);
@@ -256,18 +261,30 @@ public class DeliveryManLifecycleController {
         c.setDeliveryOtpVerifiedAt(null);
         c.setDeliveryOtpVerifiedBy(null);
         c.setDeliveryOtpAttempts(0);
-        String msg = "Votre code de vérification de livraison pour la commande "
-                + c.getNumeroCommande() + " est : " + code;
-        notifier(c.getClient(), c, "Code de livraison", msg);
+        String orderNumber = c.getNumeroCommande() != null ? c.getNumeroCommande() : "CMD-" + c.getId();
+        String title = "Code de vérification";
+        String msg = "Votre code de vérification pour la livraison de la commande \""
+                + orderNumber + "\" est : " + code + ".";
+        c.setDeliveryOtpNotificationSentAt(LocalDateTime.now());
         if (c.getClient() != null) {
             try {
-                fcmService.sendToUser(c.getClient().getId(), "Code de livraison", msg,
-                        java.util.Map.of("type", "delivery_otp", "event", "delivery_otp",
-                                "order_id", String.valueOf(c.getId()), "verification_code", code));
+                fcmService.sendToUser(c.getClient().getId(), title, msg,
+                        java.util.Map.ofEntries(
+                                java.util.Map.entry("event", "delivery_otp"),
+                                java.util.Map.entry("type", "order_status"),
+                                java.util.Map.entry("order_id", String.valueOf(c.getId())),
+                                java.util.Map.entry("order_number", orderNumber),
+                                java.util.Map.entry("status", "out_for_delivery"),
+                                java.util.Map.entry("verification_code", code),
+                                java.util.Map.entry("title", title),
+                                java.util.Map.entry("body", msg),
+                                java.util.Map.entry("idempotency_key", "delivery-otp:" + c.getId()),
+                                java.util.Map.entry("sound", "default")));
             } catch (Exception e) {
                 log.warn("Échec push FCM code livraison commande {}: {}", c.getNumeroCommande(), e.getMessage());
             }
         }
+        return true;
     }
 
     @PostMapping(value = "/order-delivery-verification", consumes = {"multipart/form-data"})
@@ -354,7 +371,7 @@ public class DeliveryManLifecycleController {
     }
 
     private Commande owned(Long orderId, User livreur) {
-        Commande c = commandeRepository.findById(orderId)
+        Commande c = commandeRepository.findByIdForUpdate(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Commande introuvable."));
         if (c.getLivreur() == null || !c.getLivreur().getId().equals(livreur.getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cette commande ne vous est pas assignée.");

@@ -133,9 +133,11 @@ public class NotificationServiceImpl implements NotificationService {
                                                   Long commandeId, StatutCommande statut) {
         if (statut == null) return;
         userRepository.findById(userId).ifPresent(user -> {
+            if (!doitRecevoirStatut(user.getRole(), statut)) return;
             String externalStatus = externalOrderStatus(statut);
+            String orderNumber = visibleOrderNumber(numeroCommande, commandeId);
             String titre = buildTitreStatutCommande(statut, user.getRole());
-            String message = buildMessageStatutCommande(statut, numeroCommande, user.getRole());
+            String message = buildMessageStatutCommande(statut, orderNumber, user.getRole());
             Notification notification = notificationRepository.save(Notification.builder()
                     .destinataire(user).titre(titre).message(message)
                     .type(notificationType(statut)).entityId(commandeId)
@@ -146,7 +148,10 @@ public class NotificationServiceImpl implements NotificationService {
             data.put("type", "order_status");
             data.put("event", "order_status_changed");
             data.put("order_id", String.valueOf(commandeId));
+            data.put("order_number", orderNumber);
             data.put("status", externalStatus);
+            data.put("title", titre);
+            data.put("body", message);
             data.put("badge", String.valueOf(badge));
             data.put("screen", "order_tracking");
             data.put("entityId", String.valueOf(commandeId));
@@ -198,7 +203,11 @@ public class NotificationServiceImpl implements NotificationService {
             data.put("type", "order_status");
             data.put("event", "order_canceled");
             data.put("order_id", String.valueOf(commandeId));
+            data.put("order_number", numeroVisible);
             data.put("status", "canceled");
+            data.put("title", titre);
+            data.put("body", message);
+            data.put("sound", "default");
             data.put("canceled_by", canceledBy);
             data.put("cancellation_reason", cancellationReason);
 
@@ -371,6 +380,21 @@ public class NotificationServiceImpl implements NotificationService {
         };
     }
 
+    /** Contrat mobile : chaque acteur ne reçoit que les statuts qui le concernent. */
+    private boolean doitRecevoirStatut(UserRole role, StatutCommande statut) {
+        if (role == UserRole.RESTAURANT_OWNER || role == UserRole.RESTAURANT_STAFF) {
+            return statut == StatutCommande.LIVREE;
+        }
+        if (role == UserRole.LIVREUR) {
+            return statut == StatutCommande.PRETE;
+        }
+        return statut == StatutCommande.CONFIRMEE
+                || statut == StatutCommande.EN_PREPARATION
+                || statut == StatutCommande.PRETE
+                || statut == StatutCommande.EN_COURS
+                || statut == StatutCommande.LIVREE;
+    }
+
     private String buildTitreStatutCommande(StatutCommande statut, UserRole role) {
         if (role == UserRole.RESTAURANT_OWNER || role == UserRole.RESTAURANT_STAFF) {
             return switch (statut) {
@@ -427,7 +451,7 @@ public class NotificationServiceImpl implements NotificationService {
                 case PRETE -> "La commande " + numero + " est prête pour la récupération.";
                 case ASSIGNEE_LIVREUR -> "Un livreur a été assigné à la commande " + numero + ".";
                 case EN_COURS -> "La commande " + numero + " a été prise en charge par le livreur.";
-                case LIVREE -> "La commande " + numero + " a été livrée au client.";
+                case LIVREE -> "La commande \"" + numero + "\" a été livrée au client.";
                 case ANNULEE -> "La commande " + numero + " a été annulée.";
                 case NON_FINALISEE -> "La commande " + numero + " n'a pas été finalisée.";
                 case RETOURNEE -> "La commande " + numero + " a été retournée.";
@@ -439,7 +463,7 @@ public class NotificationServiceImpl implements NotificationService {
                 case EN_ATTENTE -> "La commande " + numero + " est en attente de confirmation.";
                 case CONFIRMEE -> "La commande " + numero + " a été confirmée par le restaurant.";
                 case EN_PREPARATION -> "Le restaurant prépare la commande " + numero + ".";
-                case PRETE -> "La commande " + numero + " est prête à être récupérée.";
+                case PRETE -> "La commande \"" + numero + "\" est prête à être récupérée.";
                 case ASSIGNEE_LIVREUR -> "La livraison de la commande " + numero + " vous a été assignée.";
                 case EN_COURS -> "La livraison de la commande " + numero + " est en cours.";
                 case LIVREE -> "La livraison de la commande " + numero + " est terminée.";
@@ -451,17 +475,24 @@ public class NotificationServiceImpl implements NotificationService {
         }
         return switch (statut) {
             case EN_ATTENTE -> "Votre commande " + numero + " a été reçue.";
-            case CONFIRMEE -> "Votre commande " + numero + " a été confirmée par le restaurant.";
-            case EN_PREPARATION -> "Le restaurant prépare votre commande " + numero + ".";
-            case PRETE -> "Votre commande " + numero + " est prête.";
+            case CONFIRMEE -> "Votre commande \"" + numero + "\" a été confirmée.";
+            case EN_PREPARATION -> "Votre commande \"" + numero + "\" est en cours de préparation.";
+            case PRETE -> "Votre commande \"" + numero + "\" est prête.";
             case ASSIGNEE_LIVREUR -> "Un livreur a été assigné à votre commande " + numero + ".";
-            case EN_COURS -> "Votre commande " + numero + " est en cours de livraison.";
-            case LIVREE -> "Votre commande " + numero + " a été livrée.";
+            case EN_COURS -> "Votre commande \"" + numero + "\" est en cours de livraison.";
+            case LIVREE -> "Votre commande \"" + numero + "\" a été livrée.";
             case ANNULEE -> "Votre commande " + numero + " a été annulée.";
             case NON_FINALISEE -> "Votre commande " + numero + " est en attente de finalisation.";
             case RETOURNEE -> "Votre commande " + numero + " a été retournée.";
             case ECHEC_LIVRAISON -> "La livraison de votre commande " + numero + " a échoué.";
         };
+    }
+
+    private String visibleOrderNumber(String numeroCommande, Long commandeId) {
+        if (numeroCommande != null && !numeroCommande.isBlank()) {
+            return numeroCommande.startsWith("CMD-") ? numeroCommande : "CMD-" + numeroCommande;
+        }
+        return "CMD-" + commandeId;
     }
 
     private TypeNotification notificationType(StatutCommande statut) {
