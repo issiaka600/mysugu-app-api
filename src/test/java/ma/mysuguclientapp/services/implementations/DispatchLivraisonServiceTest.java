@@ -149,8 +149,29 @@ class DispatchLivraisonServiceTest {
                 .containsEntry("title", "Nouvelle livraison")
                 .containsEntry("body", "La livraison de la commande \"CMD-42\" vous a été assignée.")
                 .containsEntry("delivery_offer_id", "123")
+                .containsEntry("channelId", "mysuku_delivery_orders_v3")
+                .containsEntry("androidSound", "order_alert")
+                .containsEntry("apnsSound", "order_alert.wav")
                 .containsEntry("ttlSeconds", "180");
         assertThat(data.getValue().get("expires_at")).endsWith("Z");
+    }
+
+    @Test
+    void fermeOffreEtPasseAuSuivantSiAucunTokenNeRecoitLePush() {
+        Commande commande = commandeAvecRestaurant(StatutCommande.EN_PREPARATION,
+                localisation(14.7000, -17.4500));
+        User vendeur = userAvecPosition(99L, 14.7000, -17.4500);
+        vendeur.setLastLocationAt(LocalDateTime.now());
+        commande.getRestaurant().setOwner(vendeur);
+        preparerRecherche(commande, livreur(7L, 14.7001, -17.4501));
+        when(fcmService.sendToUserWithResult(any(), any(), any(), any()))
+                .thenReturn(new FcmDeliveryResult(1, 0, List.of(), List.of("UNREGISTERED")));
+
+        service.proposerProchainLivreur(42L);
+
+        assertThat(offreSauvegardee.getStatut()).isEqualTo(StatutOffreLivraison.REFUSEE);
+        assertThat(offreSauvegardee.getRespondedAt()).isNotNull();
+        verify(eventPublisher).publishEvent(new ma.mysuguclientapp.events.DispatchLivraisonEvent(42L));
     }
 
     @Test
@@ -279,7 +300,7 @@ class DispatchLivraisonServiceTest {
         when(userRepository.findByRoleAndIsActiveAndLivreurDisponible(any(), eq(true), eq(true)))
                 .thenReturn(List.of(livreurs));
         when(fcmService.sendToUserWithResult(any(), any(), any(), any()))
-                .thenReturn(new FcmDeliveryResult(0, 0, List.of(), List.of()));
+                .thenReturn(new FcmDeliveryResult(1, 1, List.of("fcm-id"), List.of()));
         when(offreRepository.save(any(OffreLivraison.class))).thenAnswer(invocation -> {
             offreSauvegardee = invocation.getArgument(0);
             offreSauvegardee.setId(123L);

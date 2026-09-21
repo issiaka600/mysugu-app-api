@@ -42,7 +42,7 @@ import java.util.Set;
 @Transactional
 public class DispatchLivraisonService {
 
-    private static final String CHANNEL_ID = "mysuku_delivery_orders_v2";
+    private static final String CHANNEL_ID = "mysuku_delivery_orders_v3";
     private static final List<StatutCommande> COMMANDES_ACTIVES = List.of(
             StatutCommande.CONFIRMEE, StatutCommande.EN_PREPARATION, StatutCommande.PRETE,
             StatutCommande.ASSIGNEE_LIVREUR, StatutCommande.EN_COURS);
@@ -91,7 +91,9 @@ public class DispatchLivraisonService {
         LocalDateTime recentAfter = LocalDateTime.now().minusSeconds(maxLocationAgeSeconds);
 
         record Candidat(User livreur, double distanceKm) { }
-        Candidat candidat = userRepository.findByRoleAndIsActiveAndLivreurDisponible(UserRole.LIVREUR, true, true)
+        List<User> disponibles = userRepository.findByRoleAndIsActiveAndLivreurDisponible(
+                UserRole.LIVREUR, true, true);
+        Candidat candidat = disponibles
                 .stream()
                 .filter(l -> !dejaProposes.contains(l.getId()))
                 .filter(l -> l.getLocalisation() != null
@@ -109,7 +111,9 @@ public class DispatchLivraisonService {
                 .orElse(null);
 
         if (candidat == null) {
-            log.warn("Commande {} : aucun livreur éligible pour une offre séquentielle", commandeId);
+            log.warn("Commande {} : aucun livreur sélectionné (disponibles={}, déjàProposés={}, " +
+                            "positionMin={}, commandeActive/offreActive/zone contrôlées)", commandeId,
+                    disponibles.size(), dejaProposes.size(), recentAfter);
             return;
         }
 
@@ -124,10 +128,21 @@ public class DispatchLivraisonService {
                 .nextAlertAt(now)
                 .alertAttemptCount(0)
                 .build());
-        envoyerAlerteOffre(offre, now);
-        log.info("Commande {} proposée au livreur {} ({} km, origine: {}, zone: {})", commandeId,
-                candidat.livreur().getId(), Math.round(candidat.distanceKm() * 100.0) / 100.0,
+        boolean pushEnvoye = envoyerAlerteOffre(offre, now);
+        log.info("Offre créée orderId={} offerId={} courierId={} createdAt={} expiresAt={} " +
+                        "courierAvailable={} pushSent={} distanceKm={} origine={} zone={}", commandeId,
+                offre.getId(), candidat.livreur().getId(), now, offre.getExpiresAt(),
+                candidat.livreur().getLivreurDisponible(), pushEnvoye,
+                Math.round(candidat.distanceKm() * 100.0) / 100.0,
                 dispatchOrigin.source(), descriptionZoneDispatch(commande));
+        if (!pushEnvoye) {
+            offre.setStatut(StatutOffreLivraison.REFUSEE);
+            offre.setRespondedAt(LocalDateTime.now());
+            offreRepository.save(offre);
+            log.warn("Offre {} fermée: aucun push new_delivery livré au coursier {}; rotation immédiate",
+                    offre.getId(), candidat.livreur().getId());
+            eventPublisher.publishEvent(new DispatchLivraisonEvent(commandeId));
+        }
     }
 
     /** Accepte uniquement l'offre en cours du livreur : il ne peut plus prendre une commande libre. */
@@ -279,7 +294,7 @@ public class DispatchLivraisonService {
         envoyerAlerteOffre(offre, LocalDateTime.now());
     }
 
-    private void envoyerAlerteOffre(OffreLivraison offre, LocalDateTime now) {
+    private boolean envoyerAlerteOffre(OffreLivraison offre, LocalDateTime now) {
         long ttlSeconds = Math.max(1L, Duration.between(now, offre.getExpiresAt()).toSeconds());
         String orderNumber = offre.getCommande().getNumeroCommande() != null
                 ? offre.getCommande().getNumeroCommande() : "CMD-" + offre.getCommande().getId();
@@ -323,6 +338,11 @@ public class DispatchLivraisonService {
         offre.setLastAlertAt(now);
         offre.setNextAlertAt(now.plusSeconds(offerAlertIntervalSeconds));
         offreRepository.save(offre);
+        log.info("Résultat new_delivery orderId={} offerId={} courierId={} tokensAttempted={} " +
+                        "tokensSent={} firebaseMessageIds={} errors={}", offre.getCommande().getId(),
+                offre.getId(), offre.getLivreur().getId(), result.tokensAttempted(), result.tokensSent(),
+                result.firebaseMessageIds(), result.errors());
+        return result.tokensSent() > 0;
     }
 
     private void envoyerExpirationOffre(OffreLivraison offre) {

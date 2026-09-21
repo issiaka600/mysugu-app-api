@@ -41,6 +41,8 @@ public class FcmServiceImpl implements FcmService {
         List<String> messageIds = new ArrayList<>();
         List<String> errors = new ArrayList<>();
         for (DeviceToken deviceToken : tokens) {
+            log.info("Envoi FCM utilisateur={} tokenId={} plateforme={} token={}", userId,
+                    deviceToken.getId(), deviceToken.getPlatform(), maskToken(deviceToken.getToken()));
             FcmDeliveryResult result = sendToTokenWithResult(deviceToken.getToken(), title, body, data);
             messageIds.addAll(result.firebaseMessageIds());
             errors.addAll(result.errors());
@@ -105,8 +107,10 @@ public class FcmServiceImpl implements FcmService {
                 }
             }
             Aps.Builder aps = Aps.builder()
+                    .setAlert(ApsAlert.builder().setTitle(title).setBody(body).build())
                     .setSound(apnsSound)
-                    .setBadge(badge);
+                    .setBadge(badge)
+                    .setContentAvailable(true);
             if (data != null && data.containsKey("apnsInterruptionLevel")) {
                 aps.putCustomData("interruption-level", data.get("apnsInterruptionLevel"));
             }
@@ -134,19 +138,32 @@ public class FcmServiceImpl implements FcmService {
                 messageBuilder.putAllData(data);
             }
 
-            String response = FirebaseMessaging.getInstance().send(messageBuilder.build());
-            log.info("Notification FCM envoyée avec succès: {}", response);
+            Message message = messageBuilder.build();
+            log.info("Payload FCM token={} title={} body={} data={} androidChannel={} " +
+                            "androidSound={} androidPriority={} apnsSound={} apnsPushType={} apnsPriority={}",
+                    maskToken(fcmToken), title, body, data, channelId, androidSound,
+                    data != null ? data.get("priority") : null, apnsSound,
+                    data != null ? data.get("apnsPushType") : null,
+                    data != null ? data.get("apnsPriority") : null);
+            String response = FirebaseMessaging.getInstance().send(message);
+            log.info("Notification FCM envoyée token={} messageId={}", maskToken(fcmToken), response);
             return new FcmDeliveryResult(1, 1, List.of(response), List.of());
 
         } catch (FirebaseMessagingException e) {
             if (e.getMessagingErrorCode() == MessagingErrorCode.UNREGISTERED
                     || e.getMessagingErrorCode() == MessagingErrorCode.INVALID_ARGUMENT) {
-                log.warn("Token FCM invalide ou non enregistré: {}. Désactivation du token.", fcmToken);
+                log.warn("Échec FCM token={} code={} errorCode={} message={}; token désactivé",
+                        maskToken(fcmToken), e.getMessagingErrorCode(),
+                        e.getErrorCode(), e.getMessage(), e);
                 deviceTokenRepository.deactivateByToken(fcmToken);
             } else {
-                log.error("Erreur lors de l'envoi de la notification FCM au token {}: {}", fcmToken, e.getMessage());
+                log.error("Échec FCM token={} code={} errorCode={} message={}", maskToken(fcmToken),
+                        e.getMessagingErrorCode(), e.getErrorCode(), e.getMessage(), e);
             }
-            return new FcmDeliveryResult(1, 0, List.of(), List.of(String.valueOf(e.getMessage())));
+            return new FcmDeliveryResult(1, 0, List.of(), List.of(
+                    "messagingCode=" + e.getMessagingErrorCode()
+                            + ", errorCode=" + e.getErrorCode()
+                            + ", message=" + e.getMessage()));
         } catch (Exception e) {
             log.error("Erreur inattendue lors de l'envoi FCM: {}", e.getMessage());
             return new FcmDeliveryResult(1, 0, List.of(), List.of(String.valueOf(e.getMessage())));
@@ -165,5 +182,10 @@ public class FcmServiceImpl implements FcmService {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    private String maskToken(String token) {
+        if (token == null || token.length() < 12) return "***";
+        return token.substring(0, 6) + "..." + token.substring(token.length() - 6);
     }
 }

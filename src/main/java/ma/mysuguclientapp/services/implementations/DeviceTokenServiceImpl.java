@@ -36,6 +36,13 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
             throw new BadRequestException("Plateforme invalide: " + platform + ". Valeurs acceptées: ANDROID, IOS, WEB");
         }
 
+        // Un utilisateur peut conserver un appareil Android et un appareil iOS, mais un nouveau
+        // token remplace les anciens tokens de la même plateforme. On évite ainsi d'envoyer une
+        // offre à un token obsolète tout en gardant le multi-appareil inter-plateformes.
+        deviceTokenRepository.findByUserIdAndPlatformAndIsActiveTrue(userId, platformType).stream()
+                .filter(dt -> !dt.getToken().equals(token))
+                .forEach(dt -> dt.setIsActive(false));
+
         Optional<DeviceToken> existing = deviceTokenRepository.findByUserIdAndToken(userId, token);
         if (existing.isPresent()) {
             DeviceToken dt = existing.get();
