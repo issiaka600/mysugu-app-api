@@ -198,4 +198,23 @@ class NotificationServiceImplTest {
                 .containsEntry("body", "Le vendeur a annulé la commande \"CMD-2030\".")
                 .containsEntry("sound", "default");
     }
+
+    @Test
+    void annulationVendeurSansMotifUtiliseUneValeurNonNullePourFirebase() {
+        User customer = new User();
+        customer.setId(5L);
+        when(users.findById(5L)).thenReturn(Optional.of(customer));
+        when(notifications.save(any(Notification.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(fcm.sendToUserWithResult(any(), any(), any(), any()))
+                .thenReturn(new FcmDeliveryResult(1, 1, List.of("fcm-id"), List.of()));
+
+        service.envoyerNotificationAnnulationCommande(5L, "CMD-2030", 2030L, "vendor", null);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> data = ArgumentCaptor.forClass(Map.class);
+        org.mockito.Mockito.verify(fcm).sendToUserWithResult(
+                org.mockito.ArgumentMatchers.eq(5L), any(), any(), data.capture());
+        assertThat(data.getValue()).containsEntry("cancellation_reason", "Commande annulée");
+        assertThat(data.getValue()).doesNotContainValue(null);
+    }
 }

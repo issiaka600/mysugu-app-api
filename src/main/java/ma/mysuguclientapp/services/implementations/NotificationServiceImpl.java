@@ -195,6 +195,9 @@ public class NotificationServiceImpl implements NotificationService {
             String message = "vendor".equals(normalizedCanceledBy)
                     ? "Le vendeur a annulé la commande \"" + numeroVisible + "\"."
                     : "Le client a annulé la commande \"" + numeroVisible + "\".";
+            String normalizedReason = cancellationReason == null || cancellationReason.isBlank()
+                    ? "Commande annulée"
+                    : cancellationReason;
             Notification notification = notificationRepository.save(Notification.builder()
                     .destinataire(user).titre(titre).message(message)
                     .type(TypeNotification.COMMANDE_ANNULEE).entityId(commandeId)
@@ -210,7 +213,7 @@ public class NotificationServiceImpl implements NotificationService {
             data.put("body", message);
             data.put("sound", "default");
             data.put("canceled_by", normalizedCanceledBy);
-            data.put("cancellation_reason", cancellationReason);
+            data.put("cancellation_reason", normalizedReason);
 
             FcmDeliveryResult result = fcmService.sendToUserWithResult(userId, titre, message, data);
             tentativeNotificationFcmRepository.save(TentativeNotificationFcm.builder()

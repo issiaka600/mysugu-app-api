@@ -458,7 +458,12 @@ public class CommandeServiceImpl implements CommandeService {
         if (estStatutEchec(nouveauStatut)) {
             // Champ réutilisé pour RETOURNEE/ECHEC_LIVRAISON (pas de champ dédié) : il porte la
             // raison de la non-livraison au sens large, pas seulement d'une annulation.
-            commande.setRaisonAnnulation(statusDTO.getRaisonAnnulation());
+            String raisonEchec = statusDTO.getRaisonAnnulation();
+            if (nouveauStatut == StatutCommande.ANNULEE
+                    && (raisonEchec == null || raisonEchec.isBlank())) {
+                raisonEchec = "Commande annulée";
+            }
+            commande.setRaisonAnnulation(raisonEchec);
             if (nouveauStatut == StatutCommande.ANNULEE && initiatorUserId != null) {
                 // L'auteur réel de l'annulation, déduit de son rôle — correction PDF "vendeur
                 // annule la commande" / "Client annule la commande" : le client voyait un texte
@@ -728,7 +733,7 @@ public class CommandeServiceImpl implements CommandeService {
         commande.setCanceledBy("vendor");
         commande.setCanceledAt(LocalDateTime.now());
         if (commande.getRaisonAnnulation() == null || commande.getRaisonAnnulation().isBlank()) {
-            commande.setRaisonAnnulation("Commande annulee");
+            commande.setRaisonAnnulation("Commande annulée");
         }
 
         // Remboursement Stripe si le paiement par carte a déjà été capturé
