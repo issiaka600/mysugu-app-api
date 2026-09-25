@@ -323,36 +323,16 @@ public class CommandeServiceImpl implements CommandeService {
         }
 
         // 2. Code promo saisi manuellement par le client
-        String codePromoSaisi = commandeDTO.getCodePromo();
         // Un code promo créé par un vendeur (shim coupon vendeur, createdBy = owner) est financé
         // par ce vendeur ; un code natif (createdBy null, créé par l'admin via /api/codes-promo)
         // est financé par l'admin — voir répartition ci-dessous (correction "résumé de commande
         // vendeur", admin vs vendeur).
-        boolean remiseCodeFinanceeParVendeur = false;
-        if (codePromoSaisi != null && !codePromoSaisi.isBlank()) {
-            CodePromo codePromo = codePromoRepository
-                    .findValidCode(codePromoSaisi.trim().toUpperCase(), LocalDateTime.now())
-                    .orElseThrow(() -> new BadRequestException("Code promo invalide ou expiré"));
-
-            if (codePromo.getMontantMinCommande() != null
-                    && montantTotal.compareTo(codePromo.getMontantMinCommande()) < 0) {
-                throw new BadRequestException(
-                        "Montant minimum requis pour ce code promo : " + codePromo.getMontantMinCommande() + " DH");
-            }
-
-            if (codePromo.getTypeReduction() == TypeReduction.POURCENTAGE) {
-                remiseCode = montantTotal
-                        .multiply(codePromo.getValeur())
-                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-                if (codePromo.getMontantMaxReduction() != null) {
-                    remiseCode = remiseCode.min(codePromo.getMontantMaxReduction());
-                }
-            } else {
-                remiseCode = codePromo.getValeur().min(montantTotal);
-            }
-
-            remiseCodeFinanceeParVendeur = codePromo.getCreatedBy() != null;
-            codePromo.setUsageCount(codePromo.getUsageCount() + 1);
+        RemiseCodeResult remiseCodeResult = calculerRemiseCode(commandeDTO.getCodePromo(), montantTotal);
+        boolean remiseCodeFinanceeParVendeur = remiseCodeResult.financeeParVendeur();
+        remiseCode = remiseCodeResult.montant();
+        if (remiseCodeResult.codePromo() != null) {
+            CodePromo codePromo = remiseCodeResult.codePromo();
+            codePromo.setUsageCount((codePromo.getUsageCount() == null ? 0 : codePromo.getUsageCount()) + 1);
             commande.setCodePromoUtilise(codePromo.getCode());
         }
 
@@ -1268,8 +1248,97 @@ public class CommandeServiceImpl implements CommandeService {
 
         BigDecimal remisePromotion = calculerRemisePromotion(restaurant, sousTotalSur);
 
-        return new DevisLivraisonDTO(fraisLivraison, remisePromotion);
+        BigDecimal montantTotal = sousTotalSur.add(fraisLivraison);
+        BigDecimal montantFinal = montantTotal.subtract(remisePromotion).max(BigDecimal.ZERO);
+        return new DevisLivraisonDTO(sousTotalSur, fraisLivraison, remisePromotion,
+                montantFinal, remisePromotion);
     }
+
+    /**
+     * Devis sécurisé à partir des identifiants du panier. Le client ne fournit aucun prix : le
+     * sous-total est reconstruit depuis les plats et les options actuellement enregistrés.
+     * Cette méthode réutilise les mêmes fonctions de zone, frais et promotion que createCommande.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public DevisLivraisonDTO calculerDevis(CommandeCreateDTO dto) {
+        if (dto == null || dto.getRestaurantId() == null) {
+            throw new BadRequestException("Restaurant requis pour calculer le devis");
+        }
+        if (dto.getLignes() == null || dto.getLignes().isEmpty()) {
+            throw new BadRequestException("Le panier ne peut pas être vide");
+        }
+
+        Restaurant restaurant = restaurantRepository.findById(dto.getRestaurantId())
+                .orElseThrow(() -> new ResourceNotFoundException("Restaurant non trouve"));
+        if (!isRestaurantOpenNow(restaurant)) {
+            throw new BadRequestException("Ce restaurant est actuellement ferme");
+        }
+
+        BigDecimal sousTotal = BigDecimal.ZERO;
+        for (LigneCommandeCreateDTO ligne : dto.getLignes()) {
+            if (ligne.getPlatId() == null || ligne.getQuantite() == null || ligne.getQuantite() < 1) {
+                throw new BadRequestException("Ligne de panier invalide");
+            }
+            Plat plat = platRepository.findById(ligne.getPlatId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Plat non trouve: " + ligne.getPlatId()));
+            if (!plat.getRestaurant().getId().equals(restaurant.getId())) {
+                throw new BadRequestException("Tous les plats doivent provenir du meme restaurant");
+            }
+            if (!plat.isEffectivementDisponible()) {
+                throw new BadRequestException("Le plat " + plat.getNom() + " n'est pas disponible");
+            }
+            ma.mysuguclientapp.services.interfaces.OptionSelectionService.Selection selection =
+                    optionSelectionService.resolve(plat, ligne.getOptionItemIds());
+            BigDecimal prixUnitaire = plat.getPrix().add(selection.getSupplementTotal());
+            sousTotal = sousTotal.add(prixUnitaire.multiply(BigDecimal.valueOf(ligne.getQuantite())));
+        }
+
+        ModeReceptionCommande mode = parseModeReception(dto.getModeReception());
+        Localisation adresse = toLocalisation(dto.getAdresseLivraison());
+        BigDecimal fraisLivraison = BigDecimal.ZERO;
+        if (mode == ModeReceptionCommande.LIVRAISON) {
+            if (adresse == null) {
+                throw new BadRequestException("Une adresse de livraison est requise pour le devis");
+            }
+            validerZoneDeploiement(restaurant, adresse);
+            fraisLivraison = calculerFraisAvecZone(restaurant, adresse);
+        }
+
+        BigDecimal remisePromotion = calculerRemisePromotion(restaurant, sousTotal);
+        BigDecimal remiseCode = calculerRemiseCode(dto.getCodePromo(), sousTotal).montant();
+        BigDecimal montantRemise = remisePromotion.add(remiseCode).min(sousTotal);
+        BigDecimal montantTotal = sousTotal.add(fraisLivraison);
+        BigDecimal montantFinal = montantTotal.subtract(montantRemise).max(BigDecimal.ZERO);
+        return new DevisLivraisonDTO(sousTotal, fraisLivraison, montantRemise,
+                montantFinal, remisePromotion);
+    }
+
+    private RemiseCodeResult calculerRemiseCode(String code, BigDecimal sousTotal) {
+        if (code == null || code.isBlank()) {
+            return new RemiseCodeResult(BigDecimal.ZERO, null, false);
+        }
+        CodePromo promo = codePromoRepository.findValidCode(code.trim().toUpperCase(), LocalDateTime.now())
+                .orElseThrow(() -> new BadRequestException("Code promo invalide ou expiré"));
+        if (promo.getMontantMinCommande() != null
+                && sousTotal.compareTo(promo.getMontantMinCommande()) < 0) {
+            throw new BadRequestException(
+                    "Montant minimum requis pour ce code promo : " + promo.getMontantMinCommande() + " DH");
+        }
+        if (promo.getTypeReduction() == TypeReduction.POURCENTAGE) {
+            BigDecimal remise = sousTotal.multiply(promo.getValeur())
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            if (promo.getMontantMaxReduction() != null) {
+                remise = remise.min(promo.getMontantMaxReduction());
+            }
+            return new RemiseCodeResult(remise, promo, promo.getCreatedBy() != null);
+        }
+        return new RemiseCodeResult(promo.getValeur().min(sousTotal), promo,
+                promo.getCreatedBy() != null);
+    }
+
+    private record RemiseCodeResult(BigDecimal montant, CodePromo codePromo,
+                                     boolean financeeParVendeur) { }
 
     /**
      * Calcule les frais de livraison selon la grille tarifaire de la zone :

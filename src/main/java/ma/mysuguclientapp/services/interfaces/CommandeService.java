@@ -39,6 +39,8 @@ public interface CommandeService {
      * montant total").
      */
     DevisLivraisonDTO calculerDevis(Long restaurantId, Double latitude, Double longitude, BigDecimal sousTotal);
+    /** Devis sécurisé : les prix et le sous-total sont recalculés depuis les lignes du panier. */
+    DevisLivraisonDTO calculerDevis(CommandeCreateDTO commandeCreateDTO);
     CommandeDTO updateCommandeStatus(Long id, CommandeUpdateStatusDTO commandeUpdateStatusDTO);
 
     /**

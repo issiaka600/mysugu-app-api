@@ -2,7 +2,6 @@ package ma.mysuguclientapp.dtos;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 
 import java.math.BigDecimal;
 
@@ -15,8 +14,22 @@ import java.math.BigDecimal;
  */
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class DevisLivraisonDTO {
+    private BigDecimal sousTotal;
     private BigDecimal fraisLivraison;
+    private BigDecimal montantTotal;
+    private BigDecimal montantRemise;
+    private BigDecimal montantFinal;
     private BigDecimal remisePromotion;
+
+    public DevisLivraisonDTO(BigDecimal sousTotal, BigDecimal fraisLivraison,
+                              BigDecimal montantRemise, BigDecimal montantFinal,
+                              BigDecimal remisePromotion) {
+        this.sousTotal = sousTotal;
+        this.fraisLivraison = fraisLivraison;
+        this.montantTotal = sousTotal.add(fraisLivraison);
+        this.montantRemise = montantRemise;
+        this.montantFinal = montantFinal;
+        this.remisePromotion = remisePromotion;
+    }
 }

@@ -41,6 +41,11 @@ public class CommandeDTO {
     /** Somme des montants des lignes d'article, hors frais de livraison et hors remises.
      *  MontantTotal = montantArticles + fraisLivraison. */
     private BigDecimal montantArticles;
+    /** Alias explicite utilisé par le panier : somme des plats et options, hors livraison. */
+    @JsonProperty("sousTotal")
+    public BigDecimal getSousTotal() {
+        return montantArticles;
+    }
     private BigDecimal montantRemise;
     private BigDecimal montantFinal;
     private String codePromoUtilise;

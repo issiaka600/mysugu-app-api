@@ -152,6 +152,7 @@ public class SecurityConfig {
 
                         // Routes commandes
                         .requestMatchers(HttpMethod.POST, "/api/commandes").hasAnyRole("CLIENT", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/commandes/devis").hasAnyRole("CLIENT", "ADMIN")
                         // Liste GLOBALE non filtrée -> ADMIN uniquement (les apps utilisent /client|/restaurant|/livreur).
                         // Sinon tout utilisateur authentifié (dont CLIENT) voyait les commandes de tous.
                         .requestMatchers(HttpMethod.GET, "/api/commandes").hasRole("ADMIN")

@@ -151,6 +151,16 @@ public class CommandeController {
     }
 
     /**
+     * Devis officiel du panier. Aucun montant envoyé par le mobile n'est utilisé : les prix des
+     * plats/options, la zone, les frais et les remises sont relus et calculés côté serveur.
+     */
+    @PostMapping("/devis")
+    public ResponseEntity<ma.mysuguclientapp.dtos.DevisLivraisonDTO> postDevis(
+            @Valid @RequestBody CommandeCreateDTO commandeDTO) {
+        return ResponseEntity.ok(commandeService.calculerDevis(commandeDTO));
+    }
+
+    /**
      * PATCH /api/commandes/{id}/status - Mettre à jour le statut
      */
     @PatchMapping("/{id}/status")
