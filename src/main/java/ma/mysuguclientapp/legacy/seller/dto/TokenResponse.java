@@ -1,5 +1,11 @@
 package ma.mysuguclientapp.legacy.seller.dto;
 
-/** Réponse de login/registration 6valley — {token}. L'app traite le token comme opaque (JWT MySugu). */
-public record TokenResponse(String token) {
+/** Session vendeur. {@code token} reste l'alias historique de {@code accessToken}. */
+public record TokenResponse(
+        String token,
+        String accessToken,
+        String refreshToken,
+        String tokenType,
+        long expiresIn
+) {
 }

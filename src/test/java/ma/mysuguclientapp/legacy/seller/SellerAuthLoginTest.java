@@ -29,7 +29,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Contrat login du shim vendeur : POST /api/v3/seller/auth/login {email,password}
- * -> 200 {token} pour un RESTAURANT_OWNER ; 401 {errors:[...]} sinon (mauvais mot de
+ * -> 200 avec accessToken + refreshToken et l'alias historique token pour un
+ * RESTAURANT_OWNER ; 401 {errors:[...]} sinon (mauvais mot de
  * passe, ou compte non-vendeur type CLIENT).
  */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
@@ -67,7 +68,12 @@ class SellerAuthLoginTest {
     void owner_login_returns_token() throws Exception {
         Resp r = post(Map.of("email", ownerEmail, "password", "demo1234"));
         assertThat(r.status).isEqualTo(200);
-        assertThat(M.readTree(r.body).get("token").asText()).isNotBlank();
+        JsonNode body = M.readTree(r.body);
+        assertThat(body.get("token").asText()).isNotBlank();
+        assertThat(body.get("accessToken").asText()).isEqualTo(body.get("token").asText());
+        assertThat(body.get("refreshToken").asText()).isNotBlank();
+        assertThat(body.get("tokenType").asText()).isEqualTo("Bearer");
+        assertThat(body.get("expiresIn").asLong()).isPositive();
     }
 
     @Test

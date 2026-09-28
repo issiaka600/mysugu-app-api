@@ -20,6 +20,8 @@ public interface AuthEnhancedService {
     // téléphone+mdp -> accès direct (loginResponse déjà rempli dans le résultat).
     LoginStepResultDTO loginParIdentifiant(LoginIdentifiantDTO dto);
     ma.mysuguclientapp.dtos.LoginResponseDTO verifierCodeConnexion(VerifyOtpDTO dto);
+    /** Crée une nouvelle session de renouvellement et révoque les précédentes. */
+    String creerRefreshTokenPourConnexion(Long userId);
     RefreshTokenResponseDTO rafraichirToken(RefreshTokenRequestDTO dto);
     void logout(String accessToken, LogoutDTO dto);
     void changerMotDePasse(Long userId, ChangePasswordDTO dto);

@@ -45,6 +45,9 @@ public class AuthEnhancedServiceImpl implements AuthEnhancedService {
     private static final String TYPE_LOGIN_OTP = "LOGIN_OTP";
     private final java.security.SecureRandom secureRandom = new java.security.SecureRandom();
 
+    @org.springframework.beans.factory.annotation.Value("${jwt.refresh-expiration:2592000000}")
+    private long refreshExpirationMs;
+
     @Override
     @Transactional
     public void envoyerEmailVerification(Long userId) {
@@ -301,6 +304,14 @@ public class AuthEnhancedServiceImpl implements AuthEnhancedService {
 
     @Override
     @Transactional
+    public String creerRefreshTokenPourConnexion(Long userId) {
+        User user = findUser(userId);
+        refreshTokenRepository.revokeAllUserTokens(userId, LocalDateTime.now());
+        return creerRefreshToken(user);
+    }
+
+    @Override
+    @Transactional
     public RefreshTokenResponseDTO rafraichirToken(RefreshTokenRequestDTO dto) {
         RefreshToken refreshToken = refreshTokenRepository.findByToken(dto.getRefreshToken())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token invalide"));
@@ -322,6 +333,7 @@ public class AuthEnhancedServiceImpl implements AuthEnhancedService {
                 .accessToken(newAccessToken)
                 .refreshToken(newRefreshToken)
                 .tokenType("Bearer")
+                .expiresIn(Math.max(1L, jwtTokenProvider.getJwtExpirationMs() / 1000L))
                 .build();
     }
 
@@ -462,7 +474,7 @@ public class AuthEnhancedServiceImpl implements AuthEnhancedService {
         RefreshToken refreshToken = RefreshToken.builder()
                 .user(user)
                 .token(token)
-                .expiresAt(LocalDateTime.now().plusDays(30))
+                .expiresAt(LocalDateTime.now().plusNanos(refreshExpirationMs * 1_000_000L))
                 .build();
         refreshTokenRepository.save(refreshToken);
         return token;

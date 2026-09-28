@@ -12,6 +12,7 @@ import ma.mysuguclientapp.legacy.seller.dto.TokenResponse;
 import ma.mysuguclientapp.repositories.OtpResetSellerRepository;
 import ma.mysuguclientapp.repositories.UserRepository;
 import ma.mysuguclientapp.services.implementations.EmailService;
+import ma.mysuguclientapp.services.interfaces.AuthEnhancedService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -37,6 +38,7 @@ public class SellerAuthController {
     private final OtpResetSellerRepository otpRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final AuthEnhancedService authEnhancedService;
     private final EmailService emailService;
 
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -55,7 +57,14 @@ public class SellerAuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ErrorsResponse.of("auth-002", "Compte désactivé."));
         }
-        return ResponseEntity.ok(new TokenResponse(jwtTokenProvider.generateToken(u)));
+        String accessToken = jwtTokenProvider.generateToken(u);
+        String refreshToken = authEnhancedService.creerRefreshTokenPourConnexion(u.getId());
+        return ResponseEntity.ok(new TokenResponse(
+                accessToken,
+                accessToken,
+                refreshToken,
+                "Bearer",
+                Math.max(1L, jwtTokenProvider.getJwtExpirationMs() / 1000L)));
     }
 
     /** forgot-password {identity} : envoie un OTP 4 chiffres (2 min) par email au vendeur. */
