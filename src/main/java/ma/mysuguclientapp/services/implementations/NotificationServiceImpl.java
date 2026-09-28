@@ -143,7 +143,6 @@ public class NotificationServiceImpl implements NotificationService {
                     .type(notificationType(statut)).entityId(commandeId)
                     .entityType("COMMANDE").orderId(commandeId).lue(false).build());
 
-            long badge = notificationRepository.countByDestinataireIdAndLueFalse(userId);
             Map<String, String> data = new java.util.HashMap<>();
             data.put("type", "order_status");
             data.put("event", "order_status_changed");
@@ -152,7 +151,6 @@ public class NotificationServiceImpl implements NotificationService {
             data.put("status", externalStatus);
             data.put("title", titre);
             data.put("body", message);
-            data.put("badge", String.valueOf(badge));
             data.put("screen", "order_tracking");
             data.put("entityId", String.valueOf(commandeId));
             data.put("entityType", "COMMANDE");
@@ -251,7 +249,6 @@ public class NotificationServiceImpl implements NotificationService {
             data.put("sender_type", senderType);
             data.put("conversation_id", String.valueOf(conversationId));
             if (commandeId != null) data.put("order_id", String.valueOf(commandeId));
-            data.put("badge", String.valueOf(Math.max(0, unreadCount)));
             data.put("channelId", messageChannelFor(user));
             data.put("sound", "message_sound");
             data.put("androidSound", "message_sound");
@@ -539,7 +536,6 @@ public class NotificationServiceImpl implements NotificationService {
         if (type == TypeNotification.MESSAGE) {
             data.put("channelId", "mysuku_customer_messages_v1");
             data.put("sound", "message_sound");
-            data.put("badge", "1");
         }
         if (entityId != null) data.put("entityId", entityId.toString());
         if (entityType != null) data.put("entityType", entityType);

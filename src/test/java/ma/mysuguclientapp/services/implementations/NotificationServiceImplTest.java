@@ -77,7 +77,8 @@ class NotificationServiceImplTest {
                 .containsEntry("order_number", "CMD-123")
                 .containsEntry("status", "ready")
                 .containsKeys("title", "body")
-                .containsEntry("sound", "default"));
+                .containsEntry("sound", "default")
+                .doesNotContainKey("badge"));
     }
 
     @Test
@@ -93,6 +94,12 @@ class NotificationServiceImplTest {
 
         service.envoyerNotificationMessage(5L, "12", "delivery_man", "Livreur",
                 456L, 789L, 1L);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> messageData = ArgumentCaptor.forClass(Map.class);
+        org.mockito.Mockito.verify(fcm).sendToUserWithResult(
+                org.mockito.ArgumentMatchers.eq(5L), any(), any(), messageData.capture());
+        assertThat(messageData.getValue()).doesNotContainKey("badge");
 
         ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
         org.mockito.Mockito.verify(notifications).save(captor.capture());

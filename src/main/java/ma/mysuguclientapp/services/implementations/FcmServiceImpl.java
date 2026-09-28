@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -98,18 +99,9 @@ public class FcmServiceImpl implements FcmService {
                 }
             }
 
-            int badge = 1;
-            if (data != null && data.containsKey("badge")) {
-                try {
-                    badge = Math.max(0, Integer.parseInt(data.get("badge")));
-                } catch (NumberFormatException ignored) {
-                    log.warn("Badge FCM iOS invalide: {}", data.get("badge"));
-                }
-            }
             Aps.Builder aps = Aps.builder()
                     .setAlert(ApsAlert.builder().setTitle(title).setBody(body).build())
                     .setSound(apnsSound)
-                    .setBadge(badge)
                     .setContentAvailable(true);
             if (data != null && data.containsKey("apnsInterruptionLevel")) {
                 aps.putCustomData("interruption-level", data.get("apnsInterruptionLevel"));
@@ -135,7 +127,11 @@ public class FcmServiceImpl implements FcmService {
                     .setApnsConfig(apnsConfig.build());
 
             if (data != null && !data.isEmpty()) {
-                messageBuilder.putAllData(data);
+                Map<String, String> payloadData = new HashMap<>(data);
+                // Le badge iOS est géré par les applications. Ne jamais transmettre un compteur
+                // historique, ni dans aps.badge ni comme donnée FCM ambiguë.
+                payloadData.remove("badge");
+                messageBuilder.putAllData(payloadData);
             }
 
             Message message = messageBuilder.build();
