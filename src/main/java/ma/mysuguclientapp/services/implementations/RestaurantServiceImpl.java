@@ -261,6 +261,20 @@ public class RestaurantServiceImpl implements RestaurantService {
             }
         }
 
+        // La bannière suit la même règle que le logo : removeBanner vide la bannière, le fichier
+        // éventuellement joint au PUT la remplace ensuite (updateRestaurantBanner, appelé par le
+        // contrôleur juste après). Sans ce cas, la bannière était le seul média qu'on ne pouvait
+        // pas retirer depuis le back-office.
+        if (Boolean.TRUE.equals(restaurantDTO.getRemoveBanner()) && restaurant.getBannerUrl() != null) {
+            try {
+                minioService.deleteFile(restaurant.getBannerUrl());
+                restaurant.setBannerUrl(null);
+            } catch (Exception e) {
+                log.error("Erreur lors de la suppression de la bannière", e);
+                throw new BadRequestException("Erreur lors de la suppression de la bannière");
+            }
+        }
+
         Restaurant updatedRestaurant = restaurantRepository.save(restaurant);
         log.info("Restaurant mis à jour: {}", updatedRestaurant.getNom());
         return convertToDTO(updatedRestaurant, null, null);

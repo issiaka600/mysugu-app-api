@@ -17,6 +17,8 @@ public class RestaurantCreateDTO {
     private LocalTime heureOuverture;
     private LocalTime heureFermeture;
     private Boolean removeLogo;
+    /** Suppression demandée de la bannière, indépendamment d'un éventuel nouveau fichier. */
+    private Boolean removeBanner;
 
     /**
      * Identifiant de la zone de déploiement à laquelle rattacher ce restaurant.
