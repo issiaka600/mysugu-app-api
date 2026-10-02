@@ -60,4 +60,25 @@ public interface UserService {
      * Réutilise le parcours d'invitation restaurateur : aucun mot de passe ne transite.
      */
     void relancerInvitation(Long id);
+
+    /**
+     * Définit ou réinitialise le mot de passe d'un propriétaire d'établissement.
+     *
+     * <p>Quand {@code generer} est vrai, le mot de passe est tiré par le serveur et
+     * <strong>renvoyé en clair dans la valeur de retour</strong> : c'est le seul moment où
+     * l'administrateur peut le lire, ensuite la base n'en garde que le hash BCrypt. Les
+     * sessions actives du propriétaire sont révoquées, pour qu'un ancien mot de passe
+     * ne fonctionne plus nulle part.
+     */
+    String definirMotDePasse(Long id, ma.mysuguclientapp.dtos.auth.AdminPasswordSetDTO dto);
+
+    /**
+     * Relit le mot de passe posé par l'administration, pour que le support puisse le dicter
+     * au propriétaire au téléphone.
+     *
+     * <p>Renvoie {@code null} quand il n'y a rien à relire : clé de coffre absente, compte
+     * créé par invitation, ou propriétaire ayant changé son mot de passe lui-même depuis.
+     * L'appelant est censé distinguer ces cas pour ne pas annoncer un mot de passe à tort.
+     */
+    String lireMotDePasseAdmin(Long id);
 }

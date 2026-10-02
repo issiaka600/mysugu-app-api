@@ -53,6 +53,8 @@ public class UserServiceImpl implements UserService {
     private final AppleAuthService appleAuthService;
     private final AuthEnhancedService authEnhancedService;
     private final ma.mysuguclientapp.repositories.TokenVerificationRepository tokenVerificationRepository;
+    private final ma.mysuguclientapp.repositories.RefreshTokenRepository refreshTokenRepository;
+    private final ma.mysuguclientapp.config.AdminPasswordVault coffre;
     private final EmailService emailService;
 
     @Override
@@ -495,6 +497,81 @@ public class UserServiceImpl implements UserService {
         emailService.envoyerInvitationRestaurateur(user.getEmail(),
                 user.getPrenom() + " " + user.getNom(), token);
         log.info("Invitation relancée pour {}", user.getEmail());
+    }
+
+    @Override
+    @Transactional
+    public String definirMotDePasse(Long id, ma.mysuguclientapp.dtos.auth.AdminPasswordSetDTO dto) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé avec l'ID: " + id));
+
+        if (user.getRole() != UserRole.RESTAURANT_OWNER) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "La gestion du mot de passe par l'administration ne concerne que les propriétaires d'établissement");
+        }
+
+        boolean generer = dto.getGenerer() != null && dto.getGenerer();
+        String motDePasse = dto.getMotDePasse() != null ? dto.getMotDePasse().trim() : "";
+
+        if (!generer && motDePasse.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Fournissez un mot de passe ou demandez-en la génération");
+        }
+        if (!generer && motDePasse.length() < 8) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Le mot de passe doit contenir au moins 8 caractères");
+        }
+        if (motDePasse.length() > 64) {
+            // Au-delà, BCrypt ne lit que les 72 premiers octets : le reste serait silencieusement
+            // ignoré, et l'admin croirait avoir choisi un mot de passe qu'il ne retrouve plus.
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Le mot de passe ne doit pas dépasser 64 caractères");
+        }
+
+String definitive = generer ? genererMotDePasse() : motDePasse;
+user.setPassword(passwordEncoder.encode(definitive));
+        // Un compte cree par l'administration n'a jamais valide son email : sans ce flag il
+        // resterait bloque par un 403 sur /auth/login meme avec le bon mot de passe.
+        user.setEmailVerified(true);
+        // Copie chiffrée pour que le support puisse le relire et le dicter au téléphone.
+        user.setMotDePasseAdmin(coffre.encrypt(definitive));
+        userRepository.save(user);
+
+        // L'ancien mot de passe ne doit plus fonctionner sur les sessions deja ouvertes.
+        refreshTokenRepository.revokeAllUserTokens(user.getId(), LocalDateTime.now());
+
+log.info("Mot de passe défini par l'administration pour {}", user.getEmail());
+return definitive;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public String lireMotDePasseAdmin(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé avec l'ID: " + id));
+
+        if (user.getRole() != UserRole.RESTAURANT_OWNER) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Seuls les propriétaires d'établissement ont un compte de connexion à relire");
+        }
+        return coffre.decrypt(user.getMotDePasseAdmin());
+    }
+
+    /**
+     * Mot de passe lisible à dicter au téléphone : on évite 0/O et 1/l/I, que les
+     * gens recopient mal, et on prend un alphabet sans symbole qui pose des soucis
+     * de collage dans les claviers mobiles.
+     */
+    private static final String ALPHABET_MDP = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+    private static final int LONGUEUR_MDP = 10;
+
+    private String genererMotDePasse() {
+        java.security.SecureRandom random = new java.security.SecureRandom();
+        StringBuilder sb = new StringBuilder(LONGUEUR_MDP);
+        for (int i = 0; i < LONGUEUR_MDP; i++) {
+            sb.append(ALPHABET_MDP.charAt(random.nextInt(ALPHABET_MDP.length())));
+        }
+        return sb.toString();
     }
 
     private UserDTO convertToDTO(User user) {

@@ -27,6 +27,7 @@ public class OwnerProvisioningServiceImpl implements OwnerProvisioningService {
     private final TokenVerificationRepository tokenVerificationRepository;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
+    private final ma.mysuguclientapp.config.AdminPasswordVault coffre;
 
     @Override
     @Transactional
@@ -57,12 +58,21 @@ public class OwnerProvisioningServiceImpl implements OwnerProvisioningService {
         owner.setTelephone(dto.getOwnerTel());
         owner.setRole(UserRole.RESTAURANT_OWNER);
         owner.setIsActive(true);
+        // Le compte est cree par un administrateur, pas par le proprietaire lui-meme : il n'y a
+        // donc personne pour cliquer sur le lien de verification. Sans ce flag, UserServiceImpl.login
+        // le rejette avec un 403 "Email non verifie" meme quand le mot de passe est correct.
+        owner.setEmailVerified(true);
 
-        boolean sendInvite = Boolean.TRUE.equals(dto.getOwnerSendInvite());
-        if (!sendInvite && dto.getOwnerPassword() != null && !dto.getOwnerPassword().isEmpty()) {
+boolean sendInvite = Boolean.TRUE.equals(dto.getOwnerSendInvite());
+if (!sendInvite && dto.getOwnerPassword() != null && !dto.getOwnerPassword().isEmpty()) {
             owner.setPassword(passwordEncoder.encode(dto.getOwnerPassword()));
+            // Le backoffice a choisi ce mot de passe et doit pouvoir le relire ensuite pour
+            // le communiquer au restaurant par téléphone : on en garde une copie chiffrée.
+            owner.setMotDePasseAdmin(coffre.encrypt(dto.getOwnerPassword()));
         } else {
+            // Mot de passe tiré au hasard : personne ne le connaît, il n'y a rien à conserver.
             owner.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+            owner.setMotDePasseAdmin(null);
         }
 
         User saved = userRepository.save(owner);

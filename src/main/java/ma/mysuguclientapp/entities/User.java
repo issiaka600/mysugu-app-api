@@ -26,6 +26,16 @@ public class User {
     
     @Column(nullable = false)
     private String password;
+
+    /**
+     * Copie chiffrée (AES-GCM) du mot de passe, uniquement lorsqu'un administrateur l'a
+     * lui-même choisi — le support doit pouvoir le communiquer par téléphone. Les mots de
+     * passe choisis par l'utilisateur (clients, livreurs) ne passent pas par ici.
+     * Invalidé dès que le propriétaire change son mot de passe lui-même, pour ne jamais
+     * resservir une valeur périmée. Voir {@link ma.mysuguclientapp.config.AdminPasswordVault}.
+     */
+    @Column(name = "admin_password_vault", length = 512)
+    private String motDePasseAdmin;
     
     @Column(nullable = false)
     private String nom;
