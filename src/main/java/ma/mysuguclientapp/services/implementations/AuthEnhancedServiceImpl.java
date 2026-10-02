@@ -133,6 +133,9 @@ public class AuthEnhancedServiceImpl implements AuthEnhancedService {
 
         User user = tv.getUser();
         user.setPassword(passwordEncoder.encode(dto.getNouveauMotDePasse()));
+        // Le mot de passe choisi par l'utilisateur remplace celui du coffre : le support ne
+        // doit surtout pas resservir l'ancien, qui ne fonctionne plus.
+        user.setMotDePasseAdmin(null);
         userRepository.save(user);
 
         // Revoke all refresh tokens
@@ -375,6 +378,8 @@ public class AuthEnhancedServiceImpl implements AuthEnhancedService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mot de passe actuel incorrect");
         }
         user.setPassword(passwordEncoder.encode(dto.getNouveauMotDePasse()));
+        // Voir reinitialiserMotDePasse : la copie du coffre devient périmée.
+        user.setMotDePasseAdmin(null);
         userRepository.save(user);
         refreshTokenRepository.revokeAllUserTokens(userId, LocalDateTime.now());
     }

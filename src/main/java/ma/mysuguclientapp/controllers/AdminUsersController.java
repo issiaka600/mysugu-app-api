@@ -10,6 +10,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/admin/users")
@@ -67,6 +68,40 @@ public class AdminUsersController {
     public ResponseEntity<java.util.Map<String, String>> relancerInvitation(@PathVariable Long id) {
         userService.relancerInvitation(id);
         return ResponseEntity.ok(java.util.Map.of("message", "Invitation renvoyée"));
+    }
+
+    /**
+     * POST /api/admin/users/{id}/password
+     * Définit ou réinitialise le mot de passe d'un propriétaire d'établissement.
+     * Corps : { "generer": true } pour que le serveur tire un mot de passe, ou
+     * { "motDePasse": "..." } pour une valeur choisie par l'administrateur.
+     * La réponse contient le mot de passe en clair, à afficher une seule fois.
+     */
+    @PostMapping("/{id}/password")
+    public ResponseEntity<java.util.Map<String, String>> definirMotDePasse(
+            @PathVariable Long id,
+            @RequestBody ma.mysuguclientapp.dtos.auth.AdminPasswordSetDTO dto) {
+        String motDePasse = userService.definirMotDePasse(id, dto);
+        return ResponseEntity.ok(java.util.Map.of(
+                "message", "Mot de passe défini. Communiquez-le au propriétaire : il ne sera plus jamais affiché.",
+                "motDePasse", motDePasse));
+    }
+
+    /**
+     * GET /api/admin/users/{id}/password
+     * Relit le mot de passe défini par l'administration, pour le dicter au propriétaire.
+     * 404 quand il n'y a rien à relire : clé de coffre absente, compte né d'une invitation,
+     * ou propriétaire ayant changé son mot de passe lui-même depuis.
+     */
+    @GetMapping("/{id}/password")
+    public ResponseEntity<java.util.Map<String, String>> lireMotDePasse(@PathVariable Long id) {
+        String motDePasse = userService.lireMotDePasseAdmin(id);
+        if (motDePasse == null) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND,
+                    "Aucun mot de passe à afficher : il n'a jamais été défini par l'administration, "
+                  + "ou le propriétaire l'a changé lui-même. Utilisez « Générer » pour en créer un nouveau.");
+        }
+        return ResponseEntity.ok(java.util.Map.of("motDePasse", motDePasse));
     }
 
     /**

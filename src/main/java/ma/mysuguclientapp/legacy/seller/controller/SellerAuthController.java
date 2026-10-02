@@ -144,6 +144,9 @@ public class SellerAuthController {
                     .body(ErrorsResponse.of("not-found", "Compte introuvable."));
         }
         owner.setPassword(passwordEncoder.encode(password));
+        // Le propriétaire vient de choisir son mot de passe : la copie conservée pour le
+        // support ne vaut plus rien et doit disparaître.
+        owner.setMotDePasseAdmin(null);
         userRepository.save(owner);
         otpRepository.deleteByIdentity(identity);
         return ResponseEntity.ok(new MessageResponse("Mot de passe réinitialisé avec succès."));
