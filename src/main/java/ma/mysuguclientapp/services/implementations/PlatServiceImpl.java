@@ -9,6 +9,7 @@ import ma.mysuguclientapp.entities.Plat;
 import ma.mysuguclientapp.entities.Restaurant;
 import ma.mysuguclientapp.entities.CategoriePlatDef;
 import ma.mysuguclientapp.enumerations.ModeDisponibilitePlat;
+import ma.mysuguclientapp.enumerations.TypeCommission;
 import ma.mysuguclientapp.enumerations.Vertical;
 import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -118,6 +120,7 @@ public class PlatServiceImpl implements PlatService {
         plat.setQuantiteStock(platDTO.getQuantiteStock());
         plat.setSeuilAlerteStock(platDTO.getSeuilAlerteStock());
         plat.setTopVente(Boolean.TRUE.equals(platDTO.getTopVente()));
+        appliquerCommissionPlat(plat, platDTO);
 
         if (platDTO.getCategoriePlat() != null) {
             plat.setCategoriePlat(parseCategorie(platDTO.getCategoriePlat()));
@@ -189,6 +192,8 @@ public class PlatServiceImpl implements PlatService {
             if (platDTO.getAvailabilityMode() != null || platDTO.getIndisponibleJusqua() != null) {
                 applyAvailabilityMode(plat, parseAvailabilityMode(platDTO.getAvailabilityMode()), platDTO.getIndisponibleJusqua());
             }
+
+            appliquerCommissionPlat(plat, platDTO);
         }
 
         if (image != null && !image.isEmpty()) {
@@ -327,6 +332,66 @@ public class PlatServiceImpl implements PlatService {
         return code;
     }
 
+    /**
+     * Commission propre au plat, telle que demandée par le dashboard.
+     *
+     * <p>Trois issues, dans l'ordre : un retrait explicite ({@code resetCommission}) l'emporte,
+     * sinon un barème fourni est validé et appliqué, sinon on ne touche à rien — un appelant
+     * qui ignore cette feature ne doit pas effacer une commission saisie.</p>
+     *
+     * <p>Sans barème, les trois colonnes restent à null et {@link Plat#aCommissionPropre()} vaut
+     * faux : la commande donnera alors la main à la commission du restaurant. Les deux colonnes de
+     * valeur sont écrites ensemble pour qu'une bascule POURCENTAGE ↔ FIXE ne laisse pas
+     * traîner l'ancienne, qui réapparaîtrait si l'admin rebasculait.</p>
+     */
+    private void appliquerCommissionPlat(Plat plat, PlatCreateDTO dto) {
+        if (Boolean.TRUE.equals(dto.getResetCommission())) {
+            plat.setCommissionType(null);
+            plat.setCommissionPourcentage(null);
+            plat.setCommissionMontantFixe(null);
+            return;
+        }
+
+        String typeBrut = dto.getCommissionType();
+        boolean typeFourni = typeBrut != null && !typeBrut.isBlank();
+        if (!typeFourni && dto.getCommissionPourcentage() == null && dto.getCommissionMontantFixe() == null) {
+            return;
+        }
+
+        TypeCommission type = parseTypeCommissionPlat(typeBrut);
+        BigDecimal pourcentage = dto.getCommissionPourcentage();
+        BigDecimal montantFixe = dto.getCommissionMontantFixe();
+
+        if (type == TypeCommission.FIXE) {
+            if (montantFixe == null || montantFixe.compareTo(BigDecimal.ZERO) < 0) {
+                throw new BadRequestException("Le montant fixe de commission du plat doit être positif");
+            }
+            plat.setCommissionType(TypeCommission.FIXE);
+            plat.setCommissionMontantFixe(montantFixe);
+            plat.setCommissionPourcentage(null);
+            return;
+        }
+
+        if (pourcentage == null || pourcentage.compareTo(BigDecimal.ZERO) < 0
+                || pourcentage.compareTo(new BigDecimal("100")) > 0) {
+            throw new BadRequestException("Le pourcentage de commission du plat doit être compris entre 0 et 100");
+        }
+        plat.setCommissionType(TypeCommission.POURCENTAGE);
+        plat.setCommissionPourcentage(pourcentage);
+        plat.setCommissionMontantFixe(null);
+    }
+
+    private static TypeCommission parseTypeCommissionPlat(String valeur) {
+        if (valeur == null || valeur.isBlank()) {
+            return TypeCommission.POURCENTAGE;
+        }
+        try {
+            return TypeCommission.valueOf(valeur.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("Mode de commission inconnu : " + valeur);
+        }
+    }
+
     private PlatDTO convertToDTO(Plat plat, Map<Long, Long> ventes) {
         PlatDTO dto = new PlatDTO();
         dto.setId(plat.getId());
@@ -346,6 +411,12 @@ public class PlatServiceImpl implements PlatService {
         dto.setTopVente(topVenteService.estTopVente(plat.getId(), plat.getTopVente(), ventes));
         dto.setTempsPreparation(plat.getTempsPreparation());
         dto.setIndisponibleJusqua(plat.getIndisponibleJusqua());
+        if (plat.getCommissionType() != null) {
+            dto.setCommissionType(plat.getCommissionType().name());
+        }
+        dto.setCommissionPourcentage(plat.getCommissionPourcentage());
+        dto.setCommissionMontantFixe(plat.getCommissionMontantFixe());
+        dto.setCommissionPropre(plat.aCommissionPropre());
 
         if (plat.getAvailabilityMode() != null) {
             dto.setAvailabilityMode(plat.getAvailabilityMode().name());

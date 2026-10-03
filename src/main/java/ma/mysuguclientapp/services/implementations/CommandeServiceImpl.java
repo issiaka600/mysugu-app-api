@@ -285,9 +285,19 @@ public class CommandeServiceImpl implements CommandeService {
 
         BigDecimal totalCommission = BigDecimal.ZERO;
         for (LigneCommande ligne : lignes) {
-            BaremeCommission bareme = ligne.getPrixUnitaire().compareTo(seuilPrix) <= 0
-                    ? baremeSousSeuil
-                    : baremeEtablissement;
+            // Trois niveaux, du plus précis au plus général : un barème propre au plat l'emporte
+            // toujours ; sinon le minimum global pour les articles sous le seuil ; sinon le barème
+            // négocié avec l'établissement.
+            Plat platLigne = ligne.getPlat();
+            BaremeCommission bareme;
+            if (platLigne != null && platLigne.aCommissionPropre()) {
+                bareme = BaremeCommission.resoudre(platLigne.getCommissionType(),
+                        platLigne.getCommissionPourcentage(), platLigne.getCommissionMontantFixe());
+            } else {
+                bareme = ligne.getPrixUnitaire().compareTo(seuilPrix) <= 0
+                        ? baremeSousSeuil
+                        : baremeEtablissement;
+            }
             BigDecimal commission = bareme.calculer(ligne.getMontantTotal(), ligne.getQuantite());
             ligne.setCommissionType(bareme.getType());
             ligne.setCommissionPourcentage(bareme.getPourcentage());

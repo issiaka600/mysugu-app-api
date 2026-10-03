@@ -33,6 +33,12 @@ public class PlatDTO {
     private Boolean stockGere;
     private Boolean alerteStockBas;
     private Boolean topVente;
+    /** Commission propre au plat ; les trois champs à null ⇒ celle du restaurant s'applique. */
+    private String commissionType;
+    private BigDecimal commissionPourcentage;
+    private BigDecimal commissionMontantFixe;
+    /** Renseigne si le plat porte une commission propre : l'admin peut ainsi proposer de la retirer. */
+    private Boolean commissionPropre;
     private Long restaurantId;
     private String restaurantNom;
     private List<OptionGroupDTO> optionGroups;
