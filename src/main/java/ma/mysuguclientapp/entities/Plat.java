@@ -1,10 +1,10 @@
 package ma.mysuguclientapp.entities;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import ma.mysuguclientapp.enumerations.ModeDisponibilitePlat;
+import ma.mysuguclientapp.enumerations.TypeCommission;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -17,7 +17,9 @@ import java.util.List;
 })
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
+// Pas de @AllArgsConstructor : à vingt champs, l'appel positionnel compilait jusqu'au jour où
+// l'on a ajouté un attribut, puis il fallait retrouver le rang du null manquant. Le seul
+// appelant (TestDataInitializer) passe désormais par les setters.
 public class Plat {
     
     @Id
@@ -32,7 +34,37 @@ public class Plat {
     
     @Column(nullable = false)
     private BigDecimal prix;
-    
+
+    // ── Commission propre au plat ────────────────────────────────────────────
+    // Les trois colonnes à null signifient « aucune commission spécifique » : c'est alors la
+    // commission du restaurant qui s'applique. On ne matérialise donc pas un barème par défaut,
+    // sinon un plat hériterait d'une copie figée de la commission du resto et ne suivrait plus
+    // ses changement. Un barème explicite ici l'emporte sur tous les autres.
+    /** Mode de calcul de la commission de ce plat ; null = hériter de la commission du restaurant. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "commission_type")
+    private TypeCommission commissionType;
+
+    /**
+     * Taux de commission de ce plat (en %), utilisé quand {@link #commissionType} vaut
+     * POURCENTAGE. Null quand le plat n'a pas de commission propre, ou quand le barème est fixe.
+     */
+    @Column(name = "commission_pourcentage", precision = 5, scale = 2)
+    private BigDecimal commissionPourcentage;
+
+    /**
+     * Montant prélevé par article quand {@link #commissionType} vaut FIXE. Null quand le plat
+     * n'a pas de commission propre, ou quand le barème est un pourcentage.
+     */
+    @Column(name = "commission_montant_fixe", precision = 10, scale = 2)
+    private BigDecimal commissionMontantFixe;
+
+    /** Vrai si ce plat porte un barème qui lui est propre, plutôt que celui du restaurant. */
+    public boolean aCommissionPropre() {
+        return commissionType != null
+                && (commissionPourcentage != null || commissionMontantFixe != null);
+    }
+
     private String imageUrl;
     
     @ElementCollection

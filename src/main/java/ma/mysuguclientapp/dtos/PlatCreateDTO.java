@@ -22,4 +22,16 @@ public class PlatCreateDTO {
     private LocalDateTime indisponibleJusqua;
     private Boolean removeImage;
     private Boolean topVente;
+
+// Commission propre au plat. Contrairement au restaurant, l'admin doit pouvoir *retirer*
+    // une commission qu'il avait mise : sans cela il n'y aurait aucun moyen de revenir à la
+    // commission du resto. D'où le retrait explicite — « champ absent » reste « ne rien
+    // changer », comme pour le restaurant, pour qu'un appelant qui ignore cette feature
+    // n'efface pas une commission saisie par erreur.
+    /** true = retirer la commission propre du plat et ré-hériter celle du restaurant. */
+    private Boolean resetCommission;
+    /** POURCENTAGE ou FIXE. */
+    private String commissionType;
+    private BigDecimal commissionPourcentage;
+    private BigDecimal commissionMontantFixe;
 }

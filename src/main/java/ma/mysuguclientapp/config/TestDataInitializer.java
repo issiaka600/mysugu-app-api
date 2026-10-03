@@ -201,27 +201,29 @@ public class TestDataInitializer implements CommandLineRunner {
         return platRepository.findAll().stream()
                 .filter(p -> nom.equalsIgnoreCase(p.getNom()) && p.getRestaurant() != null && p.getRestaurant().getId().equals(restaurant.getId()))
                 .findFirst()
-                .orElseGet(() -> platRepository.save(
-                        new Plat(
-                                null,
-                                nom,
-                                description,
-                                prix,
-                                null,
-                                new ArrayList<>(ingredients),
-                                restaurant,
-                                true,
-                                ModeDisponibilitePlat.DISPONIBLE,
-                                null,
-                                tempsPreparation,
-                                null,
-                                null,
-                                false,
-                                categoriePlat,
-                                null,
-                                new ArrayList<>()
-                        )
-                ));
+                .orElseGet(() -> platRepository.save(nouveauPlat(nom, description, prix, restaurant, ingredients, categoriePlat, tempsPreparation)));
+    }
+
+    /**
+     * Construit un plat de jeu d'essai. On passe par les setters plutôt que par un constructeur
+     * à vingt paramètres positionnels : à chaque champ ajouté à Plat, l'appel positionnel
+     * cessait de compiler, et il fallait retrouver le bon rang d'un {@code null} parmi ses voisins.
+     */
+    private Plat nouveauPlat(String nom, String description, BigDecimal prix, Restaurant restaurant,
+                             List<String> ingredients, String categoriePlat, Integer tempsPreparation) {
+        Plat plat = new Plat();
+        plat.setNom(nom);
+        plat.setDescription(description);
+        plat.setPrix(prix);
+        plat.setRestaurant(restaurant);
+        plat.setIngredients(new ArrayList<>(ingredients));
+        plat.setIsAvailable(true);
+        plat.setAvailabilityMode(ModeDisponibilitePlat.DISPONIBLE);
+        plat.setTempsPreparation(tempsPreparation);
+        plat.setTopVente(false);
+        plat.setCategoriePlat(categoriePlat);
+        plat.setOptionGroups(new ArrayList<>());
+        return plat;
     }
 
     private void ensureMenu(Restaurant restaurant, Plat... plats) {
