@@ -55,6 +55,7 @@ class OrderDetailsTest {
     @Autowired PlatRepository platRepo;
     @Autowired CommandeRepository commandeRepo;
     @Autowired PasswordEncoder encoder;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     private final String owner1Email = "ord-det1-" + System.nanoTime() + "@test.mysugu";
     private final String owner2Email = "ord-det2-" + System.nanoTime() + "@test.mysugu";
@@ -85,6 +86,8 @@ class OrderDetailsTest {
 
     @AfterEach
     void cleanup() {
+        jdbc.update("DELETE FROM refresh_tokens WHERE user_id IN (?, ?, ?)",
+                owner1Id, owner2Id, clientId);
         commandeRepo.findById(commande1Id).ifPresent(commandeRepo::delete);
         commandeRepo.findById(commande2Id).ifPresent(commandeRepo::delete);
         platRepo.findById(plat1Id).ifPresent(platRepo::delete);
@@ -107,6 +110,8 @@ class OrderDetailsTest {
         assertThat(n).hasSize(1);
         assertThat(n.get(0).get("order").get("id").asLong()).isEqualTo(commande1Id);
         assertThat(n.get(0).get("product_details")).isNotNull();
+        assertThat(n.get(0).get("options").isArray()).isTrue();
+        assertThat(n.get(0).get("options")).isEmpty();
     }
 
     @Test

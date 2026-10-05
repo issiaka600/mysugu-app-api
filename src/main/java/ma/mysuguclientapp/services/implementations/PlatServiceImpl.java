@@ -441,8 +441,8 @@ public class PlatServiceImpl implements PlatService {
                 gd.setId(g.getId());
                 gd.setNom(g.getNom());
                 gd.setSelectionMode(g.getSelectionMode() != null ? g.getSelectionMode().name() : null);
-                gd.setObligatoire(g.getObligatoire());
-                gd.setMinSelections(g.getMinSelections());
+                gd.setObligatoire(ma.mysuguclientapp.utils.OptionGroupRules.isRequired(g));
+                gd.setMinSelections(ma.mysuguclientapp.utils.OptionGroupRules.minSelections(g));
                 gd.setMaxSelections(g.getMaxSelections());
                 gd.setOrdre(g.getOrdre());
                 gd.setItems(g.getItems() == null ? java.util.List.of() : g.getItems().stream().map(it -> {

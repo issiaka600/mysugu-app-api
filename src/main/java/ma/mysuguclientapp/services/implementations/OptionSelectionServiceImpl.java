@@ -56,10 +56,7 @@ public class OptionSelectionServiceImpl implements OptionSelectionService {
     }
 
     private void valider(OptionGroup g, int count) {
-        int min = g.getMinSelections() != null ? g.getMinSelections() : 0;
-        if (Boolean.TRUE.equals(g.getObligatoire()) && min < 1) {
-            min = 1;
-        }
+        int min = ma.mysuguclientapp.utils.OptionGroupRules.minSelections(g);
         if (g.getSelectionMode() == OptionSelectionMode.SINGLE) {
             if (count > 1) {
                 throw new BadRequestException("La section \"" + g.getNom() + "\" n'autorise qu'un seul choix");

@@ -103,9 +103,8 @@ public class PlatOptionServiceImpl implements PlatOptionService {
         if (g.getSelectionMode() == OptionSelectionMode.SINGLE) {
             g.setMaxSelections(1);
         }
-        if (Boolean.TRUE.equals(g.getObligatoire()) && g.getMinSelections() < 1) {
-            g.setMinSelections(1);
-        }
+        g.setObligatoire(ma.mysuguclientapp.utils.OptionGroupRules.isRequired(g));
+        g.setMinSelections(ma.mysuguclientapp.utils.OptionGroupRules.minSelections(g));
         if (g.getMinSelections() < 0) {
             throw new BadRequestException("minSelections ne peut pas être négatif");
         }
@@ -130,8 +129,8 @@ public class PlatOptionServiceImpl implements PlatOptionService {
         dto.setId(g.getId());
         dto.setNom(g.getNom());
         dto.setSelectionMode(g.getSelectionMode() != null ? g.getSelectionMode().name() : null);
-        dto.setObligatoire(g.getObligatoire());
-        dto.setMinSelections(g.getMinSelections());
+        dto.setObligatoire(ma.mysuguclientapp.utils.OptionGroupRules.isRequired(g));
+        dto.setMinSelections(ma.mysuguclientapp.utils.OptionGroupRules.minSelections(g));
         dto.setMaxSelections(g.getMaxSelections());
         dto.setOrdre(g.getOrdre());
         List<OptionItemDTO> items = new ArrayList<>();

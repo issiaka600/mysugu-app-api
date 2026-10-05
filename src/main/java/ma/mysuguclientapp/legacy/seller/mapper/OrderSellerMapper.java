@@ -119,6 +119,7 @@ public class OrderSellerMapper {
         m.put("payment_status", order.get("payment_status"));
         m.put("variant", null);
         m.put("variation", "");
+        m.put("options", ligne.getOptions() != null ? ligne.getOptions() : List.of());
         m.put("product_details", ligne.getPlat() != null ? productMapper.toSixValley(ligne.getPlat()) : null);
         m.put("order", order);
         m.put("verification_images", List.of());
