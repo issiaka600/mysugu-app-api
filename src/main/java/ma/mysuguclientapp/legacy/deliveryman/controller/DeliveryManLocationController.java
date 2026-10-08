@@ -112,17 +112,21 @@ public class DeliveryManLocationController {
                                               @RequestParam(name = "order_id", required = false) Long orderId,
                                               @RequestParam(name = "seller_id", required = false) Long sellerId) {
         User livreur = livreur(email);
-        Double lat = null, lng = null;
-        if (orderId != null) {
-            Commande c = requireAssignedOrder(orderId, livreur);
-            if (c.getRestaurant() != null && c.getRestaurant().getLocalisation() != null) {
-                lat = c.getRestaurant().getLocalisation().getLatitude();
-                lng = c.getRestaurant().getLocalisation().getLongitude();
-            }
+        if (orderId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "order_id est obligatoire");
+        }
+        Commande c = requireAssignedOrder(orderId, livreur);
+        ma.mysuguclientapp.entities.Restaurant restaurant = c.getRestaurant();
+        Localisation loc = restaurant != null ? restaurant.getLocalisation() : null;
+        if (loc == null || loc.getLatitude() == null || loc.getLongitude() == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Le restaurant doit renseigner son point d'entrée");
         }
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("latitude", lat != null ? lat.toString() : "0");
-        m.put("longitude", lng != null ? lng.toString() : "0");
+        m.put("latitude", loc.getLatitude().toString());
+        m.put("longitude", loc.getLongitude().toString());
+        m.put("address", loc.getAdresse());
+        m.put("location_confirmed", restaurant.getLocationConfirmedAt() != null);
+        m.put("location_confirmed_at", restaurant.getLocationConfirmedAt());
         return m;
     }
 

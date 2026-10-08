@@ -33,3 +33,36 @@ La position de l'entrée réelle n'est pas confirmée. Aucune coordonnée
 de remplacement ne doit être déduite de l'adresse ou des valeurs de test.
 La correction de cette fiche et la vérification de l'itinéraire nécessitent
 une épingle GPS confirmée à l'entrée, puis un contrôle dans l'application livreur.
+
+## Confirmation depuis l’application vendeur
+
+POST /api/v3/seller/shop-update (multipart authentifié vendeur) accepte
+address, latitude, longitude et location_confirmed=true. Envoyer ces quatre
+champs ensemble après confirmation explicite de l’entrée sur la carte.
+Une adresse ou un point modifiés sans confirmation sont refusés (HTTP 400).
+Une confirmation sans adresse et paire GPS complète est également refusée.
+Les coordonnées sont validées avant toute écriture. L’adresse, le point et
+la date de confirmation sont enregistrés dans la même transaction.
+
+L’application vendeur doit invalider sa confirmation dès que le texte de
+l’adresse ou le marqueur change, puis demander une nouvelle confirmation.
+Cette carte reste à implémenter et vérifier côté frontend ; le backend ne
+peut pas déterminer si une paire valide correspond à l’entrée réelle.
+Utiliser shop-update pour le restaurant : seller-update modifie le profil
+personnel du vendeur.
+
+GET /api/v3/seller/shop-info renvoie latitude, longitude, location_confirmed
+et location_confirmed_at. Les réponses seller_info.shop du chat livreur et
+seller-location exposent le même point enregistré, son adresse et ces deux
+champs de confirmation. Les restaurants historiques sont non confirmés
+jusqu’à confirmation explicite. Une modification administrative de la
+localisation sans confirmation invalide la confirmation précédente.
+GET /api/restaurants/{id} expose locationConfirmed et locationConfirmedAt.
+
+seller-location sans order_id renvoie 400 ; une localisation absente ou
+incomplète renvoie 409, au lieu d’un point artificiel 0,0.
+
+Validation : 10 tests RestaurantLocationContractTest et 1 ShopUpdateTest
+couvrent les écritures vendeur et administrateur, les refus sans confirmation,
+les coordonnées invalides, la conservation lors d’un changement de nom,
+les droits du livreur et la cohérence des deux réponses de localisation.

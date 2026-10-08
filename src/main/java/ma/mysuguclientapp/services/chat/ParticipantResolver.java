@@ -58,6 +58,8 @@ public class ParticipantResolver {
         shop.put("latitude", loc != null ? loc.getLatitude() : null);
         shop.put("longitude", loc != null ? loc.getLongitude() : null);
         shop.put("address", loc != null && loc.getAdresse() != null ? loc.getAdresse() : "");
+        shop.put("location_confirmed", r != null && r.getLocationConfirmedAt() != null);
+        shop.put("location_confirmed_at", r != null ? r.getLocationConfirmedAt() : null);
         m.put("shop", shop);
         m.put("shops", List.of(shop));
         return m;

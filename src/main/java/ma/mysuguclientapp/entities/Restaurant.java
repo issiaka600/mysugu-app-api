@@ -50,6 +50,7 @@ public class Restaurant {
     
     @Embedded
     private Localisation localisation;
+    private LocalDateTime locationConfirmedAt;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "categorie_id")

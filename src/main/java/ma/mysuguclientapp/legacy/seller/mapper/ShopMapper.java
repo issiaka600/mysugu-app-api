@@ -73,6 +73,10 @@ public class ShopMapper {
         m.put("id", r.getId());
         m.put("name", r.getNom());
         m.put("address", r.getLocalisation() != null ? r.getLocalisation().getAdresse() : null);
+        m.put("latitude", r.getLocalisation() != null ? r.getLocalisation().getLatitude() : null);
+        m.put("longitude", r.getLocalisation() != null ? r.getLocalisation().getLongitude() : null);
+        m.put("location_confirmed", Boolean.TRUE.equals(r.getLocationConfirmed()));
+        m.put("location_confirmed_at", r.getLocationConfirmedAt());
         // 6valley n'a pas de "contact" boutique distinct : on expose l'email du propriétaire.
         m.put("contact", r.getOwnerEmail());
         m.put("image", r.getLogoUrl());
@@ -116,13 +120,14 @@ public class ShopMapper {
         dto.setAutoCloseEnabled(current.getAutoCloseEnabled());
         dto.setOwnerId(null); // ne jamais réattribuer le propriétaire depuis le shim
 
-        LocalisationDTO loc = current.getLocalisation() != null ? current.getLocalisation() : new LocalisationDTO();
-        if (address != null && !address.isBlank()) {
+        if (address != null || latitude != null || longitude != null) {
+            LocalisationDTO loc = new LocalisationDTO();
             loc.setAdresse(address);
+            loc.setLatitude(latitude);
+            loc.setLongitude(longitude);
+            dto.setLocalisation(loc);
         }
-        if (latitude != null) loc.setLatitude(latitude);
-        if (longitude != null) loc.setLongitude(longitude);
-        dto.setLocalisation(loc);
+        dto.setRequireLocationConfirmation(true);
         return dto;
     }
 }

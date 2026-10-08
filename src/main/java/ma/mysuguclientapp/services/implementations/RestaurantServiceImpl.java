@@ -683,7 +683,8 @@ public class RestaurantServiceImpl implements RestaurantService {
         String pays = premier(imbriquee != null ? imbriquee.getPays() : null, dto.getPays());
 
         if (latitude == null && longitude == null && adresse == null
-                && ville == null && codePostal == null && pays == null) {
+                && ville == null && codePostal == null && pays == null
+                && !Boolean.TRUE.equals(dto.getLocationConfirmed())) {
             return;
         }
 
@@ -702,6 +703,26 @@ public class RestaurantServiceImpl implements RestaurantService {
                 || adresseModifiee(pays, existante.getPays()))) {
             throw new BadRequestException(
                     "Une modification d'adresse nécessite la latitude et la longitude du nouveau point GPS");
+        }
+
+        boolean changed = existante == null
+                || adresseModifiee(adresse, existante.getAdresse())
+                || adresseModifiee(ville, existante.getVille())
+                || adresseModifiee(codePostal, existante.getCodePostal())
+                || adresseModifiee(pays, existante.getPays())
+                || (latitude != null && !java.util.Objects.equals(latitude, existante.getLatitude()))
+                || (longitude != null && !java.util.Objects.equals(longitude, existante.getLongitude()));
+        boolean confirmed = Boolean.TRUE.equals(dto.getLocationConfirmed());
+        if (dto.isRequireLocationConfirmation() && changed && !confirmed) {
+            throw new BadRequestException("Confirmez l'entrée du restaurant sur la carte avant d'enregistrer sa localisation");
+        }
+        if (confirmed) {
+            if (adresse == null || adresse.isBlank() || latitude == null || longitude == null) {
+                throw new BadRequestException("La confirmation requiert ensemble l'adresse, la latitude et la longitude");
+            }
+            restaurant.setLocationConfirmedAt(LocalDateTime.now());
+        } else if (changed) {
+            restaurant.setLocationConfirmedAt(null);
         }
 
         Localisation localisation = restaurant.getLocalisation();
@@ -729,6 +750,8 @@ public class RestaurantServiceImpl implements RestaurantService {
     private RestaurantDTO convertToDTO(Restaurant restaurant, Double userLat, Double userLon) {
         RestaurantDTO dto = new RestaurantDTO();
         dto.setId(restaurant.getId());
+        dto.setLocationConfirmed(restaurant.getLocationConfirmedAt() != null);
+        dto.setLocationConfirmedAt(restaurant.getLocationConfirmedAt());
         dto.setNom(restaurant.getNom());
         dto.setDescription(restaurant.getDescription());
         dto.setLogoObjectName(restaurant.getLogoUrl());

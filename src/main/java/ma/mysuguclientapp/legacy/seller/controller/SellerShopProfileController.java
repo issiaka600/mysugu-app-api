@@ -107,13 +107,17 @@ public class SellerShopProfileController {
             @RequestParam(value = "address", required = false) String address,
             @RequestParam(value = "latitude", required = false) Double latitude,
             @RequestParam(value = "longitude", required = false) Double longitude,
+            @RequestParam(value = "location_confirmed", required = false) Boolean locationConfirmed,
             @RequestParam(value = "delivery_time", required = false) Integer deliveryTime,
             @RequestParam(value = "logo", required = false) MultipartFile logo,
             @RequestParam(value = "banner", required = false) MultipartFile banner) {
         Long restaurantId = sellerContext.currentRestaurant(email).getId(); // id serveur, jamais du corps
         RestaurantDTO current = restaurantService.getMonRestaurant(email);
-        RestaurantDTO updated = restaurantService.updateRestaurant(restaurantId,
-                shopMapper.toRestaurantUpdate(current, name, address, latitude, longitude, deliveryTime), logo);
+        ma.mysuguclientapp.dtos.RestaurantCreateDTO update =
+                shopMapper.toRestaurantUpdate(current, name, address, latitude, longitude, deliveryTime);
+        update.setRequireLocationConfirmation(true);
+        update.setLocationConfirmed(locationConfirmed);
+        RestaurantDTO updated = restaurantService.updateRestaurant(restaurantId, update, logo);
         if (banner != null && !banner.isEmpty()) {
             updated = restaurantService.updateRestaurantBanner(restaurantId, banner);
         }

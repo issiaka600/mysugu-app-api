@@ -11,6 +11,9 @@ public class RestaurantCreateDTO {
     private Long categorieId;
     private Long ownerId;
     private LocalisationDTO localisation;
+    private Boolean locationConfirmed;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private boolean requireLocationConfirmation;
     private String horairesOuverture;
     private Integer tempsLivraisonMoyen;
     private Boolean autoCloseEnabled;

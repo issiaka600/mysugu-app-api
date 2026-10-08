@@ -49,6 +49,7 @@ class ShopUpdateTest {
     @Autowired UserRepository userRepo;
     @Autowired RestaurantRepository restoRepo;
     @Autowired PasswordEncoder encoder;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     @MockitoBean MinioService minioService;
     @MockitoBean FcmService fcmService;
@@ -68,6 +69,7 @@ class ShopUpdateTest {
 
     @AfterEach
     void cleanup() {
+        jdbc.update("DELETE FROM refresh_tokens WHERE user_id IN (?, ?)", owner1Id, owner2Id);
         restoRepo.findById(resto1Id).ifPresent(restoRepo::delete);
         restoRepo.findById(resto2Id).ifPresent(restoRepo::delete);
         userRepo.findById(owner1Id).ifPresent(userRepo::delete);
@@ -78,7 +80,7 @@ class ShopUpdateTest {
     void shop_update_changes_own_shop_only() throws Exception {
         String t2 = token(owner2Email);
         Resp r = postMultipart("/api/v3/seller/shop-update", t2, new String[][]{
-                {"_method", "put"}, {"name", "Deux Renommee"}, {"address", "9 avenue"}, {"contact", "+212611110000"},
+                {"_method", "put"}, {"name", "Deux Renommee"}, {"address", "9 avenue"}, {"latitude", "31.6"}, {"longitude", "-8.02"}, {"location_confirmed", "true"}, {"contact", "+212611110000"},
                 {"minimum_order_amount", "0"}, {"free_delivery_status", "false"}, {"free_delivery_over_amount", "0"}
         });
         assertThat(r.status).isEqualTo(200);

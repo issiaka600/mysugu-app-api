@@ -36,7 +36,7 @@ class RestaurantLocationContractTest {
     final ObjectMapper json = new ObjectMapper();
     final HttpClient http = HttpClient.newHttpClient();
     Long restaurantId, orderId;
-    String adminToken, driverToken, otherDriverToken;
+    String adminToken, driverToken, otherDriverToken, ownerToken;
     static final double OLD_LAT = 31.6540716, OLD_LNG = -8.0095317;
     // Valeurs de test, sans prétendre localiser l'entrée du restaurant réel.
     static final double NEW_LAT = 31.60, NEW_LNG = -8.02;
@@ -49,6 +49,7 @@ class RestaurantLocationContractTest {
         User owner = user(UserRole.RESTAURANT_OWNER);
         User client = user(UserRole.CLIENT);
         adminToken = jwt.generateToken(admin);
+        ownerToken = jwt.generateToken(owner);
         driverToken = jwt.generateToken(driver);
         otherDriverToken = jwt.generateToken(other);
         Restaurant r = new Restaurant();
@@ -131,12 +132,15 @@ class RestaurantLocationContractTest {
         var response = get("/api/v2/delivery-man/seller-location?order_id=" + orderId, driverToken);
         assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
         JsonNode gps = json.readTree(response.body());
+        boolean confirmed = restaurants.findById(restaurantId).orElseThrow().getLocationConfirmedAt() != null;
+        assertThat(json.readTree(response.body()).get("location_confirmed").asBoolean()).isEqualTo(confirmed);
         assertThat(Double.parseDouble(gps.get("latitude").asText())).isEqualTo(lat);
         assertThat(Double.parseDouble(gps.get("longitude").asText())).isEqualTo(lng);
         response = get("/api/v2/delivery-man/messages/list/seller", driverToken);
         assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
         JsonNode info = json.readTree(response.body()).get("chat").get(0).get("seller_info");
         JsonNode shop = info.get("shop");
+        assertThat(shop.get("location_confirmed").asBoolean()).isEqualTo(confirmed);
         assertThat(shop.get("id").asLong()).isEqualTo(restaurantId);
         assertThat(shop.get("latitude").asDouble()).isEqualTo(lat);
         assertThat(shop.get("longitude").asDouble()).isEqualTo(lng);
@@ -157,6 +161,12 @@ class RestaurantLocationContractTest {
     }
 
     private HttpResponse<String> update(Map<String, String> fields) throws Exception {
+        return updateRequest(fields, "/api/restaurants/" + restaurantId, adminToken);
+    }
+    private HttpResponse<String> updateSeller(Map<String, String> fields) throws Exception {
+        return updateRequest(fields, "/api/v3/seller/shop-update", ownerToken);
+    }
+    private HttpResponse<String> updateRequest(Map<String, String> fields, String path, String token) throws Exception {
         Map<String, String> all = new LinkedHashMap<>(fields);
         all.put("nom", "GPS test");
         String boundary = "gps-test-boundary";
@@ -165,10 +175,10 @@ class RestaurantLocationContractTest {
                 .append("Content-Disposition: form-data; name=\"").append(key)
                 .append("\"\r\n\r\n").append(value).append("\r\n"));
         body.append("--").append(boundary).append("--\r\n");
-        return http.send(HttpRequest.newBuilder(uri("/api/restaurants/" + restaurantId))
-                .header("Authorization", "Bearer " + adminToken)
+        return http.send(HttpRequest.newBuilder(uri(path))
+                .header("Authorization", "Bearer " + token)
                 .header("Content-Type", "multipart/form-data; boundary=" + boundary)
-                .PUT(HttpRequest.BodyPublishers.ofString(body.toString())).build(),
+                .method(path.contains("shop-update") ? "POST" : "PUT", HttpRequest.BodyPublishers.ofString(body.toString())).build(),
                 HttpResponse.BodyHandlers.ofString());
     }
     private HttpResponse<String> get(String path, String token) throws Exception {
@@ -183,5 +193,76 @@ class RestaurantLocationContractTest {
         u.setNom("GPS"); u.setPrenom("Test"); u.setRole(role);
         u.setPassword("unused"); u.setIsActive(true);
         return users.save(u);
+    }
+
+    @Test
+    void sellerChangedLocationRequiresExplicitConfirmation() throws Exception {
+        var fields = Map.of("address", "Entrée confirmée", "latitude", "31.6", "longitude", "-8.02");
+        var response = updateSeller(fields);
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(400);
+        assertSavedPoint(OLD_LAT, OLD_LNG, "Ancienne adresse");
+        var confirmed = new HashMap<>(fields);
+        confirmed.put("location_confirmed", "true");
+        response = updateSeller(confirmed);
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+        assertThat(json.readTree(response.body()).get("location_confirmed").asBoolean()).isTrue();
+        assertThat(restaurants.findById(restaurantId).orElseThrow().getLocationConfirmedAt()).isNotNull();
+        assertSavedPoint(NEW_LAT, NEW_LNG, "Entrée confirmée");
+        assertDriverPoint(NEW_LAT, NEW_LNG, "Entrée confirmée");
+    }
+
+    @Test
+    void sellerCannotReuseOldCoordinatesImplicitly() throws Exception {
+        for (var fields : List.of(Map.of("address", "Autre adresse"),
+                Map.of("latitude", "31.6", "location_confirmed", "true"),
+                Map.of("location_confirmed", "true"))) {
+            var response = updateSeller(fields);
+            assertThat(response.statusCode()).as(response.body()).isEqualTo(400);
+            assertSavedPoint(OLD_LAT, OLD_LNG, "Ancienne adresse");
+        }
+    }
+
+    @Test
+    void sellerAddressOrPointChangeNeedsFreshConfirmation() throws Exception {
+        var fields = new HashMap<>(Map.of("address", "Ancienne adresse", "latitude", String.valueOf(OLD_LAT),
+                "longitude", String.valueOf(OLD_LNG), "location_confirmed", "true"));
+        assertThat(updateSeller(fields).statusCode()).isEqualTo(200);
+        var first = restaurants.findById(restaurantId).orElseThrow().getLocationConfirmedAt();
+        fields.put("location_confirmed", "false");
+        fields.put("address", "Nouvelle entrée");
+        assertThat(updateSeller(fields).statusCode()).isEqualTo(400);
+        fields.put("address", "Ancienne adresse");
+        fields.put("latitude", "31.6");
+        assertThat(updateSeller(fields).statusCode()).isEqualTo(400);
+        assertThat(restaurants.findById(restaurantId).orElseThrow().getLocationConfirmedAt()).isEqualTo(first);
+        fields.put("location_confirmed", "true");
+        assertThat(updateSeller(fields).statusCode()).isEqualTo(200);
+        assertThat(restaurants.findById(restaurantId).orElseThrow().getLocationConfirmedAt()).isAfter(first);
+        assertDriverPoint(NEW_LAT, OLD_LNG, "Ancienne adresse");
+    }
+
+    @Test
+    void unrelatedSellerEditKeepsConfirmation() throws Exception {
+        assertThat(updateSeller(Map.of("address", "Ancienne adresse", "latitude", String.valueOf(OLD_LAT),
+                "longitude", String.valueOf(OLD_LNG), "location_confirmed", "true")).statusCode()).isEqualTo(200);
+        var confirmedAt = restaurants.findById(restaurantId).orElseThrow().getLocationConfirmedAt();
+        assertThat(updateSeller(Map.of("name", "Nom modifié")).statusCode()).isEqualTo(200);
+        assertThat(restaurants.findById(restaurantId).orElseThrow().getLocationConfirmedAt()).isEqualTo(confirmedAt);
+        assertDriverPoint(OLD_LAT, OLD_LNG, "Ancienne adresse");
+    }
+
+    @Test
+    void sellerInvalidCoordinatesRejectedAndMissingOrderDoesNotReturnZeroPoint() throws Exception {
+        for (String lat : List.of("NaN", "91")) {
+            var response = updateSeller(Map.of("address", "Nouvelle entrée", "latitude", lat,
+                    "longitude", "-8.02", "location_confirmed", "true"));
+            assertThat(response.statusCode()).as(response.body()).isEqualTo(400);
+        }
+        assertThat(get("/api/v2/delivery-man/seller-location", driverToken).statusCode()).isEqualTo(400);
+        var restaurant = restaurants.findById(restaurantId).orElseThrow();
+        restaurant.setLocalisation(null);
+        restaurants.save(restaurant);
+        assertThat(get("/api/v2/delivery-man/seller-location?order_id=" + orderId, driverToken)
+                .statusCode()).isEqualTo(409);
     }
 }

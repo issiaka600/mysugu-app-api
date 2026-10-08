@@ -21,6 +21,8 @@ public class RestaurantDTO {
     private Integer nombreAvis;
     private Integer tempsLivraisonMoyen;
     private LocalisationDTO localisation;
+    private Boolean locationConfirmed;
+    private LocalDateTime locationConfirmedAt;
     private CategorieRestaurantDTO categorie;
     private PromotionDTO promotion;
     /** Verticale de service : RESTAURANT, ALIMENTAIRE, COSMETIQUE */
