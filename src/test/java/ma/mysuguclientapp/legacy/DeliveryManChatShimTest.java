@@ -46,6 +46,8 @@ class DeliveryManChatShimTest {
     @LocalServerPort int port;
 
     @Autowired UserRepository userRepo;
+    @Autowired CommandeRepository commandeRepo;
+    @Autowired RestaurantRepository restaurantRepo;
     @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
     @Autowired PasswordEncoder encoder;
     @Autowired ConversationService chat;
@@ -53,6 +55,7 @@ class DeliveryManChatShimTest {
     @MockitoBean MinioService minioService;
     @MockitoBean FcmService fcmService;
     @MockitoBean EmailService emailService;
+    @MockitoBean ma.mysuguclientapp.services.implementations.NotificationServiceImpl notifications;
 
     private Long livreurId;
     private Long customerId;
@@ -72,6 +75,22 @@ class DeliveryManChatShimTest {
 
         User customer = newUser("customer.chat@mysugu.local", "Client", "Chat", UserRole.CLIENT);
         customerId = userRepo.save(customer).getId();
+
+        // Depuis la restriction des échanges aux commandes partagées, les interlocuteurs
+        // doivent être liés par une commande assignée (comme dans l'application réelle).
+        Restaurant restaurant = new Restaurant();
+        restaurant.setNom("Chat test");
+        restaurantRepo.save(restaurant);
+        Commande commande = new Commande();
+        commande.setRestaurant(restaurant);
+        commande.setStatutPaiement(ma.mysuguclientapp.enumerations.StatutPaiement.EN_ATTENTE);
+        commande.setNumeroCommande("CHAT-" + System.nanoTime());
+        commande.setClient(customer);
+        commande.setLivreur(livreur);
+        commande.setStatut(ma.mysuguclientapp.enumerations.StatutCommande.ASSIGNEE_LIVREUR);
+        commande.setMontantTotal(java.math.BigDecimal.ZERO);
+        commande.setMontantFinal(java.math.BigDecimal.ZERO);
+        commandeRepo.save(commande);
     }
 
     private User newUser(String email, String nom, String prenom, UserRole role) {

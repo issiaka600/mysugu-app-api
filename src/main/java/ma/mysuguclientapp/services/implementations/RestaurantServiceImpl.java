@@ -687,6 +687,23 @@ public class RestaurantServiceImpl implements RestaurantService {
             return;
         }
 
+        Localisation existante = restaurant.getLocalisation();
+        if ((latitude == null) != (longitude == null)) {
+            throw new BadRequestException("La latitude et la longitude doivent être renseignées ensemble");
+        }
+        if (latitude != null && (!Double.isFinite(latitude) || latitude < -90 || latitude > 90
+                || !Double.isFinite(longitude) || longitude < -180 || longitude > 180)) {
+            throw new BadRequestException("Coordonnées GPS invalides");
+        }
+        if (latitude == null && existante != null
+                && (adresseModifiee(adresse, existante.getAdresse())
+                || adresseModifiee(ville, existante.getVille())
+                || adresseModifiee(codePostal, existante.getCodePostal())
+                || adresseModifiee(pays, existante.getPays()))) {
+            throw new BadRequestException(
+                    "Une modification d'adresse nécessite la latitude et la longitude du nouveau point GPS");
+        }
+
         Localisation localisation = restaurant.getLocalisation();
         if (localisation == null) {
             localisation = new Localisation();
@@ -699,6 +716,10 @@ public class RestaurantServiceImpl implements RestaurantService {
         if (codePostal != null) localisation.setCodePostal(codePostal);
         if (pays != null) localisation.setPays(pays);
         restaurant.setLocalisation(localisation);
+    }
+
+    private static boolean adresseModifiee(String valeur, String existante) {
+        return valeur != null && !valeur.trim().equalsIgnoreCase(existante != null ? existante.trim() : "");
     }
 
     private static <T> T premier(T imbrique, T plat) {

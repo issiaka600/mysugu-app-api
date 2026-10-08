@@ -54,6 +54,11 @@ public class ParticipantResolver {
         shop.put("name", r != null && r.getNom() != null ? r.getNom() : "");
         shop.put("id", r != null ? r.getId() : (restaurantId != null ? restaurantId : 0));
         shop.put("image", logoUrl);
+        ma.mysuguclientapp.entities.Localisation loc = r != null ? r.getLocalisation() : null;
+        shop.put("latitude", loc != null ? loc.getLatitude() : null);
+        shop.put("longitude", loc != null ? loc.getLongitude() : null);
+        shop.put("address", loc != null && loc.getAdresse() != null ? loc.getAdresse() : "");
+        m.put("shop", shop);
         m.put("shops", List.of(shop));
         return m;
     }
