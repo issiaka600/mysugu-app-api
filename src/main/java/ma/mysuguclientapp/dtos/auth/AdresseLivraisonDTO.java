@@ -16,4 +16,6 @@ public class AdresseLivraisonDTO {
     private Double longitude;
     private Boolean isDefault;
     private LocalDateTime createdAt;
+    private Boolean locationConfirmed;
+    private LocalDateTime locationConfirmedAt;
 }

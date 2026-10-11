@@ -10,6 +10,7 @@ public class CommandeCreateDTO {
     private Long restaurantId;
     private List<LigneCommandeCreateDTO> lignes;
     private LocalisationDTO adresseLivraison;
+    private Long adresseLivraisonId;
     private String commentaire;
     private String methodePaiement;
     private String modeReception;

@@ -395,6 +395,7 @@ public class AuthEnhancedServiceImpl implements AuthEnhancedService {
     @Transactional
     public AdresseLivraisonDTO ajouterAdresse(Long userId, AdresseLivraisonCreateDTO dto) {
         User user = findUser(userId);
+        validateDeliveryLocation(dto);
         if (Boolean.TRUE.equals(dto.getIsDefault())) {
             adresseLivraisonRepository.clearDefaultForUser(userId);
         }
@@ -408,6 +409,7 @@ public class AuthEnhancedServiceImpl implements AuthEnhancedService {
                 .codePostal(dto.getCodePostal())
                 .latitude(dto.getLatitude())
                 .longitude(dto.getLongitude())
+                .locationConfirmedAt(LocalDateTime.now())
                 .isDefault(dto.getIsDefault() != null && dto.getIsDefault())
                 .build();
         return toAdresseDTO(adresseLivraisonRepository.save(adresse));
@@ -418,6 +420,12 @@ public class AuthEnhancedServiceImpl implements AuthEnhancedService {
     public AdresseLivraisonDTO modifierAdresse(Long userId, Long adresseId, AdresseLivraisonCreateDTO dto) {
         AdresseLivraison adresse = adresseLivraisonRepository.findByIdAndUserId(adresseId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Adresse introuvable"));
+        boolean pointChanged = !java.util.Objects.equals(adresse.getAdresse(), dto.getAdresse())
+                || !java.util.Objects.equals(adresse.getVille(), dto.getVille())
+                || !java.util.Objects.equals(adresse.getCodePostal(), dto.getCodePostal())
+                || !java.util.Objects.equals(adresse.getLatitude(), dto.getLatitude())
+                || !java.util.Objects.equals(adresse.getLongitude(), dto.getLongitude());
+        if (pointChanged || Boolean.TRUE.equals(dto.getLocationConfirmed())) validateDeliveryLocation(dto);
         if (Boolean.TRUE.equals(dto.getIsDefault())) {
             adresseLivraisonRepository.clearDefaultForUser(userId);
         }
@@ -428,6 +436,11 @@ public class AuthEnhancedServiceImpl implements AuthEnhancedService {
         adresse.setCodePostal(dto.getCodePostal());
         adresse.setLatitude(dto.getLatitude());
         adresse.setLongitude(dto.getLongitude());
+        if (Boolean.TRUE.equals(dto.getLocationConfirmed())) {
+            adresse.setLocationConfirmedAt(LocalDateTime.now());
+        } else if (pointChanged) {
+            adresse.setLocationConfirmedAt(null);
+        }
         adresse.setIsDefault(dto.getIsDefault() != null && dto.getIsDefault());
         return toAdresseDTO(adresseLivraisonRepository.save(adresse));
     }
@@ -512,6 +525,23 @@ public class AuthEnhancedServiceImpl implements AuthEnhancedService {
         dto.setLongitude(a.getLongitude());
         dto.setIsDefault(a.getIsDefault());
         dto.setCreatedAt(a.getCreatedAt());
+        dto.setLocationConfirmed(a.getLocationConfirmedAt() != null);
+        dto.setLocationConfirmedAt(a.getLocationConfirmedAt());
         return dto;
+    }
+
+    private void validateDeliveryLocation(AdresseLivraisonCreateDTO dto) {
+        if (dto == null || !Boolean.TRUE.equals(dto.getLocationConfirmed())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Confirmez le point de livraison sur la carte avant d'enregistrer l'adresse");
+        }
+        Double lat = dto.getLatitude();
+        Double lon = dto.getLongitude();
+        if (dto.getAdresse() == null || dto.getAdresse().isBlank()
+                || lat == null || lon == null || !Double.isFinite(lat) || !Double.isFinite(lon)
+                || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Une adresse et des coordonnées GPS valides sont requises");
+        }
     }
 }

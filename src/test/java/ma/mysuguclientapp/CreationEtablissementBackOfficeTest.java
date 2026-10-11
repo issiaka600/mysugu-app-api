@@ -209,7 +209,7 @@ class CreationEtablissementBackOfficeTest {
     }
 
     @Test
-    @DisplayName("Une mise à jour partielle de l'adresse n'efface pas les coordonnées connues")
+    @DisplayName("Une nouvelle adresse exige un nouveau point explicitement confirmé")
     void miseAJourPartielleNeVidePasLesCoordonnees() {
         Map<String, String> creation = formulaireAssistant("Chez Awa " + suffixe);
         creation.put("vertical", "RESTAURANT");
@@ -225,14 +225,22 @@ class CreationEtablissementBackOfficeTest {
         maj.put("localisation.adresse", "Nouvelle adresse");
         maj.put("localisation.ville", "Dakar");
 
-        assertThat(mettreAJour(id, maj)).isEqualTo(200);
+        assertThat(mettreAJour(id, maj)).isEqualTo(400);
 
         Restaurant resto = parNom("Chez Awa " + suffixe);
-        assertThat(resto.getLocalisation().getAdresse()).isEqualTo("Nouvelle adresse");
-        // Écrasées à null, elles sortaient l'établissement des recherches par zone sans
-        // que personne ne touche jamais au champ concerné.
+        assertThat(resto.getLocalisation().getAdresse()).isEqualTo("12 Rue des Jardins");
         assertThat(resto.getLocalisation().getLatitude()).isEqualTo(14.716677);
         assertThat(resto.getLocalisation().getLongitude()).isEqualTo(-17.466675);
+
+        maj.put("localisation.latitude", "14.72");
+        maj.put("localisation.longitude", "-17.47");
+        maj.put("locationConfirmed", "true");
+        assertThat(mettreAJour(id, maj)).isEqualTo(200);
+        resto = parNom("Chez Awa " + suffixe);
+        assertThat(resto.getLocalisation().getAdresse()).isEqualTo("Nouvelle adresse");
+        assertThat(resto.getLocalisation().getLatitude()).isEqualTo(14.72);
+        assertThat(resto.getLocalisation().getLongitude()).isEqualTo(-17.47);
+        assertThat(resto.getLocationConfirmedAt()).isNotNull();
     }
 
     @Test
@@ -261,6 +269,7 @@ class CreationEtablissementBackOfficeTest {
         form.put("localisation.ville", "Dakar");
         form.put("localisation.latitude", "14.716677");
         form.put("localisation.longitude", "-17.466675");
+        form.put("locationConfirmed", "true");
         form.put("heureOuverture", "09:00");
         form.put("heureFermeture", "23:00");
         form.put("tempsLivraisonMoyen", "35");
@@ -299,10 +308,6 @@ class CreationEtablissementBackOfficeTest {
                                     corps.toString(), StandardCharsets.UTF_8))
                             .build(),
                     HttpResponse.BodyHandlers.ofString());
-            if (reponse.statusCode() >= 400) {
-                throw new AssertionError(methode + " " + chemin + " a échoué ("
-                        + reponse.statusCode() + ") : " + reponse.body());
-            }
             return reponse.statusCode();
         } catch (Exception e) {
             throw new IllegalStateException(e);

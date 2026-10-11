@@ -130,7 +130,16 @@ public class CommandeController {
      * POST /api/commandes - Créer une nouvelle commande
      */
     @PostMapping
-    public ResponseEntity<CommandeDTO> createCommande(@Valid @RequestBody CommandeCreateDTO commandeDTO) {
+    @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
+    public ResponseEntity<CommandeDTO> createCommande(@Valid @RequestBody CommandeCreateDTO commandeDTO,
+                                                       @AuthenticationPrincipal String email) {
+        Long authenticatedClientId = userRepository.findByEmail(email).map(u -> u.getId())
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(HttpStatus.UNAUTHORIZED));
+        if (commandeDTO.getClientId() != null && !authenticatedClientId.equals(commandeDTO.getClientId())) {
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "La commande doit appartenir au client connecté");
+        }
+        commandeDTO.setClientId(authenticatedClientId);
         CommandeDTO created = commandeService.createCommande(commandeDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
@@ -142,12 +151,15 @@ public class CommandeController {
      * latitude/longitude optionnels : sans adresse encore choisie, fraisLivraison vaut 0.
      */
     @GetMapping("/devis")
+    @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
     public ResponseEntity<ma.mysuguclientapp.dtos.DevisLivraisonDTO> getDevis(
             @RequestParam Long restaurantId,
-            @RequestParam(required = false) Double latitude,
-            @RequestParam(required = false) Double longitude,
-            @RequestParam(required = false) java.math.BigDecimal sousTotal) {
-        return ResponseEntity.ok(commandeService.calculerDevis(restaurantId, latitude, longitude, sousTotal));
+            @RequestParam Long adresseLivraisonId,
+            @RequestParam(required = false) java.math.BigDecimal sousTotal,
+            @AuthenticationPrincipal String email) {
+        Long clientId = userRepository.findByEmail(email).map(u -> u.getId())
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(HttpStatus.UNAUTHORIZED));
+        return ResponseEntity.ok(commandeService.calculerDevis(restaurantId, clientId, adresseLivraisonId, sousTotal));
     }
 
     /**
@@ -155,8 +167,17 @@ public class CommandeController {
      * plats/options, la zone, les frais et les remises sont relus et calculés côté serveur.
      */
     @PostMapping("/devis")
+    @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
     public ResponseEntity<ma.mysuguclientapp.dtos.DevisLivraisonDTO> postDevis(
-            @Valid @RequestBody CommandeCreateDTO commandeDTO) {
+            @Valid @RequestBody CommandeCreateDTO commandeDTO,
+            @AuthenticationPrincipal String email) {
+        Long authenticatedClientId = userRepository.findByEmail(email).map(u -> u.getId())
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(HttpStatus.UNAUTHORIZED));
+        if (commandeDTO.getClientId() != null && !authenticatedClientId.equals(commandeDTO.getClientId())) {
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Le devis doit appartenir au client connecté");
+        }
+        commandeDTO.setClientId(authenticatedClientId);
         return ResponseEntity.ok(commandeService.calculerDevis(commandeDTO));
     }
 

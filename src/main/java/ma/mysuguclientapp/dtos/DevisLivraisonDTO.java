@@ -21,6 +21,9 @@ public class DevisLivraisonDTO {
     private BigDecimal montantRemise;
     private BigDecimal montantFinal;
     private BigDecimal remisePromotion;
+    private BigDecimal distanceKm;
+    private String distanceMethod;
+    private DetailFraisDTO detailFrais;
 
     public DevisLivraisonDTO(BigDecimal sousTotal, BigDecimal fraisLivraison,
                               BigDecimal montantRemise, BigDecimal montantFinal,

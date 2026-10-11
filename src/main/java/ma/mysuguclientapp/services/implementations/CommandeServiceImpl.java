@@ -30,6 +30,7 @@ import ma.mysuguclientapp.exceptions.BadRequestException;
 import ma.mysuguclientapp.exceptions.ResourceNotFoundException;
 import ma.mysuguclientapp.enumerations.TypeReduction;
 import ma.mysuguclientapp.repositories.AvisRepository;
+import ma.mysuguclientapp.repositories.AdresseLivraisonRepository;
 import ma.mysuguclientapp.repositories.CodePromoRepository;
 import ma.mysuguclientapp.repositories.CommandeRepository;
 import ma.mysuguclientapp.repositories.LigneCommandeRepository;
@@ -69,6 +70,7 @@ import java.util.*;
 public class CommandeServiceImpl implements CommandeService {
     private final CommandeRepository commandeRepository;
     private final UserRepository userRepository;
+    private final AdresseLivraisonRepository adresseLivraisonRepository;
     private final RestaurantRepository restaurantRepository;
     private final PlatRepository platRepository;
     private final LigneCommandeRepository ligneCommandeRepository;
@@ -101,6 +103,7 @@ public class CommandeServiceImpl implements CommandeService {
     private final AlerteCommandeVendeurService alerteCommandeVendeurService;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final StockService stockService;
+    private final ma.mysuguclientapp.services.location.DeliveryPricingService deliveryPricing;
     private final CommandeStatusHistoryService commandeStatusHistoryService;
     private final OffreLivraisonRepository offreLivraisonRepository;
 
@@ -185,8 +188,11 @@ public class CommandeServiceImpl implements CommandeService {
         }
 
         ModeReceptionCommande modeReception = parseModeReception(commandeDTO.getModeReception());
-        if (modeReception == ModeReceptionCommande.LIVRAISON && commandeDTO.getAdresseLivraison() == null) {
-            throw new BadRequestException("Une adresse de livraison est requise pour une commande en livraison");
+        Localisation adresseConfirmee = null;
+        if (modeReception == ModeReceptionCommande.LIVRAISON) {
+            adresseConfirmee = localisationConfirmee(
+                    chargerAdresseConfirmee(resolveAdresseId(commandeDTO), client.getId()));
+            validerRestaurantConfirme(restaurant);
         }
 
         Commande commande = new Commande();
@@ -198,7 +204,8 @@ public class CommandeServiceImpl implements CommandeService {
         commande.setModeReception(modeReception);
         commande.setStatutPaiement(StatutPaiement.EN_ATTENTE);
         commande.setMethodePaiement(parseMethodePaiement(commandeDTO.getMethodePaiement()));
-        commande.setAdresseLivraison(toLocalisation(commandeDTO.getAdresseLivraison()));
+        commande.setAdresseLivraison(modeReception == ModeReceptionCommande.LIVRAISON
+                ? adresseConfirmee : toLocalisation(commandeDTO.getAdresseLivraison()));
 
         BigDecimal montantTotal = BigDecimal.ZERO;
         List<LigneCommande> lignes = new ArrayList<>();
@@ -312,7 +319,7 @@ public class CommandeServiceImpl implements CommandeService {
         BigDecimal fraisLivraison = BigDecimal.ZERO;
         if (modeReception == ModeReceptionCommande.LIVRAISON) {
             validerZoneDeploiement(restaurant, commande.getAdresseLivraison());
-            fraisLivraison = calculerFraisAvecZone(restaurant, commande.getAdresseLivraison());
+            fraisLivraison = deliveryPricing.calculate(restaurant, commande.getAdresseLivraison()).fraisLivraison();
         }
 
         commande.setFraisLivraison(fraisLivraison);
@@ -1235,33 +1242,25 @@ public class CommandeServiceImpl implements CommandeService {
      * réserve aucun stock, n'incrémente aucun compteur d'utilisation de promotion.
      */
     @Override
-    public DevisLivraisonDTO calculerDevis(Long restaurantId, Double latitude, Double longitude, BigDecimal sousTotal) {
+    public DevisLivraisonDTO calculerDevis(Long restaurantId, Long clientId, Long adresseLivraisonId,
+                                          BigDecimal sousTotal) {
         Restaurant restaurant = restaurantRepository.findById(restaurantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Restaurant non trouve"));
-
-        Localisation adresse = new Localisation();
-        adresse.setLatitude(latitude);
-        adresse.setLongitude(longitude);
-
+        AdresseLivraison savedAddress = adresseLivraisonRepository.findByIdAndUserId(adresseLivraisonId, clientId)
+                .orElseThrow(() -> new ResourceNotFoundException("Adresse de livraison introuvable"));
+        Localisation adresse = localisationConfirmee(savedAddress);
+        validerRestaurantConfirme(restaurant);
+        validerZoneDeploiement(restaurant, adresse);
+        var detailFrais = deliveryPricing.calculate(restaurant, adresse);
+        BigDecimal fraisLivraison = detailFrais.fraisLivraison();
         BigDecimal sousTotalSur = sousTotal != null ? sousTotal : BigDecimal.ZERO;
-
-        BigDecimal fraisLivraison;
-        if (latitude != null && longitude != null) {
-            validerZoneDeploiement(restaurant, adresse);
-            fraisLivraison = calculerFraisAvecZone(restaurant, adresse);
-        } else {
-            // Pas encore d'adresse sélectionnée côté client : on ne peut pas calculer de frais
-            // fiables, on renvoie 0 plutôt qu'une estimation trompeuse (le vrai montant sera de
-            // toute façon recalculé ici même une fois l'adresse connue).
-            fraisLivraison = BigDecimal.ZERO;
-        }
-
         BigDecimal remisePromotion = calculerRemisePromotion(restaurant, sousTotalSur);
-
         BigDecimal montantTotal = sousTotalSur.add(fraisLivraison);
         BigDecimal montantFinal = montantTotal.subtract(remisePromotion).max(BigDecimal.ZERO);
-        return new DevisLivraisonDTO(sousTotalSur, fraisLivraison, remisePromotion,
+        DevisLivraisonDTO devis = new DevisLivraisonDTO(sousTotalSur, fraisLivraison, remisePromotion,
                 montantFinal, remisePromotion);
+        ajouterDetailsDistanceEtFrais(devis, detailFrais);
+        return devis;
     }
 
     /**
@@ -1305,14 +1304,15 @@ public class CommandeServiceImpl implements CommandeService {
         }
 
         ModeReceptionCommande mode = parseModeReception(dto.getModeReception());
-        Localisation adresse = toLocalisation(dto.getAdresseLivraison());
+        Localisation adresse = null;
         BigDecimal fraisLivraison = BigDecimal.ZERO;
+        ma.mysuguclientapp.dtos.DetailFraisDTO detailFrais = null;
         if (mode == ModeReceptionCommande.LIVRAISON) {
-            if (adresse == null) {
-                throw new BadRequestException("Une adresse de livraison est requise pour le devis");
-            }
+            adresse = localisationConfirmee(chargerAdresseConfirmee(resolveAdresseId(dto), dto.getClientId()));
+            validerRestaurantConfirme(restaurant);
             validerZoneDeploiement(restaurant, adresse);
-            fraisLivraison = calculerFraisAvecZone(restaurant, adresse);
+            detailFrais = deliveryPricing.calculate(restaurant, adresse);
+            fraisLivraison = detailFrais.fraisLivraison();
         }
 
         BigDecimal remisePromotion = calculerRemisePromotion(restaurant, sousTotal);
@@ -1320,8 +1320,10 @@ public class CommandeServiceImpl implements CommandeService {
         BigDecimal montantRemise = remisePromotion.add(remiseCode).min(sousTotal);
         BigDecimal montantTotal = sousTotal.add(fraisLivraison);
         BigDecimal montantFinal = montantTotal.subtract(montantRemise).max(BigDecimal.ZERO);
-        return new DevisLivraisonDTO(sousTotal, fraisLivraison, montantRemise,
+        DevisLivraisonDTO devis = new DevisLivraisonDTO(sousTotal, fraisLivraison, montantRemise,
                 montantFinal, remisePromotion);
+        if (detailFrais != null) ajouterDetailsDistanceEtFrais(devis, detailFrais);
+        return devis;
     }
 
     private RemiseCodeResult calculerRemiseCode(String code, BigDecimal sousTotal) {
@@ -1350,84 +1352,6 @@ public class CommandeServiceImpl implements CommandeService {
     private record RemiseCodeResult(BigDecimal montant, CodePromo codePromo,
                                      boolean financeeParVendeur) { }
 
-    /**
-     * Calcule les frais de livraison selon la grille tarifaire de la zone :
-     * - si distance ≤ distanceMinKm → fraisLivraisonMin
-     * - sinon → fraisLivraisonMin + (distance - distanceMinKm) * prixExtraParKm
-     *
-     * Si la zone ou ses paramètres tarifaires sont absents, repli sur les
-     * constantes globales (BASE_DELIVERY_FEE + distance * FEE_PER_KM).
-     */
-    private BigDecimal calculerFraisAvecZone(Restaurant restaurant, Localisation adresse) {
-        ZoneDeploiement zone = restaurant.getZoneDeploiement();
-
-        boolean canCalculateDistance = restaurant.getLocalisation() != null
-                && adresse != null
-                && restaurant.getLocalisation().getLatitude() != null
-                && adresse.getLatitude() != null;
-
-        boolean hasZoneTariff = zone != null
-                && zone.getFraisLivraisonMin() != null
-                && zone.getDistanceMinKm() != null
-                && zone.getPrixExtraParKm() != null;
-
-        // Modèle « au kilomètre » (optionnel) : prix de 1 km fixé, plancher = fraisLivraisonMin.
-        // frais = max(fraisLivraisonMin, distance × prixParKm). Renseigné, il prévaut sur la
-        // grille distanceMinKm/prixExtraParKm de l'ancien modèle.
-        boolean hasPerKmTariff = zone != null
-                && zone.getPrixParKm() != null
-                && zone.getFraisLivraisonMin() != null;
-
-        if (canCalculateDistance && hasPerKmTariff) {
-            double distanceKm = calculateDistance(
-                    restaurant.getLocalisation().getLatitude(),
-                    restaurant.getLocalisation().getLongitude(),
-                    adresse.getLatitude(), adresse.getLongitude());
-            BigDecimal distance = BigDecimal.valueOf(distanceKm);
-            BigDecimal auKilometre = distance.multiply(zone.getPrixParKm());
-            return auKilometre.max(zone.getFraisLivraisonMin())
-                    .setScale(0, RoundingMode.UP);
-        }
-
-        if (canCalculateDistance && hasZoneTariff) {
-            double distanceKm = calculateDistance(
-                    restaurant.getLocalisation().getLatitude(),
-                    restaurant.getLocalisation().getLongitude(),
-                    adresse.getLatitude(), adresse.getLongitude());
-
-            BigDecimal distance = BigDecimal.valueOf(distanceKm);
-            if (distance.compareTo(zone.getDistanceMinKm()) <= 0) {
-                return zone.getFraisLivraisonMin();
-            } else {
-                BigDecimal kmSupplementaires = distance.subtract(zone.getDistanceMinKm());
-                return zone.getFraisLivraisonMin()
-                        .add(kmSupplementaires.multiply(zone.getPrixExtraParKm()))
-                        .setScale(0, RoundingMode.UP);
-            }
-        }
-
-        // Repli : constantes globales (zone non configurée ou coordonnées manquantes)
-        BigDecimal fraisCalcules;
-        if (canCalculateDistance) {
-            double distanceKm = calculateDistance(
-                    restaurant.getLocalisation().getLatitude(),
-                    restaurant.getLocalisation().getLongitude(),
-                    adresse.getLatitude(), adresse.getLongitude());
-            fraisCalcules = BigDecimal.valueOf(
-                            Constants.BASE_DELIVERY_FEE_MAD + (distanceKm * Constants.DELIVERY_FEE_PER_KM_MAD))
-                    .setScale(0, RoundingMode.UP);
-        } else {
-            fraisCalcules = BigDecimal.valueOf(Constants.BASE_DELIVERY_FEE_MAD);
-        }
-
-        // Plancher : fraisLivraisonMin de la zone si disponible mais sans grille complète
-        if (zone != null && zone.getFraisLivraisonMin() != null) {
-            fraisCalcules = fraisCalcules.max(zone.getFraisLivraisonMin());
-        }
-
-        return fraisCalcules;
-    }
-
     private int resolveTempsEstime(Restaurant restaurant, List<LigneCommande> lignes, ModeReceptionCommande modeReception) {
         int tempsPreparation = lignes.stream()
                 .map(LigneCommande::getPlat)
@@ -1440,6 +1364,68 @@ public class CommandeServiceImpl implements CommandeService {
             return tempsPreparation;
         }
         return (restaurant.getTempsLivraisonMoyen() != null ? restaurant.getTempsLivraisonMoyen() : 20) + tempsPreparation;
+    }
+
+    private AdresseLivraison chargerAdresseConfirmee(Long adresseId, Long clientId) {
+        if (adresseId == null || clientId == null) {
+            throw new BadRequestException("L'identifiant de l'adresse de livraison enregistrée est requis");
+        }
+        AdresseLivraison adresse = adresseLivraisonRepository.findByIdAndUserId(adresseId, clientId)
+                .orElseThrow(() -> new ResourceNotFoundException("Adresse de livraison introuvable"));
+        localisationConfirmee(adresse);
+        return adresse;
+    }
+
+    private Localisation localisationConfirmee(AdresseLivraison adresse) {
+        if (adresse.getLocationConfirmedAt() == null) {
+            throw new BadRequestException("Confirmez le point de livraison sur la carte avant le devis ou la commande");
+        }
+        Double lat = adresse.getLatitude();
+        Double lon = adresse.getLongitude();
+        if (adresse.getAdresse() == null || adresse.getAdresse().isBlank()
+                || lat == null || lon == null || !Double.isFinite(lat) || !Double.isFinite(lon)
+                || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+            throw new BadRequestException("L'adresse ou les coordonnées enregistrées sont absentes ou invalides");
+        }
+        return Localisation.builder().adresse(adresse.getAdresse()).ville(adresse.getVille())
+                .codePostal(adresse.getCodePostal()).latitude(lat).longitude(lon).build();
+    }
+
+    private void validerRestaurantConfirme(Restaurant restaurant) {
+        Localisation vendeur = restaurant.getLocalisation();
+        if (restaurant.getLocationConfirmedAt() == null || vendeur == null || vendeur.getAdresse() == null
+                || vendeur.getAdresse().isBlank()) {
+            throw new BadRequestException("Le point du restaurant doit être confirmé par son propriétaire");
+        }
+        if (vendeur.getLatitude() == null || vendeur.getLongitude() == null
+                || !Double.isFinite(vendeur.getLatitude()) || !Double.isFinite(vendeur.getLongitude())
+                || vendeur.getLatitude() < -90 || vendeur.getLatitude() > 90
+                || vendeur.getLongitude() < -180 || vendeur.getLongitude() > 180) {
+            throw new BadRequestException("Les coordonnées GPS du restaurant sont invalides");
+        }
+    }
+
+    private void ajouterDetailsDistanceEtFrais(DevisLivraisonDTO devis, ma.mysuguclientapp.dtos.DetailFraisDTO detail) {
+        devis.setDistanceKm(detail.distanceKm());
+        devis.setDistanceMethod("GOOGLE_ROUTES");
+        devis.setDetailFrais(detail);
+    }
+
+    /** Use only the customer's existing saved point, never geocode or trust raw basket coordinates. */
+    private Long resolveAdresseId(CommandeCreateDTO dto) {
+        if (dto.getAdresseLivraisonId() != null) return dto.getAdresseLivraisonId();
+        LocalisationDTO input = dto.getAdresseLivraison();
+        if (input == null) return null;
+        if (input.getId() != null) return input.getId();
+        // Compatibility with a basket sending the existing address object without its id.
+        if (input.getAdresse() == null || input.getLatitude() == null || input.getLongitude() == null)
+            throw new BadRequestException("Choisissez une adresse de livraison enregistrée");
+        return adresseLivraisonRepository.findByUserIdOrderByIsDefaultDescCreatedAtDesc(dto.getClientId()).stream()
+                .filter(a -> Objects.equals(a.getAdresse(), input.getAdresse())
+                        && Objects.equals(a.getLatitude(), input.getLatitude())
+                        && Objects.equals(a.getLongitude(), input.getLongitude()))
+                .map(AdresseLivraison::getId).findFirst()
+                .orElseThrow(() -> new BadRequestException("Choisissez une adresse de livraison enregistrée"));
     }
 
     private double calculateDistance(Double lat1, Double lon1, Double lat2, Double lon2) {
@@ -1619,6 +1605,8 @@ public class CommandeServiceImpl implements CommandeService {
             restDTO.setCreatedAt(restaurant.getCreatedAt());
             restDTO.setCommissionPourcentage(restaurant.getCommissionPourcentage());
             restDTO.setLocalisation(toLocalisationDTO(restaurant.getLocalisation()));
+            restDTO.setLocationConfirmed(restaurant.getLocationConfirmedAt() != null);
+            restDTO.setLocationConfirmedAt(restaurant.getLocationConfirmedAt());
             if (restaurant.getCategorie() != null) {
                 CategorieRestaurantDTO catDTO = new CategorieRestaurantDTO();
                 catDTO.setId(restaurant.getCategorie().getId());

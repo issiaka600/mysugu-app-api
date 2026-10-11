@@ -35,6 +35,9 @@ public class AdresseLivraison {
 
     private Double longitude;
 
+    @Column(name = "location_confirmed_at")
+    private LocalDateTime locationConfirmedAt;
+
     @Column(name = "is_default")
     private Boolean isDefault = false;
 

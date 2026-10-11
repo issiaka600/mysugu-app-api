@@ -16,4 +16,7 @@ public class LocalisationDTO {
     private String ville;
     private String codePostal;
     private String pays;
+    private Boolean locationConfirmed;
+    /** Optional saved customer address reference in a basket. */
+    private Long id;
 }

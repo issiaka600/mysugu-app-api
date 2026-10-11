@@ -43,6 +43,7 @@ class ShopInfoTest {
     @Autowired UserRepository userRepo;
     @Autowired RestaurantRepository restoRepo;
     @Autowired PasswordEncoder encoder;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     private final String ownerEmail = "shop-info-" + System.nanoTime() + "@test.mysugu";
     private Long ownerId;
@@ -73,6 +74,7 @@ class ShopInfoTest {
 
     @AfterEach
     void cleanup() {
+        jdbc.update("DELETE FROM refresh_tokens WHERE user_id = ?", ownerId);
         restoRepo.findById(restoId).ifPresent(restoRepo::delete);
         userRepo.findById(ownerId).ifPresent(userRepo::delete);
     }

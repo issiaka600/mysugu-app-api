@@ -713,8 +713,8 @@ public class RestaurantServiceImpl implements RestaurantService {
                 || (latitude != null && !java.util.Objects.equals(latitude, existante.getLatitude()))
                 || (longitude != null && !java.util.Objects.equals(longitude, existante.getLongitude()));
         boolean confirmed = Boolean.TRUE.equals(dto.getLocationConfirmed());
-        if (dto.isRequireLocationConfirmation() && changed && !confirmed) {
-            throw new BadRequestException("Confirmez l'entrée du restaurant sur la carte avant d'enregistrer sa localisation");
+        if (changed && !confirmed) {
+            throw new BadRequestException("Confirmez le nouveau point du restaurant sur la carte avant d'enregistrer sa localisation");
         }
         if (confirmed) {
             if (adresse == null || adresse.isBlank() || latitude == null || longitude == null) {
@@ -750,6 +750,7 @@ public class RestaurantServiceImpl implements RestaurantService {
     private RestaurantDTO convertToDTO(Restaurant restaurant, Double userLat, Double userLon) {
         RestaurantDTO dto = new RestaurantDTO();
         dto.setId(restaurant.getId());
+        dto.setHorairesOuverture(restaurant.getHorairesOuverture());
         dto.setLocationConfirmed(restaurant.getLocationConfirmedAt() != null);
         dto.setLocationConfirmedAt(restaurant.getLocationConfirmedAt());
         dto.setNom(restaurant.getNom());

@@ -112,6 +112,8 @@ public class ShopMapper {
         dto.setNom(name != null && !name.isBlank() ? name : current.getNom());
         // Champs conservés pour éviter de les remettre à null via updateRestaurant.
         dto.setDescription(current.getDescription());
+        dto.setHorairesOuverture(current.getHorairesOuverture());
+        dto.setZoneDeploiementId(current.getZoneDeploiement() != null ? current.getZoneDeploiement().getId() : null);
         dto.setVertical(current.getVertical());
         dto.setCategorieId(current.getCategorie() != null ? current.getCategorie().getId() : null);
         dto.setTempsLivraisonMoyen(deliveryTime != null ? deliveryTime : current.getTempsLivraisonMoyen());

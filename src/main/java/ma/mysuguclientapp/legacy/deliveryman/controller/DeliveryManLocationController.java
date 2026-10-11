@@ -118,8 +118,12 @@ public class DeliveryManLocationController {
         Commande c = requireAssignedOrder(orderId, livreur);
         ma.mysuguclientapp.entities.Restaurant restaurant = c.getRestaurant();
         Localisation loc = restaurant != null ? restaurant.getLocalisation() : null;
-        if (loc == null || loc.getLatitude() == null || loc.getLongitude() == null) {
+        if (loc == null || !ma.mysuguclientapp.services.location.GoogleMapsLocationService.validCoordinates(loc.getLatitude(), loc.getLongitude())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Le restaurant doit renseigner son point d'entrée");
+        }
+        if (restaurant.getLocationConfirmedAt() == null) {
+            throw new ma.mysuguclientapp.exceptions.LocationContractException(409,
+                    "RESTAURANT_LOCATION_REQUIRED", "Le point du restaurant doit être validé avant le guidage.");
         }
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("latitude", loc.getLatitude().toString());

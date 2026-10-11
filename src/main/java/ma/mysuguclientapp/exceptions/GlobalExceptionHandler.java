@@ -21,6 +21,18 @@ import java.util.Map;
 public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    @ExceptionHandler(LocationContractException.class)
+    public ResponseEntity<Map<String, Object>> handleLocationContract(LocationContractException ex) {
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("code", ex.getCode());
+        body.put("message", ex.getMessage());
+        if (ex.getStatus() == 503) {
+            body.put("retryable", true);
+            return ResponseEntity.status(503).header("Retry-After", "5").body(body);
+        }
+        return ResponseEntity.status(ex.getStatus()).body(body);
+    }
+
     /**
      * Gestion des ressources non trouvées (404)
      */

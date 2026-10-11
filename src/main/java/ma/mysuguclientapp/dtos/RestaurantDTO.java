@@ -13,6 +13,7 @@ public class RestaurantDTO {
     private ZoneDeploiementDTO zoneDeploiement;
     private String nom;
     private String description;
+    private String horairesOuverture;
     private String logoObjectName;
     private String logoUrl;
     private String bannerObjectName;

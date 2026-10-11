@@ -1,3 +1,8 @@
+> Le flux vendeur et le calcul des frais décrits ci-dessous sont remplacés par le
+> [contrat adresse restaurant et Google Routes](restaurant-address-google-contract.md).
+> Les routes et validations des adresses client restent conservées.
+> Les constatations datées ci-dessous décrivent l'état antérieur à cette modification.
+
 # Localisation des restaurants et navigation livreur
 
 Le back-office envoie un PUT multipart sur /api/restaurants/{id}.
@@ -62,7 +67,42 @@ GET /api/restaurants/{id} expose locationConfirmed et locationConfirmedAt.
 seller-location sans order_id renvoie 400 ; une localisation absente ou
 incomplète renvoie 409, au lieu d’un point artificiel 0,0.
 
-Validation : 10 tests RestaurantLocationContractTest et 1 ShopUpdateTest
-couvrent les écritures vendeur et administrateur, les refus sans confirmation,
-les coordonnées invalides, la conservation lors d’un changement de nom,
-les droits du livreur et la cohérence des deux réponses de localisation.
+Validation antérieure : RestaurantLocationContractTest et ShopUpdateTest couvrent les écritures vendeur et administrateur, la conservation lors d’un changement de nom, les droits du livreur et la cohérence des réponses de localisation.
+
+## Adresses client, devis et commande
+
+POST /api/users/adresses exige adresse, latitude, longitude et
+locationConfirmed=true, puis enregistre le point et sa date de confirmation
+ensemble. PUT /api/users/adresses/{id} exige le même jeu de champs si l’adresse
+textuelle ou ses coordonnées changent. Les coordonnées doivent être finies et
+respecter les bornes terrestres. La réponse inclut locationConfirmed et
+locationConfirmedAt. Les adresses historiques sans date doivent être
+reconfirmées par le client.
+
+Pour une livraison, GET /api/commandes/devis exige une session client et
+restaurantId + adresseLivraisonId. POST /api/commandes/devis et POST
+/api/commandes exigent adresseLivraisonId dans le panier/commande et le client
+connecté doit correspondre au clientId. Le serveur relit l’adresse enregistrée
+appartenant à ce client et utilise son point confirmé comme destination ; il
+ignore les coordonnées brutes de la requête. Il refuse le devis et la commande
+si le restaurant ou l’adresse client n’a pas de confirmation sauvegardée ou si
+les coordonnées sont invalides. Le mode retrait n’exige pas de point client.
+
+Le devis renvoie distanceKm, distanceMethod et detailFrais en plus des frais.
+À ce jour distanceMethod vaut HAVERSINE_STRAIGHT_LINE : le calcul reste à vol
+d’oiseau. Aucun fournisseur routier ni aucune clé d’itinéraire n’est configuré
+sur le serveur. Ne pas interpréter cette réponse comme une distance routière ;
+le fournisseur routier doit être choisi/configuré avant d’annoncer une distance
+comparable à Maps.
+
+Les quatre restaurants actifs et les neuf adresses client en production étaient
+encore non confirmés lors de la vérification du 2026-10-11. Aucun point ancien
+n’a été marqué confirmé automatiquement. Après déploiement des nouvelles
+règles, leurs propriétaires devront confirmer les points sur la carte avant
+la remise en service des devis et commandes de livraison.
+
+Vérification d’intégration : 13 RestaurantLocationContractTest et 6
+CreationEtablissementBackOfficeTest passent. Les cas testés incluent refus
+sans confirmation, création et modification d’une adresse client, coordonnées
+invalides, devis avec deux restaurants et deux adresses, distance/méthode,
+valeurs tarifaires exposées, et mise à jour restaurant sans point confirmé.

@@ -39,6 +39,7 @@ public class SellerShopProfileController {
     private final RestaurantService restaurantService;
     private final SellerProfileMapper sellerProfileMapper;
     private final ShopMapper shopMapper;
+    private final ma.mysuguclientapp.services.location.RestaurantLocationResolver locationResolver;
 
     /** GET seller-info : profil du vendeur authentifié, forme 6valley. */
     @GetMapping("/seller-info")
@@ -100,6 +101,7 @@ public class SellerShopProfileController {
      * (jamais depuis le corps) — pas d'écriture cross-tenant. Champs 6valley sans équivalent natif
      * (minimum_order_amount, delivery_charge, free_delivery) acceptés et ignorés.
      */
+    @org.springframework.transaction.annotation.Transactional
     @PostMapping(value = "/shop-update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Map<String, Object> shopUpdate(
             @AuthenticationPrincipal String email,
@@ -117,6 +119,7 @@ public class SellerShopProfileController {
                 shopMapper.toRestaurantUpdate(current, name, address, latitude, longitude, deliveryTime);
         update.setRequireLocationConfirmation(true);
         update.setLocationConfirmed(locationConfirmed);
+        locationResolver.resolve(update, locationConfirmed);
         RestaurantDTO updated = restaurantService.updateRestaurant(restaurantId, update, logo);
         if (banner != null && !banner.isEmpty()) {
             updated = restaurantService.updateRestaurantBanner(restaurantId, banner);

@@ -238,6 +238,8 @@ public class LegacyOrderMapper {
         shop.put("seller_id", sellerId != null ? sellerId : 0); // FRAGILE : numérique obligatoire
         shop.put("name", r != null ? nvl(r.getNom()) : "");
         shop.put("image", r != null ? nvl(r.getLogoUrl()) : "");
+        shop.put("location_confirmed", r != null && r.getLocationConfirmedAt() != null);
+        shop.put("location_confirmed_at", r != null ? r.getLocationConfirmedAt() : null);
         if (r != null && r.getLocalisation() != null) {
             shop.put("latitude", r.getLocalisation().getLatitude());
             shop.put("longitude", r.getLocalisation().getLongitude());
