@@ -22,26 +22,49 @@ public class DeliveryPricingService {
         return price(restaurant, distance);
     }
 
-    /** Keep the current zone tariff precedence, floors and rounding, using road kilometres. */
+    /**
+     * Le tarif de base est un <b>plancher</b> : il ne s'applique que si le coût
+     * {@code distance × prixParKm} est inférieur. Au-delà du seuil, on facture
+     * uniquement la distance, sans y rajouter le tarif de base.
+     *
+     * <p>Exemple : base 5 DH, 2 DH/km ⇒ 3 DH de distance → 5 DH ;
+     * 5,2 km ⇒ 10,40 DH (et non 5 + 10,40).</p>
+     */
     public DetailFraisDTO price(Restaurant restaurant, BigDecimal distance) {
         var zone = restaurant.getZoneDeploiement();
         BigDecimal base, total;
         if (zone != null && zone.getPrixParKm() != null && zone.getFraisLivraisonMin() != null) {
-            base = zone.getFraisLivraisonMin();
-            total = distance.multiply(zone.getPrixParKm()).max(base).setScale(0, RoundingMode.UP);
+            BigDecimal minimum = zone.getFraisLivraisonMin();
+            BigDecimal distanceFee = distance.multiply(zone.getPrixParKm())
+                    .setScale(2, RoundingMode.HALF_UP);
+            if (distanceFee.compareTo(minimum) <= 0) {
+                base = minimum;
+                total = minimum;
+            } else {
+                base = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+                total = distanceFee;
+            }
         } else if (zone != null && zone.getFraisLivraisonMin() != null
                 && zone.getDistanceMinKm() != null && zone.getPrixExtraParKm() != null) {
+            // Grille historique "forfait jusqu'à X km puis supplément" : inchangée.
             base = zone.getFraisLivraisonMin();
             total = distance.compareTo(zone.getDistanceMinKm()) <= 0 ? base
                     : base.add(distance.subtract(zone.getDistanceMinKm()).multiply(zone.getPrixExtraParKm()))
                             .setScale(0, RoundingMode.UP);
         } else {
-            base = BigDecimal.valueOf(Constants.BASE_DELIVERY_FEE_MAD);
-            total = base.add(distance.multiply(BigDecimal.valueOf(Constants.DELIVERY_FEE_PER_KM_MAD)))
-                    .setScale(0, RoundingMode.UP);
+            BigDecimal minimum = BigDecimal.valueOf(Constants.BASE_DELIVERY_FEE_MAD);
             if (zone != null && zone.getFraisLivraisonMin() != null) {
-                base = base.max(zone.getFraisLivraisonMin());
-                total = total.max(zone.getFraisLivraisonMin());
+                minimum = minimum.max(zone.getFraisLivraisonMin());
+            }
+            BigDecimal distanceFee = distance
+                    .multiply(BigDecimal.valueOf(Constants.DELIVERY_FEE_PER_KM_MAD))
+                    .setScale(2, RoundingMode.HALF_UP);
+            if (distanceFee.compareTo(minimum) <= 0) {
+                base = minimum;
+                total = minimum;
+            } else {
+                base = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+                total = distanceFee;
             }
         }
         return new DetailFraisDTO(distance, base, total.subtract(base), total);

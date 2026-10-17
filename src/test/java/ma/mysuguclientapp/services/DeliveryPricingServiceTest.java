@@ -18,7 +18,7 @@ class DeliveryPricingServiceTest {
         z.setPrixParKm(new BigDecimal("4")); z.setDistanceMinKm(BigDecimal.TEN); z.setPrixExtraParKm(BigDecimal.ONE);
         assertThat(pricing.price(r, new BigDecimal("2")).fraisLivraison()).isEqualByComparingTo("15");
         var result = pricing.price(r, new BigDecimal("5.251"));
-        assertThat(result.fraisLivraison()).isEqualByComparingTo("22");
+        assertThat(result.fraisLivraison()).isEqualByComparingTo("21.00");
         assertThat(result.tarifBase().add(result.fraisDistance())).isEqualByComparingTo(result.fraisLivraison());
         assertThat(result.distanceKm()).isEqualByComparingTo("5.251");
     }
@@ -31,10 +31,29 @@ class DeliveryPricingServiceTest {
     }
     @Test void globalTariffRetainsOptionalZoneFloor() {
         var r = new Restaurant();
-        assertThat(pricing.price(r, new BigDecimal("5.251")).fraisLivraison()).isEqualByComparingTo("32");
+        assertThat(pricing.price(r, new BigDecimal("5.251")).fraisLivraison()).isEqualByComparingTo("21.00");
         var z = new ZoneDeploiement(); z.setFraisLivraisonMin(new BigDecimal("40")); r.setZoneDeploiement(z);
         var result = pricing.price(r, new BigDecimal("5.251"));
         assertThat(result.fraisLivraison()).isEqualByComparingTo("40");
         assertThat(result.fraisDistance()).isEqualByComparingTo("0");
+    }
+    @Test void baseTariffIsAFloorNotAnAddOn() {
+        var r = new Restaurant(); var z = new ZoneDeploiement();
+        z.setFraisLivraisonMin(new BigDecimal("5"));
+        z.setPrixParKm(new BigDecimal("2"));
+        r.setZoneDeploiement(z);
+
+        // 1,5 km x 2 = 3 DH < base 5 -> la base seule s'applique
+        var low = pricing.price(r, new BigDecimal("1.5"));
+        assertThat(low.fraisLivraison()).isEqualByComparingTo("5");
+        assertThat(low.tarifBase()).isEqualByComparingTo("5");
+        assertThat(low.fraisDistance()).isEqualByComparingTo("0");
+
+        // 5,2 km x 2 = 10,40 DH > base 5 -> la distance seule, sans ajouter la base
+        var high = pricing.price(r, new BigDecimal("5.2"));
+        assertThat(high.fraisLivraison()).isEqualByComparingTo("10.40");
+        assertThat(high.tarifBase()).isEqualByComparingTo("0");
+        assertThat(high.fraisDistance()).isEqualByComparingTo("10.40");
+        assertThat(high.tarifBase().add(high.fraisDistance())).isEqualByComparingTo(high.fraisLivraison());
     }
 }

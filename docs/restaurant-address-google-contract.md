@@ -115,31 +115,31 @@ Exemple pour sous-total 90 DH, distance routière 5,251 km, tarif global 10 DH +
 ```json
 {
   "sousTotal": 90,
-  "fraisLivraison": 32,
-  "montantTotal": 122,
+  "fraisLivraison": 21,
+  "montantTotal": 111,
   "montantRemise": 14,
-  "montantFinal": 108,
+  "montantFinal": 97,
   "remisePromotion": 9,
   "distanceKm": 5.251,
   "distanceMethod": "GOOGLE_ROUTES",
   "detailFrais": {
     "distanceKm": 5.251,
-    "tarifBase": 10,
-    "fraisDistance": 22,
-    "fraisLivraison": 32
+    "tarifBase": 0,
+    "fraisDistance": 21.00,
+    "fraisLivraison": 21
   }
 }
 ```
 
 Montants en DH. `montantTotal = sousTotal + fraisLivraison`. `montantFinal = montantTotal - montantRemise`. `remisePromotion` est la remise automatique restaurant ; `montantRemise` inclut aussi le coupon, plafonné au sous-total.
 
-Grille inchangée, avec la distance routière :
+Grille, avec la distance routière. Le minimum est un **plancher** : il ne s'ajoute jamais au coût de distance.
 
-- Si `prixParKm` et minimum sont configurés : `max(distanceKm × prixParKm, minimum)`, arrondi au DH supérieur.
+- Si `prixParKm` et minimum sont configurés : `max(distanceKm × prixParKm, minimum)`, arrondi à 2 décimales. Au-delà du minimum, les frais valent `distanceKm × prixParKm`, sans ajouter le minimum.
 - Sinon, grille avec seuil : minimum jusqu'à `distanceMinKm`, puis minimum + kilomètres supplémentaires × `prixExtraParKm`, arrondi au DH supérieur au-delà du seuil.
-- Sinon : constantes globales 10 DH + 4 DH/km, arrondi au DH supérieur, avec plancher de zone si renseigné.
+- Sinon : `max(distanceKm × 4, 10)` (constantes globales), arrondi à 2 décimales, avec plancher de zone si renseigné.
 
-`tarifBase` représente le minimum/base applicable ; `fraisDistance` représente le supplément effectif après application du minimum et de l'arrondi. Leur somme égale `fraisLivraison`.
+`tarifBase` vaut le minimum uniquement lorsqu'il s'applique (coût distance inférieur ou égal au minimum), sinon 0. `fraisDistance` vaut le coût distance lorsqu'il dépasse le minimum, sinon 0. Leur somme égale toujours `fraisLivraison`.
 
 Aucune commande, réservation de stock ni utilisation de promotion n'est créée par le devis. `POST /api/commandes` accepte les mêmes références de panier et recalcule avec les mêmes fonctions, une nouvelle distance Google Routes et les prix courants. Des prix ou itinéraires modifiés entre les deux appels peuvent modifier le total.
 
