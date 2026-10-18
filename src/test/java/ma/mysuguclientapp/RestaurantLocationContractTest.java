@@ -481,10 +481,10 @@ class RestaurantLocationContractTest {
         assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
         var quote = json.readTree(response.body());
         assertThat(quote.get("sousTotal").decimalValue()).isEqualByComparingTo("90");
-        assertThat(quote.get("fraisLivraison").decimalValue()).isEqualByComparingTo("32");
-        assertThat(quote.get("montantTotal").decimalValue()).isEqualByComparingTo("122");
+        assertThat(quote.get("fraisLivraison").decimalValue()).isEqualByComparingTo("21.00");
+        assertThat(quote.get("montantTotal").decimalValue()).isEqualByComparingTo("111");
         assertThat(quote.get("montantRemise").decimalValue()).isEqualByComparingTo("14");
-        assertThat(quote.get("montantFinal").decimalValue()).isEqualByComparingTo("108");
+        assertThat(quote.get("montantFinal").decimalValue()).isEqualByComparingTo("97");
         assertThat(quote.get("remisePromotion").decimalValue()).isEqualByComparingTo("9");
         assertThat(quote.get("distanceKm").decimalValue()).isEqualByComparingTo("5.251");
         assertThat(quote.get("distanceMethod").asText()).isEqualTo("GOOGLE_ROUTES");

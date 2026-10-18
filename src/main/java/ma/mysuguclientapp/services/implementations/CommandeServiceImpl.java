@@ -317,9 +317,12 @@ public class CommandeServiceImpl implements CommandeService {
 
         // Validation de la zone de déploiement et calcul des frais
         BigDecimal fraisLivraison = BigDecimal.ZERO;
+        double distanceKm = 0d;
         if (modeReception == ModeReceptionCommande.LIVRAISON) {
             validerZoneDeploiement(restaurant, commande.getAdresseLivraison());
-            fraisLivraison = deliveryPricing.calculate(restaurant, commande.getAdresseLivraison()).fraisLivraison();
+            var detailFrais = deliveryPricing.calculate(restaurant, commande.getAdresseLivraison());
+            fraisLivraison = detailFrais.fraisLivraison();
+            distanceKm = detailFrais.distanceKm() != null ? detailFrais.distanceKm().doubleValue() : 0d;
         }
 
         commande.setFraisLivraison(fraisLivraison);
@@ -373,7 +376,7 @@ public class CommandeServiceImpl implements CommandeService {
         commande.setMontantCoupon(remiseCode);
         // ─────────────────────────────────────────────────────────────────────
 
-        commande.setTempsLivraisonEstime(resolveTempsEstime(restaurant, lignes, modeReception));
+        commande.setTempsLivraisonEstime(resolveTempsEstime(restaurant, lignes, modeReception, distanceKm));
 
         Commande savedCommande = commandeRepository.save(commande);
         ligneCommandeRepository.saveAll(lignes);
@@ -1352,7 +1355,11 @@ public class CommandeServiceImpl implements CommandeService {
     private record RemiseCodeResult(BigDecimal montant, CodePromo codePromo,
                                      boolean financeeParVendeur) { }
 
-    private int resolveTempsEstime(Restaurant restaurant, List<LigneCommande> lignes, ModeReceptionCommande modeReception) {
+    /** Vitesse moyenne retenue pour estimer le temps de trajet à partir de la distance routière. */
+    private static final double AVERAGE_DELIVERY_SPEED_KMH = 30.0;
+
+    private int resolveTempsEstime(Restaurant restaurant, List<LigneCommande> lignes,
+                                   ModeReceptionCommande modeReception, double distanceKm) {
         int tempsPreparation = lignes.stream()
                 .map(LigneCommande::getPlat)
                 .map(Plat::getTempsPreparation)
@@ -1363,7 +1370,11 @@ public class CommandeServiceImpl implements CommandeService {
         if (modeReception == ModeReceptionCommande.RETRAIT_SUR_PLACE) {
             return tempsPreparation;
         }
-        return (restaurant.getTempsLivraisonMoyen() != null ? restaurant.getTempsLivraisonMoyen() : 20) + tempsPreparation;
+        // Temps défini pour le vendeur + temps de trajet estimé sur la distance routière.
+        int tempsVendeur = restaurant.getTempsLivraisonMoyen() != null
+                ? restaurant.getTempsLivraisonMoyen() : 20;
+        int tempsTrajet = (int) Math.ceil(Math.max(0d, distanceKm) / AVERAGE_DELIVERY_SPEED_KMH * 60d);
+        return tempsVendeur + tempsTrajet;
     }
 
     private AdresseLivraison chargerAdresseConfirmee(Long adresseId, Long clientId) {
