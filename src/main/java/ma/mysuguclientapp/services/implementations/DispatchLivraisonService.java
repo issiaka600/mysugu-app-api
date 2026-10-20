@@ -60,9 +60,6 @@ public class DispatchLivraisonService {
     @Value("${delivery.offer.alert-interval-seconds:20}")
     private long offerAlertIntervalSeconds;
 
-    @Value("${delivery.driver-location.max-age-seconds:120}")
-    private long maxLocationAgeSeconds;
-
     @Value("${delivery.seller-location.max-age-seconds:300}")
     private long maxSellerLocationAgeSeconds;
 
@@ -88,32 +85,38 @@ public class DispatchLivraisonService {
         Set<Long> dejaProposes = offreRepository.findByCommandeIdOrderBySequenceNumberAsc(commandeId).stream()
                 .map(o -> o.getLivreur().getId())
                 .collect(java.util.stream.Collectors.toSet());
-        LocalDateTime recentAfter = LocalDateTime.now().minusSeconds(maxLocationAgeSeconds);
 
-        record Candidat(User livreur, double distanceKm) { }
+        record Candidat(User livreur, double distanceKm, boolean positioned) { }
         List<User> disponibles = userRepository.findByRoleAndIsActiveAndLivreurDisponible(
                 UserRole.LIVREUR, true, true);
         Candidat candidat = disponibles
                 .stream()
                 .filter(l -> !dejaProposes.contains(l.getId()))
-                .filter(l -> l.getLocalisation() != null
-                        && l.getLocalisation().getLatitude() != null
-                        && l.getLocalisation().getLongitude() != null
-                        && l.getLastLocationAt() != null
-                        && !l.getLastLocationAt().isBefore(recentAfter))
                 .filter(l -> !offreRepository.existsByLivreurIdAndStatut(l.getId(), StatutOffreLivraison.PROPOSEE))
                 .filter(l -> commandeRepository.countByLivreurIdAndStatutIn(l.getId(), COMMANDES_ACTIVES) == 0)
-                .map(l -> new Candidat(l, DistanceCalculator.calculate(
-                        dispatchOrigin.latitude(), dispatchOrigin.longitude(),
-                        l.getLocalisation().getLatitude(), l.getLocalisation().getLongitude())))
-                .filter(c -> isLivreurDansZoneDuRestaurant(commande, c.livreur(), dispatchOrigin))
+                .map(l -> {
+                    var loc = l.getLocalisation();
+                    boolean positioned = loc != null
+                            && loc.getLatitude() != null
+                            && loc.getLongitude() != null;
+                    double distance = positioned
+                            ? DistanceCalculator.calculate(dispatchOrigin.latitude(),
+                                    dispatchOrigin.longitude(), loc.getLatitude(), loc.getLongitude())
+                            : Double.MAX_VALUE;
+                    return new Candidat(l, distance, positioned);
+                })
+                // Rotation séquentielle : du plus proche au plus éloigné. Une position ancienne
+                // reste utilisable pour ordonner ; les livreurs sans position passent en dernier
+                // afin d'être tout de même sollicités jusqu'au dernier.
+                .filter(c -> !c.positioned()
+                        || isLivreurDansZoneDuRestaurant(commande, c.livreur(), dispatchOrigin))
                 .min(Comparator.comparingDouble(Candidat::distanceKm))
                 .orElse(null);
 
         if (candidat == null) {
             log.warn("Commande {} : aucun livreur sélectionné (disponibles={}, déjàProposés={}, " +
-                            "positionMin={}, commandeActive/offreActive/zone contrôlées)", commandeId,
-                    disponibles.size(), dejaProposes.size(), recentAfter);
+                            "commandeActive/offreActive/zone contrôlées)", commandeId,
+                    disponibles.size(), dejaProposes.size());
             return;
         }
 
