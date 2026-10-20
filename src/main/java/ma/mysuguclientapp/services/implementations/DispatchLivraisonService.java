@@ -267,10 +267,14 @@ public class DispatchLivraisonService {
      */
     @Scheduled(fixedDelayString = "${delivery.dispatch.retry-delay-ms:15000}")
     public void relancerCommandesSansOffre() {
+        // Ne pas ré-offrir indéfiniment d'anciennes commandes bloquées : au-delà de 24 h,
+        // la commande n'est plus dispatchable et ne doit pas spammer les livreurs.
+        LocalDateTime depuis = LocalDateTime.now().minusHours(24);
         commandeRepository.findByStatutInAndLivreurIsNullOrderByCreatedAtAsc(
                         List.of(StatutCommande.EN_PREPARATION, StatutCommande.PRETE))
                 .stream()
                 .filter(c -> c.getModeReception() == ModeReceptionCommande.LIVRAISON)
+                .filter(c -> c.getCreatedAt() != null && c.getCreatedAt().isAfter(depuis))
                 .map(Commande::getId)
                 .forEach(this::proposerProchainLivreur);
     }
